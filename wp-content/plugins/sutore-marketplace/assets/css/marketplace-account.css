@@ -1,0 +1,73 @@
+.sutore-mp-wc-account-form-hidden {
+  display: none !important;
+}
+
+.sutore-mp-account-security {
+  margin-top: 1.5rem;
+}
+
+.sutore-mp-account-security__section {
+  margin: 0 0 1.75rem;
+  padding: 1.25rem 1.25rem 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+}
+
+.sutore-mp-account-security__section legend {
+  padding: 0 0.35rem;
+  font-weight: 600;
+}
+
+.sutore-mp-account-security__section--danger {
+  border-color: #fecaca;
+  background: #fffafa;
+}
+
+.sutore-mp-account-security__lead,
+.sutore-mp-account-security__hint,
+.sutore-mp-account-security__warning {
+  margin: 0 0 1rem;
+  line-height: 1.45;
+}
+
+.sutore-mp-account-security__warning {
+  color: #b91c1c;
+}
+
+.sutore-mp-account-security__checkbox label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  font-weight: normal;
+}
+
+.sutore-mp-account-security__feedback {
+  min-height: 1.25rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.sutore-mp-account-security__feedback.is-error {
+  color: #b91c1c;
+}
+
+.sutore-mp-account-security__feedback.is-success {
+  color: #15803d;
+}
+
+.sutore-mp-account-security__form.is-loading {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.sutore-mp-account-security .button.is-destructive {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+}
+
+.sutore-mp-account-security .button.is-destructive:hover,
+.sutore-mp-account-security .button.is-destructive:focus {
+  background: #991b1b;
+  border-color: #991b1b;
+  color: #fff;
+}

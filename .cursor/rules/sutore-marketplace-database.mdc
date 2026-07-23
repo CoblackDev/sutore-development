@@ -1,0 +1,42 @@
+---
+description: Sutore Marketplace — veritabanı ve performans kuralları
+globs: wp-content/plugins/sutore-marketplace/**/{Database,Repositories,Services}/**/*
+alwaysApply: false
+---
+
+# Veritabanı stratejisi
+
+## Özel tablo
+
+Sık sorgulanan veri → `Shared\Database\Schema`; erişim modül `Repositories/` altında.
+
+| Veri | Repository |
+|---|---|
+| Listings (sale/lojistik alanları dahil), conditions, events, campaigns | `Modules\Listings\Repositories\` |
+| Tasks, progress, rewards | `Modules\Tasks\Repositories\` |
+| Sourcing | `Modules\Sourcing\Repositories\` |
+| Merchant restrictions | `Modules\Merchants\Repositories\` |
+| Fulfillment facade (listings üzerinden), payouts | `Modules\Orders\` / `Modules\Merchants\` |
+
+## WP/WC native
+
+Ürün/sipariş/kullanıcı: WC tabloları + minimal meta (profil alanları).
+
+## Katman kuralı
+
+- Service → Repository üzerinden DB; doğrudan `$wpdb` yazma.
+- Yeni tablo: `Schema::VERSION` artır + `dbDelta` + Repository.
+
+## Performans
+
+- Sayfalama: `LIMIT` + `OFFSET`.
+- N+1 sorgudan kaçın.
+
+## Ürün durumu ve sale/lojistik
+
+- SoT: `listings.listing_status` (`ListingStatus` — market + sale pipeline tek enum).
+- **Ayrı fulfillments tablosu yok.** Sale/lojistik alanları (`confirm_deadline_at`, `seller_confirmed_at`, `cargo_deadline_at`, `merchant_shipped_at`, `merchant_shipment_code`, `sutore_shipment_code`, `merchant_snapshot`, `confirm_notice_sent`, `confirm_punished`, `cargo_notice_sent`, `cargo_expired_flag`, `delivered_at`, `return_window_ends_at`, `notes`) `listings` satırında yaşar.
+- Deadline / cron indexleri: `KEY status_confirm_deadline (listing_status, confirm_deadline_at)`, `KEY status_return_window (listing_status, return_window_ends_at)`.
+- `FulfillmentRepository` yalnızca listings üzerine ince bir facade’dır; okumada `stdClass` satırı `id = listing_id`, `fulfillment_status = listing_status` şeklinde hidrasyona uğrar. Ayrı bir “fulfillment id” yoktur — id = listing_id.
+- Payout: `merchant_payout_lines` yalnızca `listing_id` ile bağlanır (`UNIQUE KEY listing_id`). `fulfillment_id` kolonu yoktur.
+- `payout_status` (`merchant_payout_lines.payout_status`) lojistik durumdan bağımsız kalır.

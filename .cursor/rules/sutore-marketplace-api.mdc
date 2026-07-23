@@ -1,0 +1,57 @@
+---
+description: Sutore Marketplace — WP/WC REST API disiplini (zorunlu HTTP yüzeyi)
+alwaysApply: true
+---
+
+# Sutore Marketplace — REST API Disiplini
+
+Her geliştirme bu disipline uyar. `admin-ajax.php` / `wp_ajax_*` kullanılmaz.
+
+## Hedef model
+
+| Yüzey | Ne için | Örnek |
+|-------|---------|--------|
+| **WooCommerce Store API** | Müşteri: ürün, sepet, kargo, kupon, checkout | `/wc/store/v1/*` |
+| **WooCommerce REST** | Ürün/varyasyon/sipariş/kupon/shipping | `/wc/v3/*` |
+| **WordPress REST** | Kullanıcı, medya | `/wp/v2/*` |
+| **Plugin REST** (`sutore-marketplace/v1`) | Listing, fulfillment, bildirim, payout, sourcing, task… | `/wp-json/sutore-marketplace/v1/*` |
+
+Native WC/WP resource’a ait alan → `ExtendSchema` / `register_rest_field`.  
+Marketplace domain → `Modules/{Modul}/Rest/` + Service.
+
+## Zorunlu kurallar
+
+1. HTTP yüzeyi yalnızca REST (yukarıdaki katmanlar).
+2. İş mantığı Service’te; Rest controller ince.
+3. `permission_callback` zorunlu — cookie + `X-WP-Nonce` / Application Passwords uyumlu.
+4. **`wp_ajax_*` / `AjaxGuard` / admin-ajax istemci kodu yok.**
+5. Classic checkout toplamı: WC `update_checkout` + Store API; özel checkout-total Ajax yok.
+6. My Account / admin UI işlemleri REST çağırır (form POST + nonce ile Service atlama yok).
+7. **My Account / staff UI = shell + REST:** PHP şablonları yalnızca layout, i18n chrome ve yükleme durumu (spinner) sağlar; liste ve detay verisi sunucuda render edilmez — istemci `GET` ile çeker, `POST`/`PUT` ile yazar.
+
+## My Account / staff shell deseni
+
+```
+templates/*.php     → başlık, geri linki, boş kök + spinner (aria-busy)
+assets/js/*.js      → sayfa yüklenince REST fetch → DOM render
+Modules/*/Rest/     → tek HTTP API (Presenter/Service zenginleştirme)
+```
+
+Örnekler: listings, sourcing, profile, notifications, tasks, staff manage-products.
+
+## Modül klasörü
+
+```
+includes/Modules/{Modul}/
+  Rest/                 → WP REST controllers (tek HTTP API)
+  Services/
+  Repositories/
+  ...
+```
+
+## Yapma
+
+- Yeni veya legacy Ajax köprüsü eklemek.
+- Domain’i yalnızca product/order meta’ya gömmek.
+- `wp_ajax_nopriv_*` marketplace işlemleri.
+- My Account / staff sayfalarında liste veya detay verisini PHP ile SSR (Presenter → şablon döngüsü).

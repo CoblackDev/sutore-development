@@ -1,0 +1,71 @@
+---
+description: Sutore Marketplace eklentisi — temel mimari ve WordPress/WooCommerce disiplini
+alwaysApply: true
+---
+
+# Sutore Marketplace — Temel Kurallar
+
+Bu proje `wp-content/plugins/sutore-marketplace` altındaki WooCommerce marketplace eklentisidir.
+
+## WordPress / WooCommerce disiplini
+
+- Mümkün olduğunca **yerleşik WP/WC API**’lerini kullan; özel yardımcı yazmadan önce mevcut hook, helper veya native REST / Store API resource’unu ara.
+- HTTP yüzeyi: `.cursor/rules/sutore-marketplace-api.mdc` — REST-first; disiplinden çıkma.
+- Sınıf dosyalarında `declare(strict_types=1);`, PSR-4 namespace (`SutoreMarketplace\`), `final class` kullan.
+- **Multilanguage zorunlu:** kaynak dil English; tüm UI `sutore-marketplace` domain — `.cursor/rules/sutore-marketplace-i18n.mdc`.
+- **Legacy yok:** geriye dönük uyumluluk kodu bırakılmaz — `.cursor/rules/sutore-marketplace-no-legacy.mdc`.
+
+### Yerleşik fonksiyon tercihi (zorunlu)
+
+WordPress ve WooCommerce’in sağladığı API’yi tercih et; ham PHP / kendi GMT katmanı yazma.
+
+| Alan | Kullan | Kullanma |
+|------|--------|----------|
+| Tarih/saat gösterimi | `wp_date()`, `wp_timezone()`, `get_option('date_format'\|'time_format')` | `date()`, `gmdate()`, çıplak `strtotime()` + elle offset |
+| “Şimdi” (DB / karşılaştırma) | `current_time('mysql')`, `time()` + `wp_timezone()` parse | `gmdate('Y-m-d H:i:s')` site-local sanmak |
+| Sipariş / ürün / sepet | `WC_Order`, `WC_Product`, cart/checkout hooks | Paralel meta modeli |
+| HTTP | WP REST, WC REST, Store API | `admin-ajax` / özel Ajax |
+| Diğer | hooks, user meta, capabilities, transients, cron | Çarkı yeniden icat |
+
+Tarih alanları site timezone’unda MySQL string (`Y-m-d H:i:s`) saklanır; etiketler `wp_date()` ile üretilir. Örnek: `CampaignDatetime`.
+
+## Modüler klasör yapısı
+
+Her özellik kendi modülünde yaşar:
+
+```
+includes/Modules/{ModulAdi}/
+  class-module.php      → boot(), Plugin::boot() içinde çağrılır
+  Rest/                 → WP REST controllers (tek HTTP API)
+  Services/             → iş mantığı
+  Repositories/         → veritabanı erişimi
+  Settings/             → modül ayar okuma/yazma
+  Domain/               → enum, value object, sabitler
+  Admin/                → modül admin sayfaları
+  Hooks/                → WC/WP hook bağlantıları (Store API dahil)
+includes/Shared/        → Schema, Settings, çapraz hook'lar, Rest helpers
+includes/Admin/         → merkezi menü ve genel ayarlar sayfası
+includes/Frontend/      → My Account endpoint'leri ve merchant asset'leri
+assets/css|js/          → sayfa bazlı statik dosyalar
+templates/              → PHP şablonları (My Account/staff: shell + i18n; veri REST’ten)
+```
+
+Aktif modüller: Listings, Tasks, Sourcing, Merchants, Otp, Orders, Shipping, Coupons, Contracts.
+
+## Temiz kod
+
+- İş mantığı Service'te, DB erişimi Repository'de, HTTP (Rest) ince controller'da kalsın.
+- Kod tekrarından kaçın; gereksiz abstraction ekleme.
+- Dosya adı: `class-{kebab-name}.php`.
+- Ortak AJAX / AjaxGuard yok — istemci yalnızca REST.
+
+## Ürün durumu (tek lineer) ve sale/lojistik
+
+- Kaynak: `listings.listing_status` — `ListingStatus` (`Modules/Listings/Domain`).
+- Tek enum: satış öncesi (`pending`…`not_sale`, `queued`) + satış sonrası pipeline (`payment` → `sold` → `confirmed` → … → `shipped` → `delivered_to_customer` / `chargeback`). Anahtarlar eski eklentiyle hizalı (`publish`, `not-sale`→`not_sale`, `shipped-to-sutore`→`shipped_to_sutore`, …). Ayrı `suspended`/`cancelled` yok — satıştan çıkarma = `not_sale`. Ön sipariş status değil (`sourcing_request_id` / `is_sourcing`); kampanya status değil (`campaign_status`).
+- `publish` = satışta (eski WP post status); eski listing `paid` payout satırında kalır, listing status değil.
+- **Ayrı fulfillments tablosu yok.** Sale / lojistik alanları (`confirm_deadline_at`, `seller_confirmed_at`, `cargo_deadline_at`, `merchant_shipped_at`, `merchant_shipment_code`, `sutore_shipment_code`, `merchant_snapshot`, `confirm_notice_sent`, `confirm_punished`, `cargo_notice_sent`, `cargo_expired_flag`, `delivered_at`, `return_window_ends_at`, `notes`) `listings` satırında yaşar; SoT tek.
+- `FulfillmentRepository` yalnızca `listings` üzerine ince facade’dır (okumada `id = listing_id`, `fulfillment_status = listing_status` şeklinde hidrasyon). Ayrı fulfillment id yoktur.
+- `syncListingStatus` yardımcısı yok — repo `update()` yazdığında `listing_status` doğrudan güncellenir.
+- Satıcı ödemesi ayrı: `merchant_payout_lines.payout_status` (lojistik durumdan bağımsız); payout artık yalnızca `listing_id` ile bağlanır (`UNIQUE KEY listing_id`, `fulfillment_id` kolonu yok).
+- `FulfillmentStatus` sınıfı yok — kullanma / geri getirme.

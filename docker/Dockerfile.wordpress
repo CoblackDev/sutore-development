@@ -1,0 +1,7 @@
+FROM wordpress:latest
+
+# NVI TC kimlik doğrulama (SoapClient) ve benzeri entegrasyonlar için gerekli.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libxml2-dev \
+    && docker-php-ext-install soap \
+    && rm -rf /var/lib/apt/lists/*

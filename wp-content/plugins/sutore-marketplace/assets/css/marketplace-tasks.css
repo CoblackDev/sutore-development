@@ -1,0 +1,50 @@
+.sutore-mp-tasks-page__section {
+  margin-bottom: 2rem;
+}
+
+.sutore-mp-tasks-page__section > h2 {
+  margin-bottom: 0.75rem;
+}
+
+.sutore-mp-tasks-page .sutore-mp-task-card {
+  margin: 0 0 0.85rem;
+  padding: 0.85rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+
+.sutore-mp-tasks-page .sutore-mp-task-card.is-completed {
+  opacity: 0.5;
+}
+
+.sutore-mp-tasks-page .sutore-mp-task-title {
+  font-weight: 600;
+}
+
+.sutore-mp-tasks-page .sutore-mp-task-meta,
+.sutore-mp-tasks-page .sutore-mp-task-desc,
+.sutore-mp-tasks-page .sutore-mp-task-reward {
+  margin-top: 0.3rem;
+  font-size: 0.92em;
+  opacity: 0.8;
+}
+
+.sutore-mp-tasks-page .sutore-mp-progress {
+  margin-top: 0.55rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  overflow: hidden;
+}
+
+.sutore-mp-tasks-page .sutore-mp-progress-fill {
+  height: 100%;
+  background: #2f9e5b;
+  border-radius: inherit;
+}
+
+.sutore-mp-tasks-page .sutore-mp-reward-row {
+  margin: 0.35rem 0;
+  font-size: 0.92em;
+  opacity: 0.85;
+}

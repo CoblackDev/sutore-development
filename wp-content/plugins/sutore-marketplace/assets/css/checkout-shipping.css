@@ -1,0 +1,10 @@
+/* Native WooCommerce shipping list — light readability tweaks only. */
+.woocommerce-shipping-methods li,
+.woocommerce ul#shipping_method li {
+  margin-bottom: 0.5em;
+  line-height: 1.4;
+}
+
+.woocommerce ul#shipping_method .amount {
+  font-weight: 600;
+}

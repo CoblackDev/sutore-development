@@ -1,0 +1,40 @@
+---
+description: Sutore Marketplace — zorunlu multilanguage (i18n) kuralları
+alwaysApply: true
+---
+
+# Multilanguage (zorunlu)
+
+Eklentinin **tüm kullanıcıya görünen metinleri** çevrilebilir olmalıdır. Hardcoded UI string yasaktır.
+
+**Source language (msgid): English** — kodda varsayılan dil İngilizce’dir; diğer diller `.po` / `.mo` ile yüklenir.  
+**Text domain:** `sutore-marketplace`  
+**Domain path:** `/languages`  
+**Türkçe katalog:** `languages/sutore-marketplace-tr_TR.po` (+ `.mo`)
+
+## PHP / şablonlar
+
+- UI, hata, etiket, buton, bildirim, e-posta, REST `message`, SMS varsayılanları → `__()`, `_e()`, `esc_html__()`, `esc_attr__()`, `_n()`, `_x()` (+ domain).
+- Dinamik parçalar: `sprintf` / `printf` + `/* translators: … */` yorumu.
+- Escape sırası: çevir → escape (`esc_html__(…)`, veya `esc_html( __(…) )`).
+- Yasal sözleşme gövdeleri: locale’e göre template dosyası (`*-en.php` / TR); UI etiketleri yine `__()` ile İngilizce msgid.
+
+```php
+// ✅
+echo esc_html__('No records found.', 'sutore-marketplace');
+
+// ❌
+echo 'Kayıt yok.';
+echo __('Kayıt yok.', 'sutore-marketplace'); // Türkçe msgid yasak
+```
+
+## JavaScript
+
+- Kullanıcıya gösterilen string’leri JS içinde hardcode etme (İngilizce fallback yalnızca localize yoksa).
+- PHP `wp_localize_script` → `i18n` objesi; JS’te `t('key', 'English fallback')`.
+
+## Yapma
+
+- Başka text domain veya domain’siz `__('…')`.
+- Türkçe (veya başka dil) msgid bırakmak.
+- Concatted cümle parçalarını çeviriye zorlamak (tam cümleyi çevir).

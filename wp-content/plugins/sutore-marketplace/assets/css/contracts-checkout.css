@@ -1,0 +1,187 @@
+.sutore-contracts-dialog {
+  width: min(800px, 92vw);
+  max-height: 90vh;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.sutore-contracts-dialog:not([open]) {
+  display: none;
+}
+
+.sutore-contracts-dialog[open],
+.sutore-contracts-dialog.sutore-contracts-dialog--open {
+  display: block;
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  z-index: 100000;
+}
+
+body.sutore-contracts-dialog-open::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 99999;
+}
+
+.sutore-contracts-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.sutore-contracts-dialog__inner {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+.sutore-contracts-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.sutore-contracts-dialog__header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.sutore-contracts-dialog__close {
+  border: 0;
+  background: transparent;
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #666;
+}
+
+.sutore-contracts-dialog__body {
+  overflow: auto;
+  padding: 16px 20px;
+}
+
+.sutore-contracts-section + .sutore-contracts-section {
+  margin-top: 24px;
+}
+
+.sutore-contracts-section h3 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.sutore-contracts-scroll {
+  max-height: 280px;
+  overflow: auto;
+  padding: 12px;
+  background: #f7f7f7;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.sutore-contracts-dialog__footer {
+  padding: 16px 20px;
+  border-top: 1px solid #e5e5e5;
+  text-align: center;
+}
+
+.sutore-contracts-checkbox label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  line-height: 1.5;
+}
+
+.sutore-contracts-checkbox .woocommerce-form__input-checkbox {
+  flex: 0 0 auto;
+  margin-top: 0.2em;
+}
+
+.sutore-contracts-checkbox .sutore-contracts-copy {
+  flex: 1 1 auto;
+}
+
+.sutore-contracts-open {
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.wc-block-components-checkbox label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.75rem;
+}
+
+.wc-block-components-checkbox .wc-block-components-checkbox__label {
+  line-height: 1.5;
+  white-space: normal;
+}
+
+.wc-block-components-checkbox .sutore-contracts-open {
+  display: inline;
+  margin-left: 0.35em;
+}
+
+.sutore-contracts-email__scroll {
+  overflow-y: auto;
+  max-height: 180px;
+  background: #f5f5f5;
+  margin-bottom: 18px;
+  padding: 15px;
+}
+
+.sutore-contracts-scroll .tg,
+.sutore-contracts-email__scroll .tg {
+  border-collapse: collapse;
+  border-spacing: 0;
+  border-color: #ccc !important;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.sutore-contracts-scroll .tg td,
+.sutore-contracts-scroll .tg th,
+.sutore-contracts-email__scroll .tg td,
+.sutore-contracts-email__scroll .tg th {
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  padding: 10px 5px;
+  border: 1px solid #ccc !important;
+  overflow: hidden;
+  word-break: normal;
+  color: #333;
+}
+
+.sutore-contracts-scroll .tg th,
+.sutore-contracts-email__scroll .tg th {
+  font-weight: bold;
+  text-align: center;
+  background-color: #f0f0f0;
+}
+
+.sutore-contracts-scroll .tg .tg-s6z2,
+.sutore-contracts-scroll .tg .tg-hgcj,
+.sutore-contracts-email__scroll .tg .tg-s6z2,
+.sutore-contracts-email__scroll .tg .tg-hgcj {
+  text-align: center;
+}
+
+.sutore-contracts-scroll .tg-wrap,
+.sutore-contracts-email__scroll .tg-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media screen and (max-width: 767px) {
+  .sutore-contracts-scroll {
+    max-height: 220px;
+  }
+}

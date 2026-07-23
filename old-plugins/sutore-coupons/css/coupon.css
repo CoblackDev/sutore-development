@@ -1,0 +1,364 @@
+.coupon-item-label {
+  display: none;
+}
+.cart-item {
+  display: flex;
+  align-items: center;
+  padding: 15px 0;
+}
+.item-image {
+  margin-right: 10%;
+  flex: 2;
+}
+.item-image img {
+  max-width: 125%;
+}
+.item-info .item-name {
+  font-size: 16px;
+}
+.item-info {
+  text-align: right;
+  flex: 5;
+}
+.cart-total .woocommerce-Price-amount.amount,
+.item-price .woocommerce-Price-amount.amount {
+  font-weight: 400;
+}
+.before-discount span.amount {
+  text-decoration: line-through !important;
+  font-weight: 400 !important;
+}
+.coupon-code {
+  border: 1px solid black !important;
+  border-radius: 5px !important;
+  margin-bottom: 5px !important;
+}
+.coupon-container {
+  margin-top: 15px;
+}
+.coupon-apply-button,
+.coupon-remove-button {
+  background: black;
+  color: white;
+  border-radius: 5px;
+  margin: 0;
+  margin-left: 5px;
+  height: 52px !important;
+  display: none;
+  min-width: 50%;
+  font-size: 13.6px;
+  font-weight: 400;
+}
+.coupon-remove-button {
+  display: inline-block;
+}
+.coupon-item-value {
+  display: flex;
+}
+.checkout-summary {
+  position: sticky;
+  top: 85px;
+  align-self: start;
+  padding-top: 15px;
+  margin-left: 30px;
+}
+.checkout-summary h3 {
+  font-size: 25.6px !important;
+  font-weight: 500 !important;
+  text-transform: capitalize !important;
+}
+.woocommerce-form-coupon-toggle {
+  display: none;
+}
+
+.applied-coupon {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.coupon-message-error {
+  color: red;
+  margin-top: 15px;
+}
+.coupon-message-success {
+  color: green;
+  margin-top: 15px;
+}
+.gradient-border {
+  background-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0,
+    #ffffff 100%,
+    #ffffff 100%
+  );
+  height: 73px;
+  width: 100%;
+  display: none;
+}
+
+/* Cart Bottom */
+.cart-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: 9997;
+  width: 100%;
+}
+
+.cart-bottom-content {
+  background-color: #ffffff;
+  padding: 20px;
+  display: flex;
+}
+
+.width-60 {
+  font-size: 13.6px;
+  margin-right: 50px;
+}
+
+.width-40 {
+  display: flex;
+}
+
+.to-checkout {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex;
+  background-color: #222;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 13.6px !important;
+  font-weight: normal !important;
+  width: 300px !important;
+  margin: 0px;
+}
+
+.to-checkout:hover {
+  color: white;
+  background-color: #333;
+}
+
+.cart-bottom-container {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.cart-totals {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.privacy-policy {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  font-size: 13.6px;
+}
+
+form.checkout.woocommerce-checkout {
+  max-width: max-content !important;
+  margin: 0 !important;
+}
+
+.checkout-summary h3 {
+    display:flex;
+}
+.edit-cart-link {
+    align-content:center;
+    font-size: 16px; 
+    margin-left: auto;
+    text-decoration: none;
+    color:#222;
+    font-weight: 400;
+}
+.edit-cart-link:hover,
+.edit-cart-link:focus {
+    text-decoration: underline;
+    color:#222;
+}
+
+@media (max-width: 1200px) {
+  .to-checkout {
+    width: 200px !important;
+  }
+}
+
+@media (max-width: 1000px) {
+  .privacy-policy {
+    display: none;
+  }
+}
+
+@media (max-width: 800px) {
+  .cart-totals {
+    justify-content: space-between;
+  }
+  .to-checkout {
+    width: 18vh !important;
+    margin: 0 !important;
+  }
+  .gradient-border {
+    display: block;
+  }
+  .checkout-summary h3 {
+    font-size: 16.32px !important;
+  }
+  .checkout-summary {
+    margin-left: 0px;
+    padding-top: 30px;
+  }
+  .coupon-message-success,
+  .coupon-message-error,
+  .item-info .item-name,
+  .item-info .item-price,
+  .edit-cart-link {
+    font-size: 13.6px;
+  }
+}
+
+/* ==========================================================================
+   MARKA KAMPANYASI BİLDİRİMİ (v2.1 - Standalone & Refined)
+   ========================================================================== */
+
+/* --- 1. WooCommerce'in Kendi Stilini Nazikçe Sıfırlama --- */
+.woocommerce-notices-wrapper .woocommerce-info.message-wrapper {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    color: inherit !important;
+    border-radius: 0;
+}
+
+/* --- 2. Ana Bildirim Kutusu Stili --- */
+.sutore-campaign-notice {
+    background-color: #f9f9f9; /* Çok hafif, neredeyse beyaz bir ton */
+    border: 1px solid #eaeaea; /* Neredeyse görünmez, ince bir çerçeve */
+    border-left-width: 4px;    /* Sol taraftaki renkli çizgi, ince bir vurgu */
+    border-radius: 8px;        /* İSTEK: Yumuşak, yuvarlatılmış köşeler geri geldi */
+    padding: 16px 20px;        /* İç boşluklar (dikey/yatay) */
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;                 /* Elemanlar arası boşluk */
+    font-size: 16px;
+}
+
+/* --- 3. Tipografi ve Link Stilleri --- */
+.sutore-campaign-notice p,
+.sutore-campaign-notice span {
+    margin: 0;
+    line-height: 1.4; /* Biraz daha sıkı satır aralığı, daha modern durur */
+}
+
+.sutore-campaign-notice p {
+    color: #222222; /* Ana metin rengi */
+}
+
+/* "Congratulations!" gibi kalın metinler */
+.sutore-campaign-notice p strong {
+    font-weight: 600;
+}
+
+/* "...items to unlock" gibi tıklanabilir linkler */
+.sutore-campaign-notice a {
+    color: inherit;
+    margin: 0 !important;
+    /*
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: rgba(0, 0, 0, 0.2);
+    text-underline-offset: 3px;
+    transition: text-decoration-color 0.3s ease;
+    */
+}
+
+.sutore-campaign-notice a:hover {
+    color: inherit;
+    text-decoration: none;
+}
+
+/* --- 4. İlerleme (Progress) Bölümü --- */
+.sutore-progress-text {
+    flex-grow: 1;
+    text-align: left;
+}
+
+/* "1 of 3 items added" gibi alt metin */
+.sutore-progress-text span {
+    font-size: 0.85em;
+    color: #757575; /* Soluk gri */
+    display: block;
+    margin-top: 5px;
+}
+
+/* İlerleme çubuğu */
+.sutore-progress-bar-container {
+    width: 100%;
+    max-width: 180px; /* Biraz daha dar */
+    height: 6px;      /* Biraz daha ince */
+    background-color: #eaeaea;
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.sutore-progress-bar {
+    height: 100%;
+    width: 0; /* JS bu değeri güncelleyecek */
+    background-color: #222222; /* Varsayılan renk (siyah), JS ile ezilecek */
+    border-radius: 6px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- 5. Başarı Mesajı (Kupon Kodu) --- */
+.sutore-campaign-notice span strong {
+    background-color: #f0f0f0;
+    padding: 3px 7px;
+    font-family: 'SF Mono', 'Menlo', 'Consolas', 'Courier New', monospace; /* Monospace font stack */
+    border-radius: 5px;
+    /*border: 1px solid #ddd;*/
+    font-weight: 500;
+    color: #000;
+    letter-spacing: 0.5px; /* Harf aralığı */
+}
+
+/* --- 6. Mobil Uyum --- */
+@media (max-width: 768px) {
+    .woocommerce-notices-wrapper .woocommerce-info.message-wrapper {
+        margin: 0 0 20px 0 !important; /* Mobilde alt boşluğu azalt */
+    }
+
+    .sutore-campaign-notice {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+        margin: 0 20px;
+    }
+
+    .sutore-progress-bar-container {
+        width: 100%;
+        max-width: none;
+    }
+}
+
+/* Font Awesome yerine inline SVG trash icon */
+.product-remove .remove .fa-trash {
+  display: none; /* eski ikonu gizle */
+}
+
+.product-remove .remove::before {
+  content: '';
+  display: inline-block;
+  width: 13.6px;
+  height: 13.6px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512'%3E%3Cpath d='M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64s14.3 32 32 32h384c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32l21.2 339c1.6 25.3 22.6 45 47.9 45h245.8c25.3 0 46.3-19.7 47.9-45L416 128z'/%3E%3C/svg%3E") no-repeat center;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512'%3E%3Cpath d='M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64s14.3 32 32 32h384c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32l21.2 339c1.6 25.3 22.6 45 47.9 45h245.8c25.3 0 46.3-19.7 47.9-45L416 128z'/%3E%3C/svg%3E") no-repeat center;
+}

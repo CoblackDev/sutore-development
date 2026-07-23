@@ -1,0 +1,92 @@
+/*.woocontractsic {
+    width: 100% !important;
+    padding: 6px 40px 10px 8px;
+    height: 200px;
+    background-color: #F4F4F4;
+    overflow: auto;
+    font-size: small;
+}*/
+#woocontracts1,
+#woocontracts2,
+#woocontracts3 {
+	padding: 10px 1vw; 
+	opacity:0.7 !important;
+}
+
+.woocontractsdis {
+    width: 90% !important;
+}
+
+#sozlesmeler div {
+    width: 100% !important;
+}
+/*
+#woocontracts1,
+#woocontracts2,
+#woocontracts3 {
+    padding: 6px 40px 10px 8px;
+    height: 200px;
+    background-color: #F4F4F4;
+    overflow: auto;
+    font-size: small;
+}*/
+
+.tg {
+    border-collapse: collapse;
+    border-spacing: 0;
+    border-color: #ccc !important;
+    margin: 0px auto;
+    width: 90%;
+}
+
+.tg td {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    padding: 10px 5px;
+    border-style: solid !important;
+    border-width: 1px !important;
+    overflow: hidden;
+    word-break: normal;
+    border-color: #ccc !important;
+    color: #333;
+    background-color: #fff;
+}
+
+.tg th {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: normal;
+    padding: 10px 5px;
+    border-style: solid !important;
+    border-width: 1px !important;
+    overflow: hidden;
+    word-break: normal;
+    border-color: #ccc !important;
+    color: #333;
+    background-color: #f0f0f0;
+}
+
+.tg .tg-s6z2 {
+    text-align: center
+}
+
+.tg .tg-hgcj {
+    font-weight: bold;
+    text-align: center
+}
+
+@media screen and (max-width: 767px) {
+    .tg {
+        width: auto !important;
+    }
+
+    .tg col {
+        width: auto !important;
+    }
+
+    .tg-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: auto 0px;
+    }
+}

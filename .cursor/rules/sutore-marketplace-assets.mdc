@@ -1,0 +1,32 @@
+---
+description: Sutore Marketplace — CSS/JS yükleme kuralları
+globs: wp-content/plugins/sutore-marketplace/**/*.{php,js,css}
+alwaysApply: false
+---
+
+# Asset yükleme (sayfa bazlı)
+
+## İlke
+
+CSS ve JS **yalnızca ihtiyaç duyulan sayfada** yüklenir.
+
+## Merchant My Account
+
+1. `Frontend\Assets` içinde `wp_register_style/script`.
+2. `MerchantAccount::enqueueEndpointAssets()` ilgili `enqueue{Feature}()` çağırır.
+3. Görev UI: `enqueueMerchantProfile()` + `marketplace-merchant-profile.js` (ayrı tasks asset yok).
+
+## Checkout modülleri
+
+Shipping, Coupons, Contracts kendi modülünde `registerAssets()` / `enqueue*()` kullanır; `is_checkout()` veya `is_cart()` ile sınırla.
+
+## Yeni asset eklerken
+
+- Merchant: `marketplace-{feature}.css` / `.js` + `Assets` sabitleri.
+- Checkout: modül `class-module.php` içinde kayıt.
+- i18n (zorunlu): PHP `wp_localize_script` → `i18n`; JS’te kullanıcı metni hardcode etme — ayrıntı `sutore-marketplace-i18n.mdc`.
+
+## Yapma
+
+- Global gereksiz enqueue.
+- Kullanılmayan dosya veya ölü `enqueue*()` metodu bırakma.

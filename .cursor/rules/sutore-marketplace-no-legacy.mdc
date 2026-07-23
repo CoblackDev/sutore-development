@@ -1,0 +1,61 @@
+---
+description: Sutore Marketplace — legacy / geriye dönük uyumluluk yasağı (geliştirme aşaması)
+alwaysApply: true
+---
+
+# Legacy / geriye dönük uyumluluk yok
+
+Bu eklenti **henüz geliştirme aşamasında**; production geçmişi veya taşınacak eski müşteri verisi yok. Bu nedenle **legacy, deprecated, backward-compat veya “eski format” desteği kodda bırakılmaz.**
+
+## Zorunlu
+
+- Tek doğru model, tek route, tek event tipi, tek meta anahtarı, tek REST sözleşmesi.
+- İsim / enum / event / route değişince **tüm referansları güncelle**; eski anahtarı “label map”, alias, fallback veya yorum satırı olarak tutma.
+- Eski davranışı korumak için ikinci kod yolu, `if (old) … else …`, çift enqueue, çift controller, çift DB okuma yazma.
+- Geçici veri düzeltmesi gerekiyorsa **tek seferlik migration / seed / CLI script** kullan; runtime’da eski formatı okuyup yeni formata “self-heal” eden kalıcı shim yazma.
+
+## Yasak örnekler
+
+```php
+// ❌ Eski event tipi etiket map’inde
+'fulfillment_completed' => __('Delivered to customer', 'sutore-marketplace'),
+
+// ❌ Eski ara anahtar veya ayrı FulfillmentStatus enum (payment/sold/not_sale geçerli ListingStatus)
+$listing->listingStatus === 'active';
+$listing->listingStatus === 'inactive';
+$listing->listingStatus === 'payment_pending';
+use SutoreMarketplace\Modules\Orders\Domain\FulfillmentStatus;
+
+// ❌ Eski fulfillments tablosuna yazma / okuma
+INSERT INTO {$wpdb->prefix}sutore_marketplace_fulfillments (...) VALUES (...);
+SELECT * FROM {$wpdb->prefix}sutore_marketplace_fulfillments WHERE id = %d;
+use SutoreMarketplace\Shared\Database\Schema; Schema::fulfillmentTable(); // runtime kod
+
+// ❌ Payout’ta ayrı fulfillment_id
+INSERT INTO {$payout} (fulfillment_id, listing_id, ...) VALUES (...);
+$repo->findByFulfillmentId($id); // rename → findByListingId
+
+// ❌ Eski meta / ayar fallback
+$level = get_user_meta($id, 'new_key', true) ?: get_user_meta($id, 'old_key', true);
+
+// ❌ Eski REST route + yeni route birlikte
+register_rest_route(..., '/listings-old', ...);
+
+// ❌ admin-ajax köprüsü veya “geçici” AjaxGuard
+wp_ajax_sutore_marketplace_legacy_action
+```
+
+## İzin verilen
+
+- **Schema migration** (`Schema` sürümü): tablo/kolon ekleme; tek seferlik upgrade (ör. ara anahtarları `not_sale`/`payment`/`sold`/`shipped` ile hizalama, fulfillments tablosunu drop edip alanları listing satırına taşımak).
+- Migration okuma amaçlı `Schema::fulfillmentTable()` — yalnızca eski tabloyu bir kez okuyup drop eden `migrateSaleOntoListings()` içinde. Runtime kodunda kullanılmaz.
+- **Dev araçları** (`tools/`): seed, demo, kontrol script’leri — production runtime’a bağlanmaz.
+- Test / seed içinde “eski event tipi **olmamalı**” doğrulaması (uyumluluk değil, regresyon kontrolü).
+
+## Refactor kuralı
+
+Eski adı değiştiriyorsan: Domain enum → Service log/transition → REST payload → JS consumer → i18n → seed/tools — **hepsini aynı PR’da** güncelle. “Eski kayıtlar için map bırakırız” gerekçesi geçersiz.
+
+Ürün durumu: tek lineer `ListingStatus` (eski eklenti slug’larıyla hizalı: `publish`, `not_sale`, `payment`, `sold`, `shipped`, …). İkinci status enum’u veya `active`/`inactive`/`payment_pending`/`awaiting_seller` alias’ı ekleme.
+
+Sale/lojistik: ayrı `fulfillments` tablosu yok. Alanlar `listings` satırında yaşar; `FulfillmentRepository` yalnızca facade’dır (id = listing_id). Payout `listing_id` ile bağlanır — `fulfillment_id` kolonu geri getirme.

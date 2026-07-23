@@ -1,0 +1,57 @@
+Options -Indexes
+
+<Files ~ "^.*.([Hh][Tt][Aa])">
+order allow,deny
+deny from all
+satisfy all
+</Files>
+
+<Files *md>
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+<Files *zip>
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+<Files *txt>
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+<Files *TXT>
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+<Files *dist>
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+<Files *patch>
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+<Files *tar.gz>
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+<Files *7z>
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+<Files *html>
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+<Files LICENSE>
+    Order Deny,Allow
+    Deny from all
+</Files>

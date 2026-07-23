@@ -1,0 +1,28 @@
+.sutore-mp-ful-details-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sutore-mp-ful-details-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #eee;
+  vertical-align: top;
+}
+
+.sutore-mp-ful-details-table td:first-child {
+  font-weight: 600;
+  width: 42%;
+}
+
+.sutore-mp-ful-hint {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.sutore-mp-ful-shipment-input {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}

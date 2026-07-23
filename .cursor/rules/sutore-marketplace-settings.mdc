@@ -1,0 +1,30 @@
+---
+description: Sutore Marketplace — admin ayarları sayfası kuralları
+globs: wp-content/plugins/sutore-marketplace/**/{Admin,Settings}/**/*
+alwaysApply: false
+---
+
+# Ayarlar sayfası (zorunlu)
+
+Yeni bir ayar eklenecekse mutlaka admin ayarlar sayfasından yönetilebilir olmalı.
+
+## Merkezi ayarlar
+
+- Genel: `Shared\Settings\Settings` + `Admin\SettingsPage` tab'ları
+- Yeni genel ayar: `defaults()` + ilgili tab render/save
+
+## Modül ayarları
+
+- `Modules\{Modul}\Settings\Settings` (kendi `OPTION` key'i)
+- UI: ana `SettingsPage` tab'ı veya `Modules\{Modul}\Admin\` sayfası
+- Okuma: `Settings::get()` wrapper; dağınık `get_option` kullanma
+
+## Modül admin sayfaları
+
+Modüle özel CRUD/liste sayfaları `Modules\{Modul}\Admin\` altında; menü kaydı `Admin\AdminMenu` içinde kalır.
+
+## Form güvenliği
+
+- Nonce: `sutore_marketplace_settings_nonce` (genel ayarlar)
+- Capability: `AdminMenu::CAP`
+- Gizli alanlar: password input, boş = koru

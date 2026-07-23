@@ -1,0 +1,21 @@
+{
+  "Asking %1$s TL → %2$s TL": "Talep edilen %1$s TL → %2$s TL",
+  "English": "İngilizce",
+  "Increment": "Artış",
+  "Merchant ID": "Satıcı ID",
+  "NVI / KPS endpoint": "NVI / KPS uç noktası",
+  "OK": "Tamam",
+  "Oldest first": "En eski önce",
+  "Payload": "Veri yükü",
+  "Placeholder:": "Yer tutucu:",
+  "Price (high to low)": "Fiyat (yüksekten düşüğe)",
+  "Price (low to high)": "Fiyat (düşükten yükseğe)",
+  "Progress bump (test)": "İlerleme artışı (test)",
+  "Sort": "Sırala",
+  "Status priority": "Durum önceliği",
+  "Sutore Marketplace requires WooCommerce to be active.": "Sutore Marketplace eklentisi için WooCommerce'in etkin olması gerekir.",
+  "Turkish": "Türkçe",
+  "Webhook secret": "Webhook gizli anahtarı",
+  "product code, name…": "ürün kodu, ad…",
+  "Review offer": "Teklifi incele"
+}

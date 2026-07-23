@@ -1,0 +1,32 @@
+---
+description: Sutore Marketplace — güvenlik standartları
+globs: wp-content/plugins/sutore-marketplace/**/*.php
+alwaysApply: false
+---
+
+# Güvenlik (zorunlu)
+
+## Yetkilendirme
+
+- Admin / staff: `current_user_can(AdminMenu::CAP)` (`manage_woocommerce`).
+- REST: her route'ta `permission_callback` — login, ownership, `ListingPolicy`, `AdminMenu::CAP`.
+- Cookie + `X-WP-Nonce` (`wp_rest`) ve Application Passwords ile uyumlu tut.
+- Merchant işlemleri: ownership kontrolü (Service veya policy).
+
+## Girdi / çıktı
+
+- REST params / `$_GET` / `$_POST` → `sanitize_*` / `absint` / `sanitize_key`.
+- Çıktıda `esc_html`, `esc_attr`, `esc_url`, `wp_kses_post`.
+- SQL: **yalnızca** `$wpdb->prepare()` ile parametreli sorgu.
+
+## Form ve ayar kaydı
+
+- Admin ayar formları: `wp_nonce_field` + `wp_verify_nonce`.
+- Marketplace iş akışı UI mutasyonları → REST (`permission_callback`), form POST ile Service atlama yok.
+- Gizli değerler (webhook secret): `type="password"`; boş gönderimde mevcut değeri koru.
+
+## Genel
+
+- `ABSPATH` kontrolü: ana plugin dosyası, template'ler.
+- `wp_ajax_*` / `wp_ajax_nopriv_*` marketplace handler ekleme.
+- Marketplace işlemlerini anahtarsız public REST ile açma.

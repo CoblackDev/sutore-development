@@ -1,0 +1,2297 @@
+/* Listings — filters, list and listing form */
+
+.sutore-mp-open-filters {
+  position: relative;
+}
+
+.sutore-mp-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  margin-left: 0.35rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  font-size: 0.75em;
+  line-height: 1;
+  background: var(--wp--preset--color--base, #fff);
+  color: var(--wp--preset--color--contrast, #111);
+}
+
+.sutore-mp-filter-badge[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-listings textarea {
+  width: 100%;
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.sutore-mp-submit.is-hidden,
+.sutore-mp-first-place.is-hidden {
+  display: none !important;
+}
+
+.sutore-mp-filter-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: color-mix(in srgb, #000 45%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.sutore-mp-filter-overlay[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-filter-modal {
+  width: min(480px, 100%);
+  max-height: min(90vh, 720px);
+  overflow: auto;
+  background: var(--wp--preset--color--base, #fff);
+  color: inherit;
+  border-radius: 0.4rem;
+  box-shadow: 0 18px 50px color-mix(in srgb, #000 28%, transparent);
+  font-family: var(--wp--preset--font-family--body, inherit);
+}
+
+.sutore-mp-filter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  position: sticky;
+  top: 0;
+  background: inherit;
+  z-index: 1;
+}
+
+.sutore-mp-filter-head h2 {
+  margin: 0;
+  font-size: var(--wp--preset--font-size--large, 1.25rem);
+}
+
+.sutore-mp-filter-close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.sutore-mp-filter-body {
+  padding: 1rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sutore-mp-filter-body .sutore-mp-input {
+  width: 100%;
+  margin-bottom: 0.65rem;
+}
+
+.sutore-mp-filter-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.85rem 1.15rem 1.15rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.sutore-mp-list-pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+
+body.sutore-mp-modal-open {
+  overflow: hidden;
+}
+
+.sutore-mp-listing-manage {
+  max-width: 960px;
+  margin: 0;
+}
+
+.sutore-mp-listing-manage .sutore-mp-manage-form {
+  margin-top: 0;
+}
+
+.sutore-mp-listing-form-wrap {
+  margin-top: 0;
+}
+
+.sutore-mp-listing-form-wrap.is-loading > :not(.sutore-mp-listing-form-loading) {
+  display: none !important;
+}
+
+.sutore-mp-listing-form-loading {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+  justify-content: center;
+  min-height: 8rem;
+  padding: 1.5rem 1rem;
+}
+
+.sutore-mp-listing-form-loading[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-form-section + .sutore-mp-form-section {
+  border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+}
+
+.sutore-mp-form-section h3 {
+  margin: 0 0 0.35rem;
+}
+
+.sutore-mp-form-section .description {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  margin: 0 0 1rem;
+  opacity: 1;
+}
+
+.sutore-mp-form-context-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem 1.25rem;
+  margin: 0 0 1rem;
+}
+
+.sutore-mp-form-context-meta dt {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.sutore-mp-form-context-meta dd {
+  margin: 0.2rem 0 0;
+  font-weight: 500;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-meta.sutore-mp-form-context-meta {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+  .sutore-mp-form-context-meta,
+  .sutore-mp-listing-manage .sutore-mp-staff-meta.sutore-mp-form-context-meta,
+  .sutore-mp-listing-manage .sutore-mp-staff-meta.sutore-mp-manage-summary-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.sutore-mp-form-actions {
+  border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+}
+
+.sutore-mp-form-actions .sutore-mp-message {
+  flex-basis: 100%;
+}
+
+.sutore-mp-form-actions .sutore-mp-message:empty {
+  display: none;
+  flex-basis: auto;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 14rem;
+  padding: 2rem 1rem;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-spinner {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 2px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: sutore-mp-listing-manage-spin 0.7s linear infinite;
+}
+
+@keyframes sutore-mp-listing-manage-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.85rem 1.25rem;
+  margin: 0;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-meta dt {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-meta dd {
+  margin: 0.2rem 0 0;
+  font-weight: 500;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-summary {
+  margin: 0 0 1.5rem;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-summary h3,
+.sutore-mp-listing-manage .sutore-mp-staff-shipping-details h3,
+.sutore-mp-listing-manage .sutore-mp-staff-activity h3 {
+  margin: 0 0 0.35rem;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-shipping-details,
+.sutore-mp-listing-manage .sutore-mp-staff-activity {
+  margin: 0 0 1.5rem;
+  padding: 1rem 0 0;
+  border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.sutore-mp-sourcing-accept-panel .sutore-mp-staff-actions {
+  margin-top: 1rem;
+}
+
+.sutore-mp-sourcing-modal .sutore-mp-sourcing-accept-panel {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.sutore-mp-sourcing-modal .sutore-mp-sourcing-accept-heading {
+  margin: 0 0 0.75rem;
+  font-size: var(--wp--preset--font-size--medium, 1rem);
+}
+
+.sutore-mp-sourcing-modal .sutore-mp-sourcing-meta {
+  margin: 0;
+}
+
+.sutore-mp-sourcing-modal-foot {
+  justify-content: flex-end;
+}
+
+.sutore-mp-sourcing-existing-option {
+  margin: 0.75rem 0 1rem;
+}
+
+.sutore-mp-sourcing-existing-notice a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-summary .description,
+.sutore-mp-listing-manage .sutore-mp-staff-shipping-details .description,
+.sutore-mp-listing-manage .sutore-mp-staff-activity .description {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  opacity: 1;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-activity .sutore-mp-staff-table-wrap {
+  overflow-x: auto;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-activity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-activity-table th,
+.sutore-mp-listing-manage .sutore-mp-staff-activity-table td {
+  padding: 0.7rem 0.55rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-activity-table th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-event-summary {
+  font-size: 0.8rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.sutore-mp-shipping-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+}
+
+.sutore-mp-size-options,
+.sutore-mp-conditions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.sutore-mp-shipping-express.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sutore-mp-international-commit {
+  margin-top: 0.5rem;
+}
+
+.sutore-mp-international-commit[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-shipping-error[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-search-wrap {
+  position: relative;
+}
+
+.sutore-mp-search-wrap .sutore-mp-input {
+  width: 100%;
+  padding-right: 2.5rem;
+}
+
+.sutore-mp-spinner {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.5rem;
+  border: 2px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: sutore-mp-spin 0.7s linear infinite;
+}
+
+.sutore-mp-spinner[hidden] {
+  display: none !important;
+}
+
+@keyframes sutore-mp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sutore-mp-search-results {
+  margin-top: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sutore-mp-pick-row {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-align: left;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.3rem;
+  border: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sutore-mp-pick-row:hover {
+  background: color-mix(in srgb, currentColor 5%, transparent);
+}
+
+.sutore-mp-pick-thumb {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+}
+
+.sutore-mp-pick-thumb-box {
+  width: 44px;
+  height: 44px;
+}
+
+.sutore-mp-price-alert {
+  margin: 0.5rem 0 0;
+  padding: 0.65rem 0.8rem;
+  border-left: 3px solid currentColor;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  font-size: 0.85em;
+}
+
+.sutore-mp-price-alert.is-warn {
+  color: #8a6d00;
+  border-left-color: #dba617;
+  background: color-mix(in srgb, #dba617 12%, transparent);
+}
+
+.sutore-mp-price-alert.is-error {
+  color: #8a1f1f;
+  border-left-color: #b32d2e;
+  background: color-mix(in srgb, #b32d2e 10%, transparent);
+}
+
+.sutore-mp-price-alert.is-success {
+  color: #1e6b3a;
+  border-left-color: #2f9e5b;
+  background: color-mix(in srgb, #2f9e5b 12%, transparent);
+}
+
+.sutore-mp-price-alert[hidden],
+.sutore-mp-price-alert.is-hidden {
+  display: none !important;
+}
+
+.sutore-mp-competing-prices {
+  margin-bottom: 0;
+}
+
+.sutore-mp-competing-prices[hidden],
+.sutore-mp-competing-prices.is-hidden {
+  display: none !important;
+}
+
+.sutore-mp-competing-prices .sutore-mp-staff-table-wrap {
+  margin-top: 0.5rem;
+  overflow-x: auto;
+}
+
+.sutore-mp-competing-prices-table-wrap[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-competing-prices .sutore-mp-staff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.sutore-mp-competing-prices .sutore-mp-staff-table th,
+.sutore-mp-competing-prices .sutore-mp-staff-table td {
+  text-align: left;
+  padding: 0.7rem 0.55rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  vertical-align: middle;
+}
+
+.sutore-mp-competing-prices .sutore-mp-staff-table th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sutore-mp-competing-prices-table tbody tr.is-winner {
+  background: color-mix(in srgb, #2f9e5b 10%, transparent);
+}
+
+.sutore-mp-competing-prices-table tbody tr.is-current td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, currentColor 55%, transparent);
+}
+
+.sutore-mp-competing-col-pos {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sutore-mp-competing-col-asking {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sutore-mp-competing-col-status {
+  white-space: nowrap;
+}
+
+.sutore-mp-competing-col-time {
+  white-space: nowrap;
+  opacity: 0.8;
+}
+
+.sutore-mp-competing-col-tags,
+.sutore-mp-competing-col-shipping {
+  white-space: nowrap;
+}
+
+.sutore-mp-competing-tags-inline {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sutore-mp-competing-col-tags .sutore-mp-tag,
+.sutore-mp-competing-col-shipping .sutore-mp-tag {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.sutore-mp-competing-col-note {
+  font-size: 0.88em;
+  font-weight: 600;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+.sutore-mp-notice {
+  margin: 0.85rem 0 0.5rem;
+  padding: 0.65rem 0.8rem;
+  border-left: 3px solid currentColor;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  font-size: 0.85em;
+}
+
+.sutore-mp-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sutore-mp-row .sutore-mp-input {
+  flex: 1;
+  min-width: 8rem;
+}
+
+.sutore-mp-step-error {
+  margin: 0 0 0.75rem;
+  color: #b32d2e;
+  font-size: 0.92em;
+}
+
+.sutore-mp-message {
+  margin-top: 0.75rem;
+}
+
+.sutore-mp-message:empty {
+  display: none;
+  margin: 0;
+}
+
+.sutore-mp-asking.is-invalid {
+  border-color: #b32d2e !important;
+  outline-color: #b32d2e;
+}
+
+.sutore-mp-bulk-upload-actions,
+.sutore-mp-bulk-commit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.sutore-mp-bulk-commit-actions {
+  justify-content: flex-end;
+}
+
+.sutore-mp-bulk-table-wrap {
+  margin-top: 0.75rem;
+  overflow-x: auto;
+}
+
+.sutore-mp-listing-bulk .sutore-mp-bulk-preview {
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.sutore-mp-listing-bulk .sutore-mp-bulk-summary {
+  margin-bottom: 0.75rem;
+}
+
+.sutore-mp-bulk-summary-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+.sutore-mp-bulk-stats {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.sutore-mp-bulk-stat {
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+}
+
+.sutore-mp-bulk-stat-label {
+  font-size: 0.88em;
+  opacity: 0.75;
+}
+
+.sutore-mp-bulk-stat-value {
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.sutore-mp-bulk-stat.is-ready .sutore-mp-bulk-stat-value {
+  color: #166534;
+}
+
+.sutore-mp-bulk-stat.is-warning .sutore-mp-bulk-stat-value {
+  color: #9a6700;
+}
+
+.sutore-mp-bulk-stat.is-error .sutore-mp-bulk-stat-value {
+  color: #b91c1c;
+}
+
+.sutore-mp-bulk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.sutore-mp-bulk-table th,
+.sutore-mp-bulk-table td {
+  padding: 0.5rem 0.45rem;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.sutore-mp-bulk-table th {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.sutore-mp-bulk-table tr.is-error {
+  background: color-mix(in srgb, #b32d2e 8%, transparent);
+}
+
+.sutore-mp-bulk-table tr.is-warning {
+  background: color-mix(in srgb, #dba617 10%, transparent);
+}
+
+.sutore-mp-bulk-row-messages {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  margin-top: 0.2rem;
+  opacity: 0.85;
+}
+
+.sutore-mp-bulk-status {
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.sutore-mp-bulk-queued {
+  padding: 0.25rem 0;
+}
+
+.sutore-mp-bulk-queued-lead {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0 0 0.5rem;
+}
+
+.sutore-mp-bulk-queued-meta {
+  font-size: 0.875rem;
+  margin: 0 0 1rem;
+  opacity: 0.8;
+}
+
+.sutore-mp-bulk-queued-actions {
+  margin: 0;
+}
+
+.sutore-mp-bulk-product-cell {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  min-width: 10rem;
+}
+
+.sutore-mp-bulk-thumb-box {
+  flex-shrink: 0;
+  height: 2.5rem;
+  width: 2.5rem;
+}
+
+.sutore-mp-bulk-thumb-box > img.sutore-mp-bulk-thumb {
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
+.sutore-mp-bulk-product-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.sutore-mp-bulk-product-title {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.sutore-mp-bulk-product-sub {
+  color: color-mix(in srgb, currentColor 68%, transparent);
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.sutore-mp-bulk-price-cell {
+  min-width: 5.5rem;
+}
+
+.sutore-mp-bulk-price-input {
+  font-size: 0.875rem;
+  max-width: 6.5rem;
+  padding: 0.35rem 0.45rem;
+}
+
+.sutore-mp-bulk-lowest,
+.sutore-mp-bulk-queue {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.sutore-mp-bulk-actions {
+  min-width: 9rem;
+  vertical-align: middle;
+}
+
+.sutore-mp-bulk-action-wrap {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.sutore-mp-bulk-action-wrap .wp-element-button {
+  font-size: 0.75rem;
+  line-height: 1.25;
+  padding: 0.3rem 0.45rem;
+  white-space: normal;
+}
+
+.sutore-mp-bulk-queue-label.is-winner {
+  color: #1e7a34;
+  font-weight: 600;
+}
+
+.sutore-mp-bulk-queue-label.is-awaiting-approval {
+  color: #9a6700;
+  font-weight: 600;
+}
+
+.sutore-mp-bulk-queue-label.is-queued {
+  opacity: 0.85;
+}
+
+.sutore-mp-bulk-queue-label.is-blocked {
+  color: #9a6700;
+}
+
+.woocommerce-account .sutore-mp-listing-bulk .sutore-mp-bulk-table {
+  font-size: 0.875rem;
+}
+
+.woocommerce-account .sutore-mp-listing-bulk .sutore-mp-bulk-table th,
+.woocommerce-account .sutore-mp-listing-bulk .sutore-mp-bulk-table td {
+  padding: 0.5rem 0.45rem;
+}
+
+/* Bulk upload modal */
+.sutore-mp-bulk-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: color-mix(in srgb, #000 45%, transparent);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.22s ease,
+    visibility 0.22s ease;
+}
+
+.sutore-mp-bulk-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.sutore-mp-bulk-overlay.is-closing {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.sutore-mp-bulk-overlay[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-bulk-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(1100px, 100%);
+  max-height: min(90vh, 920px);
+  background: var(--wp--preset--color--base, #fff);
+  color: inherit;
+  border-radius: 0.5rem;
+  box-shadow: 0 18px 50px color-mix(in srgb, #000 28%, transparent);
+  overflow: hidden;
+  transform: scale(0.92);
+  opacity: 0;
+  transition:
+    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease;
+  will-change: transform, opacity;
+}
+
+.sutore-mp-bulk-overlay.is-open .sutore-mp-bulk-modal {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.sutore-mp-bulk-overlay.is-closing .sutore-mp-bulk-modal {
+  transform: scale(0.96);
+  opacity: 0;
+}
+
+.sutore-mp-bulk-modal__handle {
+  display: none;
+}
+
+.sutore-mp-bulk-modal__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  flex-shrink: 0;
+}
+
+.sutore-mp-bulk-modal__titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.sutore-mp-bulk-modal__title {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.3;
+}
+
+.sutore-mp-bulk-modal__sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.72;
+  line-height: 1.35;
+}
+
+.sutore-mp-bulk-modal__close {
+  border: 0;
+  background: transparent;
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.sutore-mp-bulk-modal__close:hover {
+  opacity: 1;
+}
+
+.sutore-mp-bulk-modal__body {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem 1.15rem 1.25rem;
+  min-height: 10rem;
+}
+
+.sutore-mp-bulk-modal__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.85rem 1.15rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  flex-shrink: 0;
+  background: inherit;
+}
+
+.sutore-mp-bulk-modal[data-bulk-wizard-step="done"] .sutore-mp-bulk-modal__foot {
+  justify-content: flex-end;
+}
+
+.sutore-mp-bulk-modal__foot .sutore-mp-bulk-wizard-next,
+.sutore-mp-bulk-modal__foot .sutore-mp-bulk-commit {
+  margin-left: auto;
+}
+
+.sutore-mp-bulk-modal__foot[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-bulk-modal .sutore-mp-bulk-step {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sutore-mp-bulk-modal .sutore-mp-bulk-step[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-bulk-modal .sutore-mp-panel-lead {
+  margin-top: 0;
+}
+
+.sutore-mp-bulk-modal .sutore-mp-field-label {
+  display: block;
+  margin-top: 1rem;
+}
+
+.sutore-mp-bulk-modal .sutore-mp-field-label:first-of-type {
+  margin-top: 0.35rem;
+}
+
+.sutore-mp-bulk-file-meta {
+  margin-top: 0.55rem;
+}
+
+.sutore-mp-bulk-template-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: inherit;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.sutore-mp-bulk-template-download:hover {
+  opacity: 0.85;
+}
+
+.sutore-mp-bulk-template-download__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.sutore-mp-bulk-upload-message {
+  margin: 0.65rem 0 0;
+}
+
+.sutore-mp-bulk-queued {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.75rem;
+  min-height: 12rem;
+  padding: 1.5rem 1rem 2rem;
+}
+
+.sutore-mp-bulk-queued__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  color: #1a7f4b;
+  background: rgba(26, 127, 75, 0.1);
+}
+
+.sutore-mp-bulk-queued-lead,
+.sutore-mp-bulk-queued-meta {
+  margin: 0;
+  max-width: 28rem;
+  line-height: 1.45;
+}
+
+.sutore-mp-bulk-queued-meta {
+  color: #555;
+}
+
+/* Listing manage modal */
+.sutore-mp-manage-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: color-mix(in srgb, #000 45%, transparent);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.22s ease,
+    visibility 0.22s ease;
+}
+
+.sutore-mp-manage-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.sutore-mp-manage-overlay.is-closing {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.sutore-mp-manage-overlay[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-manage-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 100%);
+  max-height: min(88vh, 860px);
+  background: var(--wp--preset--color--base, #fff);
+  color: inherit;
+  border-radius: 0.5rem;
+  box-shadow: 0 18px 50px color-mix(in srgb, #000 28%, transparent);
+  overflow: hidden;
+  transform: scale(0.92);
+  opacity: 0;
+  transition:
+    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease;
+  will-change: transform, opacity;
+}
+
+.sutore-mp-manage-overlay.is-open .sutore-mp-manage-modal {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.sutore-mp-manage-overlay.is-closing .sutore-mp-manage-modal {
+  transform: scale(0.92);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sutore-mp-manage-overlay,
+  .sutore-mp-manage-modal,
+  .sutore-mp-bulk-overlay,
+  .sutore-mp-bulk-modal {
+    transition: none;
+  }
+}
+
+.sutore-mp-manage-modal__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  flex-shrink: 0;
+}
+
+.sutore-mp-manage-modal__media {
+  order: -1;
+  flex-shrink: 0;
+  display: block;
+  line-height: 0;
+}
+
+.sutore-mp-manage-modal__media[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-manage-modal__thumb-box {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.sutore-mp-manage-modal__thumb-box > img.sutore-mp-manage-modal__thumb {
+  display: block;
+  width: auto !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+}
+
+.sutore-mp-manage-modal__titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.sutore-mp-manage-modal__title {
+  margin: 0;
+  font-size: var(--wp--preset--font-size--large, 1.2rem);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.sutore-mp-manage-modal__title-link,
+.sutore-mp-manage-modal__media-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sutore-mp-manage-modal__title-link:hover,
+.sutore-mp-manage-modal__media-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.sutore-mp-manage-modal__media-link {
+  display: block;
+  line-height: 0;
+}
+
+.sutore-mp-manage-modal__sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+  line-height: 1.35;
+}
+
+.sutore-mp-manage-modal__badge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.15rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.sutore-mp-manage-modal__badge[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-manage-modal__close {
+  border: 0;
+  background: transparent;
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  padding: 0.1rem 0.25rem;
+  opacity: 0.7;
+}
+
+.sutore-mp-manage-modal__close:hover {
+  opacity: 1;
+}
+
+.sutore-mp-manage-modal__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  padding: 0.55rem 1rem 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.sutore-mp-manage-modal__tabs[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-create-wizard-steps,
+.sutore-mp-bulk-wizard-steps {
+  padding: 0.75rem 1.15rem 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  flex-shrink: 0;
+}
+
+.sutore-mp-create-wizard-steps[hidden],
+.sutore-mp-bulk-wizard-steps[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-create-wizard-list,
+.sutore-mp-bulk-wizard-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sutore-mp-create-wizard-list {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.sutore-mp-bulk-wizard-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sutore-mp-create-wizard-step,
+.sutore-mp-bulk-wizard-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  text-align: center;
+  opacity: 0.45;
+  min-width: 0;
+}
+
+.sutore-mp-create-wizard-step.is-current,
+.sutore-mp-create-wizard-step.is-done,
+.sutore-mp-bulk-wizard-step.is-current,
+.sutore-mp-bulk-wizard-step.is-done {
+  opacity: 1;
+}
+
+.sutore-mp-create-wizard-index,
+.sutore-mp-bulk-wizard-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.sutore-mp-create-wizard-step.is-current .sutore-mp-create-wizard-index,
+.sutore-mp-bulk-wizard-step.is-current .sutore-mp-bulk-wizard-index {
+  background: var(--wp--preset--color--contrast, #111);
+  color: var(--wp--preset--color--base, #fff);
+  border-color: transparent;
+}
+
+.sutore-mp-create-wizard-step.is-done .sutore-mp-create-wizard-index,
+.sutore-mp-bulk-wizard-step.is-done .sutore-mp-bulk-wizard-index {
+  border-color: currentColor;
+}
+
+.sutore-mp-create-wizard-label,
+.sutore-mp-bulk-wizard-label {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.sutore-mp-manage-modal[data-create-wizard-step] .sutore-mp-manage-edit {
+  margin-top: 0;
+}
+
+.sutore-mp-manage-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.75rem;
+  margin-bottom: -1px;
+  font: inherit;
+  font-size: 0.92rem;
+  opacity: 0.65;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  outline: none;
+  box-shadow: none;
+}
+
+.sutore-mp-manage-tab:focus,
+.sutore-mp-manage-tab:focus-visible,
+.sutore-mp-manage-tab:active {
+  outline: none;
+  box-shadow: none;
+  border-color: transparent;
+  border-bottom-color: transparent;
+}
+
+.sutore-mp-manage-tab[aria-selected="true"] {
+  opacity: 1;
+  border-bottom-color: currentColor;
+  font-weight: 600;
+}
+
+.sutore-mp-manage-tab[aria-selected="true"]:focus,
+.sutore-mp-manage-tab[aria-selected="true"]:focus-visible,
+.sutore-mp-manage-tab[aria-selected="true"]:active {
+  border-bottom-color: currentColor;
+  outline: none;
+  box-shadow: none;
+}
+
+.sutore-mp-manage-tab__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.sutore-mp-manage-tab__icon svg {
+  display: block;
+}
+
+.sutore-mp-manage-tab[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-manage-modal__body {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem 1.15rem;
+  min-height: 10rem;
+}
+
+.sutore-mp-manage-modal__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 10rem;
+}
+
+.sutore-mp-manage-modal__loading[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-create-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.75rem;
+  min-height: 12rem;
+  padding: 1.5rem 1rem 2rem;
+}
+
+.sutore-mp-create-success[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-create-success__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  color: #1a7f4b;
+  background: rgba(26, 127, 75, 0.1);
+}
+
+.sutore-mp-create-success__text {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: #555;
+}
+
+.sutore-mp-manage-panel[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-manage-kv {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+  margin: 0;
+  align-items: start;
+}
+
+.sutore-mp-manage-kv__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  align-items: stretch;
+}
+
+.sutore-mp-manage-kv__row:last-child {
+  border-bottom: 0;
+}
+
+.sutore-mp-manage-kv__row dt {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  opacity: 0.65;
+  font-weight: 400;
+}
+
+.sutore-mp-manage-kv__row dd {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  font-weight: 600;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .sutore-mp-manage-kv {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.sutore-mp-manage-modal .sutore-mp-staff-shipping-details {
+  margin-top: 1.15rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.sutore-mp-manage-modal .sutore-mp-staff-shipping-details h3 {
+  margin: 0.65rem 0 0.15rem;
+  font-size: 0.95rem;
+}
+
+.sutore-mp-manage-modal .sutore-mp-staff-shipping-details .sutore-mp-manage-kv {
+  margin-top: 0.15rem;
+}
+
+/* Manage form: full edit surface on Details */
+.sutore-mp-manage-summary {
+  margin: 0;
+}
+
+.sutore-mp-manage-summary .sutore-mp-manage-panel-actions {
+  margin-top: 0.85rem;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-context-meta.sutore-mp-manage-summary-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+  margin: 0;
+  align-items: start;
+}
+
+.sutore-mp-listing-manage .sutore-mp-staff-meta.sutore-mp-form-context-meta,
+.sutore-mp-listing-manage .sutore-mp-staff-meta.sutore-mp-manage-summary-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-context-meta.sutore-mp-manage-summary-meta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-context-meta.sutore-mp-manage-summary-meta dt {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  opacity: 0.65;
+  font-weight: 400;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-context-meta.sutore-mp-manage-summary-meta dd {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  font-weight: 600;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .sutore-mp-manage-modal .sutore-mp-form-context-meta.sutore-mp-manage-summary-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.sutore-mp-manage-edit {
+  margin-top: 1.35rem;
+  padding-top: 1.2rem;
+}
+
+.sutore-mp-manage-edit[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-section-price > .sutore-mp-form-context-meta {
+  display: none !important;
+}
+
+/* Create wizard: show price decision meta + competing size list inline. */
+.sutore-mp-manage-modal[data-create-wizard-step] .sutore-mp-listing-form-wrap {
+  display: block;
+}
+
+.sutore-mp-manage-modal[data-create-wizard-step] .sutore-mp-form-section-price > .sutore-mp-form-context-meta {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  margin: 0 0 1rem;
+}
+
+.sutore-mp-manage-modal[data-create-wizard-step] .sutore-mp-form-section-price .sutore-mp-field-label {
+  display: block;
+}
+
+.sutore-mp-manage-modal[data-create-wizard-step] .sutore-mp-form-section-price > .description {
+  display: block;
+  margin: 0 0 0.85rem;
+  font-size: 0.88rem;
+  opacity: 0.75;
+  line-height: 1.4;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-section {
+  margin: 0 0 1.25rem;
+  padding: 0;
+  border: 0;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.sutore-mp-manage-modal .sutore-mp-listing-form-wrap {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr;
+  column-gap: 1.25rem;
+  row-gap: 0;
+  align-items: start;
+}
+
+.sutore-mp-manage-modal .sutore-mp-listing-form-loading,
+.sutore-mp-manage-modal .sutore-mp-form-section-product,
+.sutore-mp-manage-modal .sutore-mp-form-section-size,
+.sutore-mp-manage-modal .sutore-mp-form-section-competing,
+.sutore-mp-manage-modal .sutore-mp-form-actions {
+  grid-column: 1 / -1;
+}
+
+.sutore-mp-manage-modal .sutore-mp-listing-form-wrap > .sutore-mp-parent-id {
+  display: none;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-section-condition,
+.sutore-mp-manage-modal .sutore-mp-form-section-shipping,
+.sutore-mp-manage-modal .sutore-mp-form-section-price {
+  margin-bottom: 1.25rem;
+  padding-top: 0;
+  border-top: 0;
+  min-width: 0;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-section-competing {
+  display: none !important;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-section-price .sutore-mp-price {
+  margin-top: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-section-price .sutore-mp-field-label {
+  display: none;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-section-price .sutore-mp-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-section-price .sutore-mp-row .sutore-mp-input,
+.sutore-mp-manage-modal .sutore-mp-form-section-price .sutore-mp-asking {
+  flex: 1 1 7rem;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-section-price .sutore-mp-row .wp-element-button {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.sutore-mp-manage-panel[data-panel="prices"] .sutore-mp-competing-prices {
+  margin: 0;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-section h3 {
+  margin: 0 0 0.85rem;
+  font-size: 0.95rem;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-section > .description {
+  display: none;
+}
+
+.sutore-mp-manage-modal .sutore-mp-conditions,
+.sutore-mp-manage-modal .sutore-mp-shipping-options {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-context-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+  margin: 0 0 1.15rem;
+  align-items: start;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-context-meta > div[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-context-meta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-context-meta dt {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  opacity: 0.65;
+  font-weight: 400;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-context-meta dd {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  font-weight: 600;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.sutore-mp-manage-modal .sutore-mp-price {
+  margin-top: 0.25rem;
+}
+
+.sutore-mp-manage-modal .sutore-mp-price-alert,
+.sutore-mp-manage-modal .sutore-mp-notice,
+.sutore-mp-manage-modal .sutore-mp-step-error,
+.sutore-mp-manage-modal .sutore-mp-shipping-error,
+.sutore-mp-manage-modal .sutore-mp-message {
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.sutore-mp-manage-modal .sutore-mp-price-alert,
+.sutore-mp-manage-modal .sutore-mp-notice {
+  margin-top: 0.4rem;
+  padding: 0.4rem 0.55rem;
+  border-left-width: 2px;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-actions {
+  margin-top: 0.75rem;
+  padding-top: 0;
+  border-top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-actions .sutore-mp-submit,
+.sutore-mp-manage-modal .sutore-mp-form-actions .sutore-mp-delete,
+.sutore-mp-manage-modal .sutore-mp-form-actions .sutore-mp-remove-from-sale {
+  display: none !important;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-actions .sutore-mp-message {
+  flex: 1 1 100%;
+  margin: 0.25rem 0 0;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-actions .sutore-mp-message:empty {
+  display: none;
+  margin: 0;
+  flex: 0;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-actions:has(.sutore-mp-message:empty) {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .sutore-mp-manage-modal .sutore-mp-listing-form-wrap {
+    grid-template-columns: 1fr;
+  }
+
+  .sutore-mp-manage-modal .sutore-mp-form-section-condition,
+  .sutore-mp-manage-modal .sutore-mp-form-section-shipping,
+  .sutore-mp-manage-modal .sutore-mp-form-section-price {
+    padding-top: 1rem;
+    border-top: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+  }
+
+  .sutore-mp-manage-modal .sutore-mp-form-section-condition {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .sutore-mp-manage-modal .sutore-mp-conditions,
+  .sutore-mp-manage-modal .sutore-mp-shipping-options {
+    grid-template-columns: 1fr;
+  }
+
+  .sutore-mp-manage-modal .sutore-mp-form-context-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sutore-mp-manage-modal .sutore-mp-form-context-meta.sutore-mp-manage-summary-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sutore-mp-manage-modal__tabs {
+    overflow: visible;
+    flex-wrap: wrap;
+  }
+
+  .sutore-mp-manage-tab {
+    flex: 0 0 auto;
+  }
+}
+
+.sutore-mp-manage-activity-wrap {
+  overflow-x: auto;
+}
+
+.sutore-mp-manage-activity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.sutore-mp-manage-activity-table th,
+.sutore-mp-manage-activity-table td {
+  padding: 0.7rem 0.55rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.sutore-mp-manage-activity-table th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sutore-mp-manage-activity-date {
+  white-space: nowrap;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.sutore-mp-manage-activity-details {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.sutore-mp-price-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  margin-top: 0.55rem;
+}
+
+.sutore-mp-open-size-prices {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0;
+  font: inherit;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  text-align: left;
+  line-height: 1.3;
+  justify-self: start;
+}
+
+.sutore-mp-open-size-prices__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.sutore-mp-net-earnings {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.3;
+  justify-self: end;
+  text-align: right;
+}
+
+.sutore-mp-net-earnings__label {
+  opacity: 0.7;
+}
+
+.sutore-mp-net-earnings .sutore-mp-payout {
+  font-weight: 700;
+}
+
+.sutore-mp-manage-modal:not([data-create-wizard-step]) .sutore-mp-open-size-prices {
+  display: none;
+}
+
+.sutore-mp-manage-modal:not([data-create-wizard-step]) .sutore-mp-price-meta {
+  grid-template-columns: 1fr;
+}
+
+.sutore-mp-manage-modal[data-create-wizard-step] .sutore-mp-form-section-competing {
+  display: none !important;
+}
+
+.sutore-mp-size-prices-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: color-mix(in srgb, #000 45%, transparent);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.22s ease,
+    visibility 0.22s ease;
+}
+
+.sutore-mp-size-prices-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.sutore-mp-size-prices-overlay[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-size-prices-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(720px, 100%);
+  max-height: min(88vh, 760px);
+  background: var(--wp--preset--color--base, #fff);
+  color: inherit;
+  border-radius: 0.5rem;
+  box-shadow: 0 18px 50px color-mix(in srgb, #000 28%, transparent);
+  overflow: hidden;
+  transform: scale(0.94);
+  opacity: 0;
+  transition:
+    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease;
+}
+
+.sutore-mp-size-prices-overlay.is-open .sutore-mp-size-prices-modal {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.sutore-mp-size-prices-modal__handle {
+  display: none;
+}
+
+.sutore-mp-size-prices-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  flex-shrink: 0;
+}
+
+.sutore-mp-size-prices-modal__head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.sutore-mp-size-prices-close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+}
+
+.sutore-mp-size-prices-modal__body {
+  overflow: auto;
+  padding: 1rem 1.15rem 1.25rem;
+}
+
+.sutore-mp-size-prices-modal .sutore-mp-competing-prices {
+  margin: 0;
+}
+
+.sutore-mp-size-prices-modal .description {
+  margin: 0 0 0.85rem;
+  font-size: 0.88rem;
+  opacity: 0.75;
+  line-height: 1.4;
+}
+
+.sutore-mp-manage-modal__handle {
+  display: none;
+}
+
+.sutore-mp-wizard-context {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1.15rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  flex-shrink: 0;
+}
+
+.sutore-mp-wizard-context[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-wizard-context__media {
+  flex-shrink: 0;
+}
+
+.sutore-mp-wizard-context__media[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-wizard-context__thumb-box {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.sutore-mp-wizard-context__info {
+  min-width: 0;
+  flex: 1;
+}
+
+.sutore-mp-wizard-context__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sutore-mp-wizard-context__meta {
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  opacity: 0.72;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sutore-mp-wizard-context__price {
+  flex-shrink: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.sutore-mp-wizard-context__price[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-manage-modal__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.85rem 1.15rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  flex-shrink: 0;
+  background: inherit;
+}
+
+.sutore-mp-manage-modal[data-create-wizard-step] .sutore-mp-manage-modal__foot {
+  justify-content: space-between;
+}
+
+.sutore-mp-manage-modal[data-create-wizard-step="done"] .sutore-mp-manage-modal__foot {
+  justify-content: flex-end;
+}
+
+.sutore-mp-manage-modal[data-create-wizard-step] .sutore-mp-manage-modal__foot .sutore-mp-create-wizard-next,
+.sutore-mp-manage-modal[data-create-wizard-step] .sutore-mp-manage-modal__foot .sutore-mp-manage-update {
+  margin-left: auto;
+}
+
+.sutore-mp-manage-modal__foot[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-manage-modal__foot .wp-element-button {
+  margin: 0;
+}
+
+.sutore-mp-manage-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.sutore-mp-manage-modal .sutore-mp-form-section h3 {
+  margin-top: 0;
+}
+
+@media (max-width: 600px) {
+  .sutore-mp-manage-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .sutore-mp-manage-modal {
+    width: 100%;
+    max-height: min(92vh, 100%);
+    height: auto;
+    border-radius: 1rem 1rem 0 0;
+    transform: translateY(110%);
+    opacity: 1;
+  }
+
+  .sutore-mp-manage-overlay.is-open .sutore-mp-manage-modal {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .sutore-mp-manage-overlay.is-closing .sutore-mp-manage-modal {
+    transform: translateY(110%);
+    opacity: 1;
+  }
+
+  .sutore-mp-manage-modal__handle {
+    display: flex;
+    justify-content: center;
+    padding: 0.55rem 0 0.15rem;
+    flex-shrink: 0;
+  }
+
+  .sutore-mp-manage-modal__handle span {
+    display: block;
+    width: 2.5rem;
+    height: 0.28rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 28%, transparent);
+  }
+
+  .sutore-mp-manage-modal__head {
+    padding-top: 0.55rem;
+  }
+
+  .sutore-mp-create-wizard-label,
+  .sutore-mp-bulk-wizard-label {
+    font-size: 0.65rem;
+  }
+
+  .sutore-mp-wizard-context {
+    padding: 0.65rem 1rem;
+  }
+
+  .sutore-mp-bulk-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .sutore-mp-bulk-modal {
+    width: 100%;
+    max-height: min(92vh, 100%);
+    height: auto;
+    border-radius: 1rem 1rem 0 0;
+    transform: translateY(110%);
+    opacity: 1;
+  }
+
+  .sutore-mp-bulk-overlay.is-open .sutore-mp-bulk-modal {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .sutore-mp-bulk-overlay.is-closing .sutore-mp-bulk-modal {
+    transform: translateY(110%);
+    opacity: 1;
+  }
+
+  .sutore-mp-bulk-modal__handle {
+    display: flex;
+    justify-content: center;
+    padding: 0.55rem 0 0.15rem;
+    flex-shrink: 0;
+  }
+
+  .sutore-mp-bulk-modal__handle span {
+    display: block;
+    width: 2.5rem;
+    height: 0.28rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 28%, transparent);
+  }
+
+  .sutore-mp-bulk-modal__head {
+    padding-top: 0.55rem;
+  }
+
+  .sutore-mp-size-prices-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .sutore-mp-size-prices-modal {
+    width: 100%;
+    max-height: min(88vh, 100%);
+    border-radius: 1rem 1rem 0 0;
+    transform: translateY(110%);
+    opacity: 1;
+  }
+
+  .sutore-mp-size-prices-overlay.is-open .sutore-mp-size-prices-modal {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .sutore-mp-size-prices-modal__handle {
+    display: flex;
+    justify-content: center;
+    padding: 0.55rem 0 0.15rem;
+    flex-shrink: 0;
+  }
+
+  .sutore-mp-size-prices-modal__handle span {
+    display: block;
+    width: 2.5rem;
+    height: 0.28rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 28%, transparent);
+  }
+}
+
+@media (max-width: 900px) {
+  .sutore-mp-bulk-table th,
+  .sutore-mp-bulk-table td {
+    padding: 0.45rem 0.35rem;
+  }
+
+  .sutore-mp-bulk-product-title {
+    font-size: 0.85rem;
+  }
+
+  .sutore-mp-bulk-queue,
+  .sutore-mp-bulk-lowest {
+    white-space: normal;
+  }
+}

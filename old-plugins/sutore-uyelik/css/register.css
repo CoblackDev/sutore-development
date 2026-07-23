@@ -1,0 +1,150 @@
+.box-image .out-of-stock-label {
+  display: none;
+}
+
+.text-red span.amount {
+  color: red;
+}
+
+.progress-indicator {
+  display: none !important;
+}
+
+li.product-action a {
+  text-decoration: underline !important;
+  display: inline-block;
+}
+
+li.lowest-ask {
+  font-size: 13px;
+  color: #878787 !important;
+}
+
+li.product-action a {
+  display: inline-block;
+}
+
+.woocommerce-order-pay .order_details {
+  display: none;
+}
+
+.fl-labels .form-row input:not([type="checkbox"]) {
+  text-transform: initial !important;
+}
+
+.fl-labels .fl-wrap label[for]:first-child {
+  -webkit-transition: all 0.3s;
+  -o-transition: all 0.3s;
+  transition: all 0.3s;
+  font-size: 12px;
+  white-space: nowrap;
+  position: absolute;
+  line-height: 1;
+  top: 0.5em;
+  opacity: 0;
+  pointer-events: none;
+  left: 1.1em;
+  font-weight: normal;
+}
+
+.woocommerce-privacy-policy-text,
+.woocommerce-form-register__submit {
+  display: block !important;
+  margin: 2em auto !important;
+  width: max-content !important;
+  height: max-content !important;
+  max-width: 100% !important;
+}
+
+#registerForm #reg_country,
+#registerForm #reg_state,
+#registerForm #reg_city {
+  color: #757575;
+}
+
+#registerForm .fl-is-active #reg_country,
+#registerForm .fl-is-active #reg_state,
+#registerForm .fl-is-active #reg_city {
+  color: black;
+}
+
+ul.variations {
+  list-style-type: none;
+  display: inline-block;
+}
+ul.variations li {
+  text-align: center;
+  width: 85px;
+  height: 45px;
+  padding: 10px;
+  border: 1px solid black;
+  display: inline-block;
+  cursor: pointer;
+  transition: 0.3s;
+  margin-right: 5px;
+  font-size: 90%;
+}
+
+ul.variations li:hover {
+  background: black;
+  color: white;
+}
+
+ul.variations li.selected {
+  background: black;
+  color: white;
+  cursor: default;
+}
+
+.adding-products ul li {
+  list-style-type: none;
+}
+
+#product_code_field {
+  position: relative;
+}
+
+#product_code_field .product-dropdown {
+  position: absolute;
+  background: #efefef;
+  top: 47px;
+  width: 100%;
+  z-index: 10;
+  overflow: auto;
+  border: 2px solid #73737354;
+  display: none;
+  min-height: 50px;
+  max-height: 250px;
+}
+
+.product-dropdown .product {
+  padding: 10px;
+  transition: 0.3s;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.product-dropdown .product:hover {
+  background: white;
+  cursor: pointer;
+}
+
+.product-dropdown .product img {
+  width: 100px;
+  display: inline-block;
+  margin-right: 10px;
+}
+
+.product-dropdown .product .title {
+  display: inline-block;
+}
+@media (max-width: 768px) {
+  .woocommerce-form-register__submit {
+    min-width: 250px !important;
+    padding: 5px !important;
+  }
+}
+@media (min-width: 768px) {
+  .woocommerce-form-register__submit {
+    min-width: 250px !important;
+  }
+}

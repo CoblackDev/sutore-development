@@ -1,0 +1,735 @@
+/* Shared merchant account chrome — loaded on all marketplace account pages. */
+
+.sutore-mp-listings,
+.sutore-mp-account-panel {
+  max-width: 920px;
+  font-family: var(--wp--preset--font-family--body, inherit);
+  color: inherit;
+}
+
+.sutore-mp-listings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Author display:flex beats UA [hidden]; keep chrome invisible until JS reveals it. */
+.sutore-mp-detail-chrome[hidden],
+.sutore-mp-list-chrome[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sutore-mp-listings-header h2 {
+  margin: 0;
+}
+
+.sutore-mp-input,
+.sutore-mp-listings input[type="search"],
+.sutore-mp-listings input[type="text"],
+.sutore-mp-listings input[type="number"],
+.sutore-mp-listings select,
+.sutore-mp-listings textarea,
+.sutore-mp-account-panel input[type="search"],
+.sutore-mp-account-panel input[type="text"],
+.sutore-mp-account-panel input[type="number"],
+.sutore-mp-account-panel select,
+.sutore-mp-account-panel textarea {
+  font: inherit;
+  font-size: var(--wp--preset--font-size--medium, 1rem);
+  font-family: var(--wp--preset--font-family--body, inherit);
+  color: inherit;
+  background: var(--wp--preset--color--base, #fff);
+  border: 1px solid var(--wp--preset--color--accent-6, color-mix(in srgb, currentColor 25%, transparent));
+  border-radius: 0.25rem;
+  padding: 0.55rem 0.75rem;
+  line-height: 1.4;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.sutore-mp-listings .wp-element-button,
+.sutore-mp-account-panel .wp-element-button,
+.sutore-mp-confirm .wp-element-button {
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 0;
+  font: inherit;
+  font-family: var(--wp--preset--font-family--body, inherit);
+  line-height: 1.2;
+  padding: 0.65rem 1.1rem;
+  border-radius: 0.25rem;
+  background: var(--wp--preset--color--contrast, #111);
+  color: var(--wp--preset--color--base, #fff);
+}
+
+.sutore-mp-listings .wp-element-button.is-style-outline,
+.sutore-mp-account-panel .wp-element-button.is-style-outline,
+.sutore-mp-confirm .wp-element-button.is-style-outline {
+  background: transparent;
+  color: inherit;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.sutore-mp-listings .wp-element-button[hidden],
+.sutore-mp-account-panel .wp-element-button[hidden],
+.sutore-mp-confirm .wp-element-button[hidden],
+.sutore-mp-listings .is-hidden,
+.sutore-mp-account-panel .is-hidden {
+  display: none !important;
+}
+
+.sutore-mp-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.sutore-mp-btn-icon svg {
+  display: block;
+}
+
+/* List filter / sort toolbar + modals (shared across account list pages) */
+
+/* List controls row: inline search + filter/sort icons (equal height) */
+
+.sutore-mp-listings .sutore-mp-list-controls,
+.sutore-mp-account-panel .sutore-mp-list-controls {
+  --sutore-mp-control-h: 2.5rem;
+  --sutore-mp-control-border: 1px solid var(--wp--preset--color--accent-6, color-mix(in srgb, currentColor 25%, transparent));
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.sutore-mp-listings .sutore-mp-list-controls .sutore-mp-inline-search,
+.sutore-mp-account-panel .sutore-mp-list-controls .sutore-mp-inline-search {
+  flex: 1 1 12rem;
+  min-width: 10rem;
+  max-width: 22rem;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+.sutore-mp-listings .sutore-mp-list-controls .sutore-mp-inline-search-input,
+.sutore-mp-account-panel .sutore-mp-list-controls .sutore-mp-inline-search-input,
+.sutore-mp-listings .sutore-mp-list-controls input[type="search"].sutore-mp-inline-search-input,
+.sutore-mp-account-panel .sutore-mp-list-controls input[type="search"].sutore-mp-inline-search-input {
+  flex: 1 1 auto;
+  width: 100%;
+  height: var(--sutore-mp-control-h) !important;
+  min-height: var(--sutore-mp-control-h) !important;
+  max-height: var(--sutore-mp-control-h) !important;
+  margin: 0 !important;
+  padding: 0 0.75rem !important;
+  line-height: 1.2 !important;
+  border: var(--sutore-mp-control-border) !important;
+  border-radius: 0.25rem;
+  box-sizing: border-box !important;
+  -webkit-appearance: none;
+  appearance: none;
+  vertical-align: top;
+}
+
+.sutore-mp-listings .sutore-mp-list-controls .sutore-mp-list-toolbar,
+.sutore-mp-account-panel .sutore-mp-list-controls .sutore-mp-list-toolbar {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+}
+
+.sutore-mp-listings .sutore-mp-list-controls .sutore-mp-toolbar-btn,
+.sutore-mp-account-panel .sutore-mp-list-controls .sutore-mp-toolbar-btn {
+  position: relative;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: var(--sutore-mp-control-h) !important;
+  height: var(--sutore-mp-control-h) !important;
+  min-width: var(--sutore-mp-control-h) !important;
+  min-height: var(--sutore-mp-control-h) !important;
+  max-width: var(--sutore-mp-control-h) !important;
+  max-height: var(--sutore-mp-control-h) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  box-shadow: none !important;
+  border: var(--sutore-mp-control-border) !important;
+  border-radius: 0.25rem;
+  background: var(--wp--preset--color--base, #fff) !important;
+  color: inherit !important;
+  text-decoration: none !important;
+  flex-shrink: 0;
+  align-self: auto;
+  line-height: 1 !important;
+}
+
+.sutore-mp-list-toolbar {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.sutore-mp-filter-badge,
+.sutore-mp-sort-badge {
+  position: absolute;
+  top: -0.2rem;
+  right: -0.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  line-height: 1;
+  font-weight: 600;
+  background: var(--wp--preset--color--contrast, #111);
+  color: var(--wp--preset--color--base, #fff);
+}
+
+.sutore-mp-filter-badge[hidden],
+.sutore-mp-sort-badge[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-filter-overlay,
+.sutore-mp-sort-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: color-mix(in srgb, #000 45%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.sutore-mp-filter-overlay[hidden],
+.sutore-mp-sort-overlay[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-filter-modal,
+.sutore-mp-sort-modal {
+  width: min(480px, 100%);
+  max-height: min(90vh, 720px);
+  overflow: auto;
+  background: var(--wp--preset--color--base, #fff);
+  color: inherit;
+  border-radius: 0.4rem;
+  box-shadow: 0 18px 50px color-mix(in srgb, #000 28%, transparent);
+  font-family: var(--wp--preset--font-family--body, inherit);
+}
+
+.sutore-mp-filter-head,
+.sutore-mp-sort-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  position: sticky;
+  top: 0;
+  background: inherit;
+  z-index: 1;
+}
+
+.sutore-mp-filter-head h2,
+.sutore-mp-sort-head h2 {
+  margin: 0;
+  font-size: var(--wp--preset--font-size--large, 1.25rem);
+}
+
+.sutore-mp-filter-close,
+.sutore-mp-sort-close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.sutore-mp-filter-body,
+.sutore-mp-sort-body {
+  padding: 1rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sutore-mp-filter-body .sutore-mp-input,
+.sutore-mp-sort-body .sutore-mp-input {
+  width: 100%;
+  margin-bottom: 0.65rem;
+}
+
+.sutore-mp-filter-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.85rem 1.15rem 1.15rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.sutore-mp-field-label {
+  display: block;
+  font-size: 0.875em;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+body.sutore-mp-modal-open {
+  overflow: hidden;
+}
+
+.sutore-mp-link-btn {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-left: 0.85rem;
+  font: inherit;
+  font-family: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.sutore-mp-link-btn:hover {
+  opacity: 1;
+}
+
+.sutore-mp-card {
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  padding: 0.95rem 0;
+}
+
+.sutore-mp-card-main {
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+}
+
+.sutore-mp-thumb-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+  box-sizing: border-box;
+  padding: 2px;
+}
+
+.sutore-mp-thumb-box > img,
+.sutore-mp-card-thumb,
+.sutore-mp-pick-thumb {
+  display: block;
+  width: auto !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  object-position: center center;
+}
+
+.sutore-mp-card-thumb-box {
+  width: 175px;
+  height: 175px;
+}
+
+.sutore-mp-thumb-box.is-empty {
+  border: 1px dashed color-mix(in srgb, currentColor 25%, transparent);
+}
+
+.sutore-mp-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sutore-mp-card-title {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.sutore-mp-card-code,
+.sutore-mp-card-meta {
+  opacity: 0.72;
+  font-size: 0.92em;
+  margin-top: 0.2rem;
+}
+
+.sutore-mp-price.is-sale del {
+  opacity: 0.65;
+  margin-right: 0.25em;
+}
+
+.sutore-mp-price.is-sale ins {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.sutore-mp-card-actions {
+  margin-top: 0.65rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.sutore-mp-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.sutore-mp-tag {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.78em;
+  border-radius: 0.25rem;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+.sutore-mp-tag.is-condition {
+  border-color: color-mix(in srgb, #b32d2e 35%, transparent);
+  color: #8a1f1f;
+  background: color-mix(in srgb, #b32d2e 8%, transparent);
+}
+
+.sutore-mp-tag.is-shipping {
+  border-color: color-mix(in srgb, #2271b1 40%, transparent);
+  color: #135e96;
+  background: color-mix(in srgb, #2271b1 10%, transparent);
+}
+
+.sutore-mp-tag.is-international {
+  border-color: color-mix(in srgb, #2271b1 55%, transparent);
+  color: #2271b1;
+  background: color-mix(in srgb, #2271b1 12%, transparent);
+}
+
+.sutore-mp-tag.is-sourcing {
+  border-color: color-mix(in srgb, #8c5e00 40%, transparent);
+  color: #6b4700;
+  background: color-mix(in srgb, #dba617 12%, transparent);
+}
+
+.sutore-mp-tag.is-imported {
+  border-color: color-mix(in srgb, #50575e 45%, transparent);
+  color: #2c3338;
+  background: color-mix(in srgb, #646970 12%, transparent);
+}
+
+.sutore-mp-tag.is-campaign-offer {
+  border-color: color-mix(in srgb, #9b4d1c 45%, transparent);
+  color: #7a3a12;
+  background: color-mix(in srgb, #e67e22 14%, transparent);
+}
+
+.sutore-mp-tag.is-campaign-active {
+  border-color: color-mix(in srgb, #1e7a46 45%, transparent);
+  color: #145c34;
+  background: color-mix(in srgb, #2ea44f 12%, transparent);
+}
+
+.sutore-mp-card.is-campaign-offer {
+  box-shadow: inset 3px 0 0 #e67e22;
+}
+
+.sutore-mp-card.is-campaign-active {
+  box-shadow: inset 3px 0 0 #2ea44f;
+}
+
+.sutore-mp-panel-lead {
+  margin: 0 0 1rem;
+  opacity: 0.78;
+}
+
+.sutore-mp-section-title {
+  margin: 1.5rem 0 0.75rem;
+  font-size: 1.05em;
+}
+
+.sutore-mp-card.is-expired {
+  opacity: 0.55;
+}
+
+.sutore-mp-card-remaining {
+  margin-top: 0.25rem;
+  font-size: 0.88em;
+  opacity: 0.78;
+}
+
+.sutore-mp-card-campaign-end {
+  margin-top: 0.2rem;
+  font-size: 0.88em;
+  color: #145c34;
+}
+
+.sutore-mp-card-offer-discounts {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  opacity: 0.9;
+}
+
+.sutore-mp-offer-modal .sutore-mp-offer-meta {
+  margin: 0;
+}
+
+.sutore-mp-empty {
+  margin: 1.5rem 0;
+  opacity: 0.75;
+}
+
+.sutore-mp-field-label {
+  display: block;
+  margin: 0 0 0.4rem;
+  font-size: var(--wp--preset--font-size--small, 0.9rem);
+}
+
+/* Confirm dialog (core JS + fulfillment modals) */
+.sutore-mp-confirm {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, #000 45%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100001;
+  padding: 1rem;
+}
+
+.sutore-mp-confirm-card {
+  background: var(--wp--preset--color--base, #fff);
+  color: inherit;
+  width: min(420px, 100%);
+  border-radius: 0.4rem;
+  overflow: hidden;
+  box-shadow: 0 12px 36px color-mix(in srgb, #000 25%, transparent);
+}
+
+.sutore-mp-confirm-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.sutore-mp-confirm-x {
+  border: 0;
+  background: transparent;
+  font-size: 1.3rem;
+  cursor: pointer;
+  color: inherit;
+}
+
+.sutore-mp-confirm-body {
+  padding: 1rem;
+  line-height: 1.45;
+}
+
+.sutore-mp-confirm-text {
+  margin: 0;
+}
+
+.sutore-mp-confirm-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.sutore-mp-confirm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sutore-mp-confirm-field .sutore-mp-input {
+  width: 100%;
+}
+
+.sutore-mp-confirm-error {
+  margin: 0.65rem 0 0;
+  min-height: 1.2em;
+  color: var(--wp--preset--color--vivid-red, #b32d2e);
+  font-size: 0.9rem;
+}
+
+.sutore-mp-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.sutore-mp-toast-host {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 100002;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+  pointer-events: none;
+  max-width: min(22rem, calc(100vw - 2rem));
+}
+
+.sutore-mp-toast {
+  pointer-events: auto;
+  padding: 0.7rem 0.95rem;
+  border-radius: 0.35rem;
+  background: var(--wp--preset--color--base, #fff);
+  color: inherit;
+  box-shadow: 0 8px 24px color-mix(in srgb, #000 22%, transparent);
+  border-left: 3px solid currentColor;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  opacity: 0;
+  transform: translateY(0.4rem);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.sutore-mp-toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.sutore-mp-toast.is-success {
+  border-left-color: #1e7e34;
+}
+
+.sutore-mp-toast.is-error {
+  border-left-color: #b32d2e;
+}
+
+.sutore-mp-sourcing-accept-message {
+  margin: 0.75rem 0 0;
+  min-height: 1.25em;
+}
+
+.sutore-mp-sourcing-commitment-hint {
+  margin: 0.5rem 0 0;
+  color: #b32d2e;
+  font-size: 0.85rem;
+}
+
+.sutore-mp-otp-input {
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.sutore-mp-otp-lead {
+  margin: 0.35rem 0 0;
+  opacity: 0.8;
+  font-size: 0.92em;
+}
+
+.sutore-mp-otp-error {
+  margin: 0.5rem 0 0;
+  color: #b91c1c;
+}
+
+.sutore-mp-otp-debug {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 6px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  font-size: 0.92em;
+  line-height: 1.4;
+}
+
+.sutore-mp-otp-debug-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.08em;
+  font-size: 1.05em;
+}
+
+.sutore-mp-list-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 12rem;
+  padding: 2rem 1rem;
+}
+
+.sutore-mp-list-spinner {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 2px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: sutore-mp-list-spin 0.7s linear infinite;
+}
+
+@keyframes sutore-mp-list-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .sutore-mp-listings-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sutore-mp-header-actions {
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .sutore-mp-header-actions .wp-element-button:not(.sutore-mp-toolbar-btn) {
+    flex: 1;
+  }
+
+  .sutore-mp-listings .sutore-mp-list-controls,
+  .sutore-mp-account-panel .sutore-mp-list-controls {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+
+  .sutore-mp-listings .sutore-mp-list-controls .sutore-mp-inline-search,
+  .sutore-mp-account-panel .sutore-mp-list-controls .sutore-mp-inline-search {
+    max-width: none;
+  }
+}

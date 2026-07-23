@@ -1,0 +1,47 @@
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-wordpress}
+      MYSQL_USER: ${MYSQL_USER:-wordpress}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  wordpress:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.wordpress
+    image: sutore-wordpress:local
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${WORDPRESS_PORT:-8080}:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: ${MYSQL_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE:-wordpress}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_ENVIRONMENT_TYPE', 'local');
+    volumes:
+      # IMPORTANT (Windows): Do NOT bind-mount the whole project from C:\
+      # That routes every PHP file through NTFS↔WSL and makes WP 50-200x slower.
+      # Use a Docker named volume (Linux FS) instead.
+      - wp_data:/var/www/html
+      - ./docker/php-custom.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+      # Single plugin mount is OK for development (small file set).
+      - ./wp-content/plugins/sutore-marketplace:/var/www/html/wp-content/plugins/sutore-marketplace
+
+volumes:
+  db_data:
+  wp_data:
