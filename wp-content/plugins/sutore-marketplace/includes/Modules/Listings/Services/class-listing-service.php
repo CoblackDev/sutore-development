@@ -7,13 +7,17 @@ namespace SutoreMarketplace\Modules\Listings\Services;
 use SutoreMarketplace\Modules\Merchants\Domain\NotificationType;
 use SutoreMarketplace\Modules\Merchants\Services\NotificationService;
 use SutoreMarketplace\Modules\Orders\Services\Notifications;
-use SutoreMarketplace\Modules\Tasks\Services\TaskProgressService;
+use SutoreMarketplace\Modules\Listings\Domain\CampaignDatetime;
 use SutoreMarketplace\Modules\Listings\Domain\Listing;
 use SutoreMarketplace\Modules\Listings\Domain\ListingCampaignPolicy;
 use SutoreMarketplace\Modules\Listings\Domain\ListingConditionRank;
+use SutoreMarketplace\Modules\Listings\Domain\ListingDuration;
 use SutoreMarketplace\Modules\Listings\Domain\ListingPolicy;
 use SutoreMarketplace\Modules\Listings\Domain\ListingPriceValidator;
 use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
+use SutoreMarketplace\Modules\Listings\Domain\ProductSizeLookup;
+use SutoreMarketplace\Modules\Listings\Domain\MerchantBulkAction;
+use SutoreMarketplace\Modules\Listings\Hooks\VariationLifecycleGuard;
 use SutoreMarketplace\Modules\Listings\Repositories\CampaignOfferRepository;
 use SutoreMarketplace\Modules\Listings\Repositories\CampaignRepository;
 use SutoreMarketplace\Shared\Domain\MarketplacePricing;
@@ -38,14 +42,21 @@ final class ListingService
 
     public function create(array $input, ?int $userId = null, array $options = []): Listing|\WP_Error
     {
-        $userId = $userId ?: get_current_user_id();
-        $auth = ListingPolicy::assertCanManage($userId);
+        $actorId = $userId ?: get_current_user_id();
+        $auth = ListingPolicy::assertCanManage($actorId);
         if (is_wp_error($auth)) {
             return $auth;
         }
 
-        if ($this->restrictions->hasActive($userId, 'listing_create_ban')
-            || $this->restrictions->hasActive($userId, 'disabled_account')) {
+        $merchantId = ListingPolicy::resolveCreateMerchantId($actorId, $input, $options);
+        if (is_wp_error($merchantId)) {
+            return $merchantId;
+        }
+
+        // Staff creating for another merchant bypasses that seller's create restrictions.
+        $staffForMerchant = $actorId !== $merchantId;
+        if (!$staffForMerchant && ($this->restrictions->hasActive($merchantId, 'listing_create_ban')
+            || $this->restrictions->hasActive($merchantId, 'disabled_account'))) {
             return new \WP_Error('sutore_marketplace_restricted', __('Listing creation is restricted.', 'sutore-marketplace'));
         }
 
@@ -57,7 +68,8 @@ final class ListingService
             $this->events->log('price_validation_failed', [
                 'asking' => $input['asking'] ?? null,
                 'parent_product_id' => $parentId,
-            ], null, null, $userId);
+                'actor_user_id' => $actorId,
+            ], null, $merchantId);
             return $askingCheck;
         }
         $asking = (int) ListingPriceValidator::normalizeAsking($input['asking']);
@@ -66,55 +78,80 @@ final class ListingService
         $belowRetail = $retailTl !== null && $asking < $retailTl;
 
         $conditions = ListingRepository::defectConditionsOnly($this->normalizeConditions($input));
-        if (!empty($input['fast_shipment']) && !ListingPolicy::canUseFastShipment($userId)) {
+        if (!$staffForMerchant && !empty($input['fast_shipment']) && !ListingPolicy::canUseFastShipment($merchantId)) {
             return new \WP_Error('sutore_marketplace_fast_shipment', __('You are not eligible for fast shipping.', 'sutore-marketplace'));
         }
 
         [$fastShipment, $hasInvoice] = ListingRepository::resolveShippingFlags($input);
 
-        $variationId = $this->createVariation($parentId, $sizeTermId, $asking, $userId, $input);
+        $variationId = $this->createVariation($parentId, $sizeTermId, $asking, $merchantId, $input);
         if (is_wp_error($variationId)) {
             return $variationId;
         }
 
-        $fingerprint = ListingRepository::fingerprint($conditions, $fastShipment, $hasInvoice);
-        $expireAt = $this->computeExpireAt();
+        $isImported = $this->resolveImportedFlag($input, $actorId, $variationId);
+        if ($isImported) {
+            ImportedProductService::setVariationImported($variationId, true);
+        }
 
-        $listingId = $this->listings->insert([
+        $fingerprint = ListingRepository::fingerprint($conditions, $fastShipment, $hasInvoice);
+        $expireAtOverride = CampaignDatetime::normalizeInput($options['expire_at'] ?? null);
+        if ($expireAtOverride) {
+            $endsTs = CampaignDatetime::toTimestamp($expireAtOverride) ?? time();
+            $durationDays = max(1, (int) ceil(($endsTs - time()) / DAY_IN_SECONDS));
+            $expireAt = $expireAtOverride;
+        } else {
+            $durationDays = $this->resolveDurationForCreate($input, $merchantId);
+            if (is_wp_error($durationDays)) {
+                return $durationDays;
+            }
+            $expireAt = ListingDuration::computeExpireAt($durationDays);
+        }
+
+        $insertedId = $this->listings->insert([
             'variation_id' => $variationId,
             'parent_product_id' => $parentId,
             'size_term_id' => $sizeTermId,
-            'merchant_id' => $userId,
+            'merchant_id' => $merchantId,
             'listing_status' => 'pending',
             'asking' => $asking,
             'condition_fingerprint' => $fingerprint,
             'campaign_status' => 'none',
             'expire_at' => $expireAt,
+            'listing_duration_days' => $durationDays,
             'fast_shipment' => $fastShipment ? 1 : 0,
             'has_invoice' => $hasInvoice ? 1 : 0,
-            'is_imported' => ImportedProductService::isVariationImported($variationId) ? 1 : 0,
+            'is_imported' => $isImported ? 1 : 0,
             'is_winner' => 0,
         ]);
 
-        $this->conditions->sync($listingId, $conditions);
-        $listing = $this->listings->find($listingId);
+        $this->conditions->sync($insertedId, $conditions);
+        $listing = $this->listings->find($insertedId);
         if (!$listing) {
             return new \WP_Error('sutore_marketplace_create_failed', __('Listing could not be created.', 'sutore-marketplace'));
         }
 
         $this->events->log('listing_created', array_merge($listing->toArray(), [
             'below_retail' => $belowRetail,
-        ]), $listingId, $variationId, $userId, 'merchant_visible');
-
-        if (empty($options['skip_task_increment'])) {
-            (new TaskProgressService())->increment($userId, 'listings_created');
-        }
+            'actor_user_id' => $actorId,
+        ]), $variationId, $merchantId, 'merchant_visible');
 
         if (empty($options['defer_selector'])) {
             $this->selector->rerunSize($parentId, $sizeTermId);
         }
 
-        $fresh = $this->listings->find($listingId);
+        $fresh = $this->listings->find($insertedId);
+        if (
+            !empty($options['force_publish'])
+            && $fresh
+            && $fresh->isWinner
+            && $fresh->listingStatus === ListingStatus::PENDING
+        ) {
+            $approved = $this->selector->approvePendingWinner($insertedId);
+            if (!is_wp_error($approved)) {
+                $fresh = $approved;
+            }
+        }
 
         return $fresh ?: $listing;
     }
@@ -152,6 +189,11 @@ final class ListingService
         $campaignLock = ListingCampaignPolicy::assertCanUpdate($listing);
         if (is_wp_error($campaignLock)) {
             return $campaignLock;
+        }
+
+        $outletLock = $this->assertOutletUnlocked($listing);
+        if (is_wp_error($outletLock)) {
+            return $outletLock;
         }
 
         if (isset($input['parent_product_id']) && (int) $input['parent_product_id'] !== $listing->parentProductId) {
@@ -199,14 +241,27 @@ final class ListingService
             array_key_exists('has_invoice', $input) ? !empty($input['has_invoice']) : $listing->hasInvoice,
         );
 
+        $isImported = $listing->isImported;
+        if (array_key_exists('is_imported', $input) && ListingPolicy::canFlagImported($userId)) {
+            $isImported = !empty($input['is_imported']);
+            ImportedProductService::setVariationImported($listing->variationId, $isImported);
+        }
+
         $fingerprint = ListingRepository::fingerprint($conditions, $fastShipment, $hasInvoice);
+        $durationPatch = $this->resolveDurationForUpdate($input, $listing);
+        if (is_wp_error($durationPatch)) {
+            return $durationPatch;
+        }
+
         $this->listings->update($listingId, [
             'asking' => $asking,
             'condition_fingerprint' => $fingerprint,
             'fast_shipment' => $fastShipment ? 1 : 0,
             'has_invoice' => $hasInvoice ? 1 : 0,
-            'expire_at' => $listing->expireAt ?: $this->computeExpireAt(),
-            'listing_status' => $listing->listingStatus === 'expired' ? 'pending' : $listing->listingStatus,
+            'is_imported' => $isImported ? 1 : 0,
+            'listing_duration_days' => $durationPatch['duration_days'],
+            'expire_at' => $durationPatch['expire_at'],
+            'listing_status' => $durationPatch['listing_status'],
         ]);
 
         $this->conditions->sync($listingId, $conditions);
@@ -222,13 +277,70 @@ final class ListingService
             $this->logUpdateChangeEvents($listing, $updated, $userId, $belowRetail, $fastShipment, $hasInvoice, $conditions);
         }
 
-        (new TaskProgressService())->increment($userId, 'listing_updates');
-
         $this->selector->rerunSize($listing->parentProductId, $listing->sizeTermId);
 
         $updatedListing = $this->listings->find($listingId);
 
         return $updatedListing ?: new \WP_Error('sutore_marketplace_update_failed', __('Update failed.', 'sutore-marketplace'));
+    }
+
+    /**
+     * Staff-only listing commission override. Null clears the field (normal resolver flow). 0 is a real rate.
+     */
+    public function setCommissionPercent(int $listingId, ?float $percent, string $note = ''): Listing|\WP_Error
+    {
+        if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
+            return new \WP_Error(
+                'sutore_marketplace_forbidden',
+                __('You are not allowed to set a listing commission.', 'sutore-marketplace'),
+                ['status' => 403]
+            );
+        }
+
+        $listing = $this->listings->find($listingId);
+        if (!$listing) {
+            return new \WP_Error('sutore_marketplace_not_found', __('Listing not found.', 'sutore-marketplace'));
+        }
+
+        if ($percent !== null) {
+            $percent = round($percent, 2);
+            if ($percent < 0 || $percent > 100) {
+                return new \WP_Error(
+                    'sutore_commission_invalid',
+                    __('Commission percent must be between 0 and 100.', 'sutore-marketplace'),
+                    ['status' => 400]
+                );
+            }
+        }
+
+        $this->listings->update($listingId, [
+            'commission_percent' => $percent,
+        ]);
+
+        $note = sanitize_textarea_field($note);
+        $this->events->log('listing_commission_set', [
+            'previous_percent' => $listing->commissionPercent,
+            'commission_percent' => $percent,
+            'staff_note' => $note,
+        ], $listing->variationId, $listing->merchantId, 'admin_only');
+
+        if ($listing->merchantId > 0) {
+            (new \SutoreMarketplace\Modules\Merchants\Repositories\MerchantEventsRepository())->log(
+                $listing->merchantId,
+                'merchant_listing_commission_set',
+                [
+                    'actor_role' => 'staff',
+                    'variation_id' => $listing->variationId,
+                    'previous_percent' => $listing->commissionPercent,
+                    'commission_percent' => $percent,
+                    'staff_note' => $note,
+                ]
+            );
+        }
+
+        $updated = $this->listings->find($listingId);
+
+        return $updated ?: $listing;
     }
 
     /**
@@ -257,13 +369,18 @@ final class ListingService
             return $allowed;
         }
 
+        $allowed = ListingPolicy::allowedListingDurations($userId);
+        $durationDays = ListingDuration::clampToAllowed($listing->durationDays, $allowed);
+        $expireAt = ListingDuration::computeExpireAt($durationDays);
+
         $this->listings->update($listingId, [
             'listing_status' => 'pending',
             'order_id' => null,
             'order_item_id' => null,
             'sold_at' => null,
             'is_winner' => 0,
-            'expire_at' => $this->computeExpireAt(),
+            'listing_duration_days' => $durationDays,
+            'expire_at' => $expireAt,
         ]);
 
         $product = wc_get_product($listing->variationId);
@@ -277,7 +394,7 @@ final class ListingService
 
         $this->events->log('listing_put_on_sale', [
             'from_status' => $listing->listingStatus,
-        ], $listingId, $listing->variationId, $userId, 'merchant_visible');
+        ], $listing->variationId, $userId, 'merchant_visible');
 
         $this->selector->rerunSize($listing->parentProductId, $listing->sizeTermId);
 
@@ -341,7 +458,7 @@ final class ListingService
             'from_status' => $listing->listingStatus,
             'to_status' => ListingStatus::NOT_SALE,
             'staff_note' => $staffNote !== '' ? $staffNote : null,
-        ], static fn ($value) => $value !== null && $value !== ''), $listingId, $listing->variationId, $listing->merchantId, 'merchant_visible');
+        ], static fn ($value) => $value !== null && $value !== ''), $listing->variationId, $listing->merchantId, 'merchant_visible');
 
         $this->selector->rerunSize($listing->parentProductId, $listing->sizeTermId);
 
@@ -371,8 +488,13 @@ final class ListingService
             );
         }
 
-        if ($listing->id) {
-            $activeFulfillment = (new FulfillmentRepository())->findActiveByListingId((int) $listing->id);
+        $outletLock = $this->assertOutletUnlocked($listing);
+        if (is_wp_error($outletLock)) {
+            return $outletLock;
+        }
+
+        if ($listing->variationId) {
+            $activeFulfillment = (new FulfillmentRepository())->findActiveByVariationId((int) $listing->variationId);
             if ($activeFulfillment) {
                 return new \WP_Error(
                     'sutore_marketplace_order_locked',
@@ -417,15 +539,15 @@ final class ListingService
             );
         }
 
-        if (ListingStatus::isSourcingHeld($listing)) {
+        if (ListingStatus::isPreOrder($listing)) {
             return new \WP_Error(
                 'sutore_marketplace_sourcing_held',
                 __('This listing is held for a pre-order and cannot be put on sale.', 'sutore-marketplace')
             );
         }
 
-        if ($listing->id) {
-            $activeFulfillment = (new FulfillmentRepository())->findActiveByListingId((int) $listing->id);
+        if ($listing->variationId) {
+            $activeFulfillment = (new FulfillmentRepository())->findActiveByVariationId((int) $listing->variationId);
             if ($activeFulfillment) {
                 return new \WP_Error(
                     'sutore_marketplace_order_locked',
@@ -465,8 +587,9 @@ final class ListingService
         $variationId = $listing->variationId;
         $merchantId = (int) $listing->merchantId;
 
+        // Events keep merchant_id after this row is gone (accounting trail).
+        // Payout lines are not deleted with the listing for the same reason.
         $this->events->log('listing_deleted', array_filter([
-            'listing_id' => $listingId,
             'variation_id' => $variationId,
             'parent_product_id' => $listing->parentProductId,
             'size_term_id' => $listing->sizeTermId,
@@ -476,7 +599,7 @@ final class ListingService
             'condition_fingerprint' => $listing->conditionFingerprint,
             'deletion_source' => $this->resolveDeletionSource($userId, $listing, $options),
             'events_retained' => true,
-        ], static fn ($value) => $value !== null && $value !== ''), $listingId, $variationId, $merchantId, 'merchant_visible');
+        ], static fn ($value) => $value !== null && $value !== ''), $variationId, $merchantId, 'merchant_visible');
 
         $this->conditions->deleteForListing($listingId);
         $this->listings->delete($listingId);
@@ -498,6 +621,10 @@ final class ListingService
             return false;
         }
 
+        if (is_wp_error($this->assertOutletUnlocked($listing))) {
+            return false;
+        }
+
         if (ListingStatus::isProcessLocked($listing)) {
             return false;
         }
@@ -506,8 +633,8 @@ final class ListingService
             return false;
         }
 
-        if ($listing->id) {
-            $activeFulfillment = (new FulfillmentRepository())->findActiveByListingId((int) $listing->id);
+        if ($listing->variationId) {
+            $activeFulfillment = (new FulfillmentRepository())->findActiveByVariationId((int) $listing->variationId);
             if ($activeFulfillment) {
                 return false;
             }
@@ -522,12 +649,12 @@ final class ListingService
      */
     private function resyncActiveCampaignSale(Listing $listing, int $asking): void
     {
-        if (!$listing->id) {
+        if (!$listing->variationId) {
             return;
         }
 
         $offers = new CampaignOfferRepository();
-        $offer = $offers->findAcceptedForListing((int) $listing->id);
+        $offer = $offers->findAcceptedForVariation((int) $listing->variationId);
         if (!$offer) {
             $this->writeVariationPrices($listing->variationId, $asking);
             return;
@@ -563,6 +690,11 @@ final class ListingService
 
     public function assertCanDelete(Listing $listing): true|\WP_Error
     {
+        $outletLock = $this->assertOutletUnlocked($listing);
+        if (is_wp_error($outletLock)) {
+            return $outletLock;
+        }
+
         if ($listing->orderId || $this->isOrderLinked($listing->variationId) || ListingStatus::isProcessLocked($listing)) {
             return new \WP_Error(
                 'sutore_marketplace_cannot_delete',
@@ -570,8 +702,8 @@ final class ListingService
             );
         }
 
-        if ($listing->id) {
-            $activeFulfillment = (new FulfillmentRepository())->findActiveByListingId((int) $listing->id);
+        if ($listing->variationId) {
+            $activeFulfillment = (new FulfillmentRepository())->findActiveByVariationId((int) $listing->variationId);
             if ($activeFulfillment) {
                 return new \WP_Error(
                     'sutore_marketplace_cannot_delete',
@@ -583,8 +715,14 @@ final class ListingService
         return true;
     }
 
+    private function assertOutletUnlocked(Listing $listing): true|\WP_Error
+    {
+        return (new OutletService())->assertListingUnlocked($listing);
+    }
+
     public function purgeAllForMerchant(int $userId): true|\WP_Error
     {
+        $ids = [];
         $page = 1;
 
         do {
@@ -595,25 +733,37 @@ final class ListingService
             ]);
 
             foreach ($result['items'] as $listing) {
-                if (!$listing->id) {
-                    continue;
-                }
-
-                $deleted = $this->delete((int) $listing->id, $userId, ['deletion_source' => 'account_purge']);
-                if ($deleted instanceof \WP_Error) {
-                    return $deleted;
+                if ($listing->variationId) {
+                    $ids[] = (int) $listing->variationId;
                 }
             }
 
             $page++;
         } while (count($result['items']) === 100);
 
+        foreach (array_values(array_unique($ids)) as $listingId) {
+            $listing = $this->listings->find($listingId);
+            if (!$listing) {
+                continue;
+            }
+
+            // Keep completed / in-process rows (delivered, chargeback, open sales).
+            if (is_wp_error($this->assertCanDelete($listing))) {
+                continue;
+            }
+
+            $deleted = $this->delete($listingId, $userId, ['deletion_source' => 'account_purge']);
+            if ($deleted instanceof \WP_Error) {
+                return $deleted;
+            }
+        }
+
         return $this->purgeOrphanVariations($userId);
     }
 
     public function expire(Listing $listing): void
     {
-        if (!$listing->id) {
+        if (!$listing->variationId) {
             return;
         }
 
@@ -621,7 +771,7 @@ final class ListingService
         $parentId = $listing->parentProductId;
         $sizeTermId = $listing->sizeTermId;
 
-        $this->listings->update($listing->id, [
+        $this->listings->update($listing->variationId, [
             'listing_status' => 'expired',
             'is_winner' => 0,
         ]);
@@ -634,14 +784,16 @@ final class ListingService
         }
 
         $this->events->log('listing_expired', [
-            'listing_id' => $listing->id,
+            'variation_id' => $listing->variationId,
             'was_winner' => $wasWinner,
-        ], $listing->id, $listing->variationId, $listing->merchantId, 'merchant_visible');
+        ], $listing->variationId, $listing->merchantId, 'merchant_visible');
 
-        $title = Notifications::productTitle((int) $listing->id, $listing->variationId, $listing->parentProductId);
+        (new OutletService())->markExpiredForListing((int) $listing->variationId);
+
+        $title = Notifications::productTitle((int) $listing->variationId, $listing->variationId, $listing->parentProductId);
         (new NotificationService())->dispatch((int) $listing->merchantId, NotificationType::LISTING_EXPIRED, [
             'product' => $title,
-            'listing_id' => (int) $listing->id,
+            'variation_id' => (int) $listing->variationId,
         ]);
 
         $this->selector->rerunSize($parentId, $sizeTermId);
@@ -657,7 +809,6 @@ final class ListingService
         bool $hasInvoice,
         array $newConditions
     ): void {
-        $listingId = (int) $before->id;
         $variationId = $before->variationId;
         $merchantId = (int) $before->merchantId;
         $logged = 0;
@@ -669,7 +820,7 @@ final class ListingService
                 'old_asking' => $oldAsking,
                 'new_asking' => $newAsking,
                 'below_retail' => $belowRetail,
-            ], $listingId, $variationId, $merchantId, 'merchant_visible');
+            ], $variationId, $merchantId, 'merchant_visible');
             $logged++;
         }
 
@@ -681,7 +832,7 @@ final class ListingService
                 'changed_keys' => $changedConditionKeys,
                 'old_conditions' => $this->activeConditionKeys($before->conditions),
                 'new_conditions' => $this->activeConditionKeys($newConditions),
-            ], $listingId, $variationId, $merchantId, 'merchant_visible');
+            ], $variationId, $merchantId, 'merchant_visible');
             $logged++;
         }
 
@@ -691,7 +842,17 @@ final class ListingService
                 'new_fast_shipment' => $fastShipment ? 1 : 0,
                 'old_has_invoice' => $before->hasInvoice ? 1 : 0,
                 'new_has_invoice' => $hasInvoice ? 1 : 0,
-            ], $listingId, $variationId, $merchantId, 'merchant_visible');
+            ], $variationId, $merchantId, 'merchant_visible');
+            $logged++;
+        }
+
+        if ($before->durationDays !== $after->durationDays) {
+            $this->events->log('listing_duration_changed', [
+                'old_duration_days' => $before->durationDays,
+                'new_duration_days' => $after->durationDays,
+                'old_expire_at' => $before->expireAt,
+                'new_expire_at' => $after->expireAt,
+            ], $variationId, $merchantId, 'merchant_visible');
             $logged++;
         }
 
@@ -699,7 +860,7 @@ final class ListingService
             $this->events->log('listing_status_changed', [
                 'old_status' => $before->listingStatus,
                 'new_status' => $after->listingStatus,
-            ], $listingId, $variationId, $merchantId, 'merchant_visible');
+            ], $variationId, $merchantId, 'merchant_visible');
         }
     }
 
@@ -747,10 +908,63 @@ final class ListingService
         return $out;
     }
 
-    private function computeExpireAt(): string
+    /**
+     * Staff may flag the listing explicitly; otherwise the variation meta decides.
+     *
+     * @param array<string, mixed> $input
+     */
+    private function resolveImportedFlag(array $input, int $actorId, int $variationId): bool
     {
-        $days = Settings::expireDays();
-        return date('Y-m-d H:i:s', current_time('timestamp') + ($days * DAY_IN_SECONDS));
+        if (array_key_exists('is_imported', $input) && ListingPolicy::canFlagImported($actorId)) {
+            return !empty($input['is_imported']);
+        }
+
+        return ImportedProductService::isVariationImported($variationId);
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     */
+    private function resolveDurationForCreate(array $input, int $merchantId): int|\WP_Error
+    {
+        $default = Settings::defaultListingDurationDays();
+        $requested = array_key_exists('duration_days', $input)
+            ? (int) $input['duration_days']
+            : $default;
+
+        return ListingPolicy::assertValidDuration($requested, $merchantId);
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array{duration_days:int,expire_at:string,listing_status:string}|\WP_Error
+     */
+    private function resolveDurationForUpdate(array $input, Listing $listing): array|\WP_Error
+    {
+        $merchantId = (int) $listing->merchantId;
+        $currentDays = $listing->durationDays;
+        $requested = array_key_exists('duration_days', $input)
+            ? (int) $input['duration_days']
+            : $currentDays;
+        $durationDays = ListingPolicy::assertValidDuration($requested, $merchantId);
+        if (is_wp_error($durationDays)) {
+            return $durationDays;
+        }
+
+        $wasExpired = $listing->listingStatus === ListingStatus::EXPIRED;
+        $durationChanged = $durationDays !== $currentDays;
+        $listingStatus = $wasExpired ? ListingStatus::PENDING : $listing->listingStatus;
+        $expireAt = (string) ($listing->expireAt ?? '');
+
+        if ($wasExpired || $durationChanged) {
+            $expireAt = ListingDuration::computeExpireAt($durationDays);
+        }
+
+        return [
+            'duration_days' => $durationDays,
+            'expire_at' => $expireAt,
+            'listing_status' => $listingStatus,
+        ];
     }
 
     private function createVariation(int $parentId, int $sizeTermId, int $asking, int $userId, array $input): int|\WP_Error
@@ -760,7 +974,7 @@ final class ListingService
             return new \WP_Error('sutore_marketplace_parent', __('Select a valid parent product.', 'sutore-marketplace'));
         }
 
-        $term = get_term($sizeTermId, 'pa_beden-numara');
+        $term = get_term($sizeTermId, ProductSizeLookup::PRIMARY_SIZE_TAXONOMY);
         if (!$term || is_wp_error($term)) {
             // Allow any product attribute taxonomy fallback.
             $term = get_term($sizeTermId);
@@ -832,8 +1046,12 @@ final class ListingService
             }
 
             $listing = $this->listings->findByVariationId($variationId);
-            if ($listing?->id) {
-                $deleted = $this->delete((int) $listing->id, $userId, ['deletion_source' => 'account_purge']);
+            if ($listing?->variationId) {
+                if (is_wp_error($this->assertCanDelete($listing))) {
+                    continue;
+                }
+
+                $deleted = $this->delete((int) $listing->variationId, $userId, ['deletion_source' => 'account_purge']);
                 if ($deleted instanceof \WP_Error) {
                     return $deleted;
                 }
@@ -855,7 +1073,7 @@ final class ListingService
                 'size_term_id' => $context !== null ? $context['sizeTermId'] : null,
                 'deletion_source' => 'orphan_variation',
                 'events_retained' => true,
-            ], static fn ($value) => $value !== null && $value !== ''), null, $variationId, $userId, 'admin_only');
+            ], static fn ($value) => $value !== null && $value !== ''), $variationId, $userId, 'admin_only');
             $this->forceDeleteVariation($variationId);
 
             if ($context !== null) {
@@ -872,7 +1090,9 @@ final class ListingService
             return;
         }
 
-        wp_delete_post($variationId, true);
+        VariationLifecycleGuard::allowPluginDelete(static function () use ($variationId): void {
+            wp_delete_post($variationId, true);
+        });
     }
 
     /** @param array<string, mixed> $options */
@@ -891,6 +1111,130 @@ final class ListingService
     }
 
     /** @return array{parentId:int,sizeTermId:int}|null */
+    /**
+     * Merchant My Listings multi-select workflows.
+     *
+     * @param list<int|string> $listingIds
+     * @return array{updated: int, action: string}|\WP_Error
+     */
+    public function bulkMerchantAction(array $listingIds, string $action, ?int $userId = null): array|\WP_Error
+    {
+        $userId = $userId ?: get_current_user_id();
+        $auth = ListingPolicy::assertCanManage($userId);
+        if (is_wp_error($auth)) {
+            return $auth;
+        }
+
+        if (!MerchantBulkAction::isValid($action)) {
+            return new \WP_Error(
+                'sutore_marketplace_bulk_action_invalid',
+                __('Invalid bulk action.', 'sutore-marketplace'),
+                ['status' => 400]
+            );
+        }
+
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $listingIds),
+            static fn (int $id): bool => $id > 0
+        )));
+        if ($ids === []) {
+            return new \WP_Error(
+                'sutore_marketplace_bulk_ids_required',
+                __('Select at least one product.', 'sutore-marketplace'),
+                ['status' => 400]
+            );
+        }
+
+        if (count($ids) > 100) {
+            return new \WP_Error(
+                'sutore_marketplace_bulk_too_many',
+                __('You can update at most 100 products at once.', 'sutore-marketplace'),
+                ['status' => 400]
+            );
+        }
+
+        foreach ($ids as $id) {
+            $listing = $this->listings->find($id);
+            if (!$listing) {
+                return new \WP_Error(
+                    'sutore_marketplace_not_found',
+                    /* translators: %d: listing id */
+                    sprintf(__('Product #%d was not found.', 'sutore-marketplace'), $id),
+                    ['status' => 404]
+                );
+            }
+
+            $owns = ListingPolicy::assertOwnsListing($listing, $userId);
+            if (is_wp_error($owns)) {
+                return $owns;
+            }
+
+            $allowed = match ($action) {
+                'put_on_sale' => $this->assertCanPutOnSale($listing),
+                'remove_from_sale' => $this->assertCanRemoveFromSale($listing),
+                'delete' => $this->assertCanDelete($listing),
+                'confirm_sale' => $this->assertCanConfirmSale($listing),
+                default => new \WP_Error(
+                    'sutore_marketplace_bulk_action_invalid',
+                    __('Invalid bulk action.', 'sutore-marketplace'),
+                    ['status' => 400]
+                ),
+            };
+            if (is_wp_error($allowed)) {
+                return new \WP_Error(
+                    'sutore_marketplace_bulk_not_applicable',
+                    __('This action cannot be applied to every selected product.', 'sutore-marketplace'),
+                    ['status' => 409]
+                );
+            }
+        }
+
+        foreach ($ids as $id) {
+            $listing = $this->listings->find($id);
+            if (!$listing) {
+                return new \WP_Error(
+                    'sutore_marketplace_not_found',
+                    /* translators: %d: listing id */
+                    sprintf(__('Product #%d was not found.', 'sutore-marketplace'), $id),
+                    ['status' => 404]
+                );
+            }
+
+            $result = match ($action) {
+                'put_on_sale' => $this->putOnSale($id, $userId),
+                'remove_from_sale' => $this->removeFromSale($id, $userId),
+                'delete' => $this->delete($id, $userId),
+                'confirm_sale' => (new \SutoreMarketplace\Modules\Orders\Services\FulfillmentService())
+                    ->merchantConfirmSale($id, (int) $listing->merchantId),
+                default => new \WP_Error(
+                    'sutore_marketplace_bulk_action_invalid',
+                    __('Invalid bulk action.', 'sutore-marketplace'),
+                    ['status' => 400]
+                ),
+            };
+            if (is_wp_error($result)) {
+                return $result;
+            }
+        }
+
+        return [
+            'updated' => count($ids),
+            'action' => $action,
+        ];
+    }
+
+    private function assertCanConfirmSale(Listing $listing): true|\WP_Error
+    {
+        if ($listing->listingStatus !== ListingStatus::SOLD) {
+            return new \WP_Error(
+                'sutore_marketplace_cannot_confirm_sale',
+                __('This sale cannot be confirmed.', 'sutore-marketplace')
+            );
+        }
+
+        return true;
+    }
+
     private function resolveSizeContextFromVariation(int $variationId): ?array
     {
         $product = wc_get_product($variationId);

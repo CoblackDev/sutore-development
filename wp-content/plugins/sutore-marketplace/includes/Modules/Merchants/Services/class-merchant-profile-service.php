@@ -60,6 +60,21 @@ final class MerchantProfileService
             return $validated;
         }
 
+        $user = get_userdata($userId);
+        if (!$user) {
+            return new \WP_Error('sutore_user_missing', __('User not found.', 'sutore-marketplace'));
+        }
+
+        $wasMerchant = in_array('merchant', (array) $user->roles, true);
+        $inviteCode = strtoupper(trim((string) ($input['invite_code'] ?? '')));
+        $referral = new ReferralService();
+        if (!$wasMerchant && $inviteCode !== '') {
+            $inviteCheck = $referral->validateInvite($userId, $inviteCode);
+            if ($inviteCheck instanceof \WP_Error) {
+                return $inviteCheck;
+            }
+        }
+
         $otp = (new OtpService())->verifyAndConsume(
             $userId,
             OtpPurpose::MERCHANT_PROFILE,
@@ -67,11 +82,6 @@ final class MerchantProfileService
         );
         if ($otp instanceof \WP_Error) {
             return $otp;
-        }
-
-        $user = get_userdata($userId);
-        if (!$user) {
-            return new \WP_Error('sutore_user_missing', __('User not found.', 'sutore-marketplace'));
         }
 
         $profile = $validated['profile'];
@@ -107,16 +117,13 @@ final class MerchantProfileService
         }
 
         $extras = [];
-        if ($markVerified) {
-            $extras['tckno_verified'] = 1;
-            $extras['tckno_verified_at'] = time();
-            if (isset($verifyMethod)) {
-                $extras['tckno_verify_method'] = $verifyMethod;
+            if ($markVerified) {
+                $extras['tckno_verified'] = 1;
+                $extras['tckno_verified_at'] = time();
+                if (isset($verifyMethod)) {
+                    $extras['tckno_verify_method'] = $verifyMethod;
+                }
             }
-            if ($oldStatus !== MerchantLevels::PREMIUM) {
-                $extras['merchant_status'] = MerchantLevels::VERIFIED;
-            }
-        }
 
         MerchantMeta::writeProfile($userId, $profile, $extras);
         $this->changeLogger->logProfileWrite(
@@ -131,8 +138,10 @@ final class MerchantProfileService
             $wasNew
         );
 
-        $roles = (array) $user->roles;
-        $wasMerchant = in_array('merchant', $roles, true);
+        if ($markVerified) {
+            (new BehaviorLevelService())->evaluateConfirmed($userId);
+        }
+
         $reload = false;
         if (!$wasMerchant) {
             $granted = $this->grantMerchantRole($user);
@@ -141,22 +150,28 @@ final class MerchantProfileService
             }
             if ($granted) {
                 $this->changeLogger->logRoleGranted($userId, ['actor_role' => 'merchant']);
+                if ($inviteCode !== '') {
+                    $accepted = $referral->acceptInvite($userId, $inviteCode);
+                    if ($accepted instanceof \WP_Error) {
+                        return $accepted;
+                    }
+                }
                 if (!$markVerified) {
                     MerchantLevels::setStatus($userId, MerchantLevels::NORMAL);
                 }
                 $reload = true;
                 $message = $markVerified
-                    ? __('Your merchant information has been saved. Your TC identity was verified and you are now at Confirmed seller level.', 'sutore-marketplace')
+                    ? __('Your merchant information has been saved. Your TC identity was verified.', 'sutore-marketplace')
                     : __('Your merchant information has been saved. TC verification is pending admin approval.', 'sutore-marketplace');
             } elseif ($markVerified) {
-                $message = __('Your merchant information has been updated. Your TC identity was verified; you are now at Confirmed seller level.', 'sutore-marketplace');
+                $message = __('Your merchant information has been updated. Your TC identity was verified.', 'sutore-marketplace');
             } elseif ($needsNviCheck && $tcMode === 'manual') {
                 $message = __('Your merchant information has been updated. TC verification is pending admin approval.', 'sutore-marketplace');
             } else {
                 $message = __('Your merchant information has been updated.', 'sutore-marketplace');
             }
         } elseif ($markVerified) {
-            $message = __('Your merchant information has been updated. Your TC identity was verified; you are now at Confirmed seller level.', 'sutore-marketplace');
+            $message = __('Your merchant information has been updated. Your TC identity was verified.', 'sutore-marketplace');
         } elseif ($needsNviCheck && $tcMode === 'manual') {
             $message = __('Your merchant information has been updated. TC verification is pending admin approval.', 'sutore-marketplace');
         } else {
@@ -207,9 +222,6 @@ final class MerchantProfileService
             $extras['tckno_verified'] = 1;
             $extras['tckno_verified_at'] = time();
             $extras['tckno_verify_method'] = 'manual';
-            if ($oldStatus !== MerchantLevels::PREMIUM) {
-                $extras['merchant_status'] = MerchantLevels::VERIFIED;
-            }
         }
 
         MerchantMeta::writeProfile($merchantId, $profile, $extras);

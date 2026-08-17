@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Modules\Listings\Services;
 
 use SutoreMarketplace\Modules\Listings\Domain\CampaignDiscountType;
-use SutoreMarketplace\Modules\Listings\Domain\ListingConditionRank;
 use SutoreMarketplace\Modules\Listings\Domain\ListingEventType;
 use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingEventsRepository;
@@ -21,17 +20,16 @@ final class ListingActivityPresenter
      * @return list<array{date:string,event_label:string,event_type:string,actor:string,summary:string}>
      */
     public function present(
-        int $listingId,
-        int $variationId = 0,
+        int $variationId,
         ?string $visibility = null,
         int $limit = 50
     ): array {
-        if ($listingId <= 0) {
+        if ($variationId <= 0) {
             return [];
         }
 
         $rows = [];
-        foreach ($this->events->forListing($listingId, $variationId, $limit, $visibility) as $event) {
+        foreach ($this->events->forListing($variationId, $limit, $visibility) as $event) {
             $payload = json_decode((string) ($event->payload ?? ''), true);
             if (!is_array($payload)) {
                 $payload = [];
@@ -157,12 +155,12 @@ final class ListingActivityPresenter
                     ? __('Incoming listing', 'sutore-marketplace')
                     : __('Outgoing listing', 'sutore-marketplace');
             }
-            if (!empty($payload['old_listing_id']) && !empty($payload['new_listing_id'])) {
-                /* translators: 1: previous listing ID 2: new listing ID */
+            if (!empty($payload['old_variation_id']) && !empty($payload['new_variation_id'])) {
+                /* translators: 1: previous variation ID 2: new variation ID */
                 $parts[] = sprintf(
-                    __('Listing #%1$d → #%2$d', 'sutore-marketplace'),
-                    (int) $payload['old_listing_id'],
-                    (int) $payload['new_listing_id']
+                    __('Variation #%1$d → #%2$d', 'sutore-marketplace'),
+                    (int) $payload['old_variation_id'],
+                    (int) $payload['new_variation_id']
                 );
             }
         }
@@ -215,6 +213,25 @@ final class ListingActivityPresenter
             }
         }
 
+        if (in_array($eventType, ['sale_commission_locked', 'listing_commission_set', 'payout_commission_adjusted'], true)) {
+            if (array_key_exists('previous_percent', $payload) && array_key_exists('commission_percent', $payload)) {
+                $from = $payload['previous_percent'] === null || $payload['previous_percent'] === ''
+                    ? __('none', 'sutore-marketplace')
+                    : ((string) $payload['previous_percent'] . '%');
+                $to = $payload['commission_percent'] === null || $payload['commission_percent'] === ''
+                    ? __('none', 'sutore-marketplace')
+                    : ((string) $payload['commission_percent'] . '%');
+                /* translators: 1: previous commission percent 2: new commission percent */
+                $parts[] = sprintf(__('%1$s → %2$s', 'sutore-marketplace'), $from, $to);
+            } elseif (isset($payload['commission_percent']) && $payload['commission_percent'] !== null && $payload['commission_percent'] !== '') {
+                /* translators: %s: commission percent */
+                $parts[] = sprintf(__('Commission %s%%', 'sutore-marketplace'), (string) $payload['commission_percent']);
+            }
+            if (!empty($payload['source'])) {
+                $parts[] = (string) $payload['source'];
+            }
+        }
+
         if (!empty($payload['staff_note'])) {
             /* translators: %s: staff note text */
             $parts[] = sprintf(__('Staff note: %s', 'sutore-marketplace'), (string) $payload['staff_note']);
@@ -248,6 +265,18 @@ final class ListingActivityPresenter
                 $payload['changed_keys']
             );
             $parts[] = implode(', ', $labels);
+        }
+
+        if ($eventType === 'listing_duration_changed') {
+            if (isset($payload['old_duration_days'], $payload['new_duration_days'])
+                && (int) $payload['old_duration_days'] !== (int) $payload['new_duration_days']) {
+                $parts[] = sprintf(
+                    /* translators: 1: previous day count 2: new day count */
+                    __('Duration: %1$d → %2$d days', 'sutore-marketplace'),
+                    (int) $payload['old_duration_days'],
+                    (int) $payload['new_duration_days']
+                );
+            }
         }
 
         if ($eventType === 'listing_shipping_changed') {
@@ -337,7 +366,6 @@ final class ListingActivityPresenter
             'no_box' => __('No box', 'sutore-marketplace'),
             'box_damaged' => __('Box damaged', 'sutore-marketplace'),
             'missing_accessory' => __('Missing accessory', 'sutore-marketplace'),
-            'used' => __('Used', 'sutore-marketplace'),
             'damaged' => __('Damaged', 'sutore-marketplace'),
             default => $key,
         };
@@ -355,6 +383,7 @@ final class ListingActivityPresenter
             'swap_out' => __('Removed during listing swap', 'sutore-marketplace'),
             'chargeback' => __('Detached due to refund', 'sutore-marketplace'),
             'cancelled' => __('Detached due to cancellation', 'sutore-marketplace'),
+            'unsourced' => __('Could not be sourced', 'sutore-marketplace'),
             'confirm_deadline' => __('Detached: confirmation deadline missed', 'sutore-marketplace'),
             'mark_not_for_sale' => __('Detached: marked not for sale', 'sutore-marketplace'),
             'suspended' => __('Detached due to suspension', 'sutore-marketplace'),

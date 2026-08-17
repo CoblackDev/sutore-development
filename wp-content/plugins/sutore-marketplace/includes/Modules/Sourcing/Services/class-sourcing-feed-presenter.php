@@ -5,75 +5,75 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Modules\Sourcing\Services;
 
 use SutoreMarketplace\Modules\Listings\Domain\Listing;
+use SutoreMarketplace\Modules\Listings\Domain\ListingPolicy;
+use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
 use SutoreMarketplace\Modules\Listings\Domain\ProductCodeLookup;
 use SutoreMarketplace\Modules\Listings\Domain\ProductSizeLookup;
 use SutoreMarketplace\Modules\Listings\Domain\ProductThumbnail;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 use SutoreMarketplace\Modules\Orders\Services\DeadlineCalculator;
 use SutoreMarketplace\Modules\Orders\Settings\Settings as OrderSettings;
-use SutoreMarketplace\Modules\Sourcing\Repositories\SourcingRepository;
 use SutoreMarketplace\Shared\Domain\MarketplacePricing;
 use SutoreMarketplace\Shared\Domain\MerchantLevels;
 
 final class SourcingFeedPresenter
 {
     public function __construct(
-        private readonly SourcingRepository $sourcing = new SourcingRepository(),
         private readonly ListingRepository $listings = new ListingRepository(),
         private readonly SourcingService $sourcingService = new SourcingService(),
     ) {
     }
 
     /**
+     * Open pre-order board — listings with status pre_order linked to an order.
+     *
      * @return array{items: list<array<string, mixed>>, total: int, page: int, per_page: int}
      */
     public function presentForMerchant(
         int $merchantId,
         int $page = 1,
         int $perPage = 20,
-        ?string $status = null,
         string $search = '',
         string $orderby = 'default'
     ): array {
         $page = max(1, $page);
         $perPage = max(1, $perPage);
         $search = trim($search);
+
         $queryArgs = [
-            'merchant_feed' => $merchantId,
+            'status' => ListingStatus::PRE_ORDER,
             'page' => $page,
             'per_page' => $perPage,
-            'orderby' => $orderby,
+            'orderby' => $orderby === 'price_asc' || $orderby === 'price_desc' ? 'asking' : 'created_at',
+            'order' => $orderby === 'price_asc' ? 'ASC' : 'DESC',
         ];
-        if ($status !== null && $status !== '') {
-            $queryArgs['status'] = $status;
-        }
 
         $priceSort = in_array($orderby, ['price_asc', 'price_desc'], true);
         $needsMemoryPage = $priceSort || $search !== '';
         if ($needsMemoryPage) {
-            $queryArgs['orderby'] = $priceSort ? 'default' : $orderby;
             $queryArgs['page'] = 1;
             $queryArgs['per_page'] = 500;
         }
 
-        $result = $this->sourcing->query($queryArgs);
-
+        $result = $this->listings->query($queryArgs);
+        $items = [];
         $pairs = [];
-        foreach ($result['items'] as $row) {
-            if ((string) ($row->status ?? '') !== 'open') {
+        foreach ($result['items'] as $listing) {
+            if (!$listing->orderId) {
                 continue;
             }
-            $parentId = (int) ($row->parent_product_id ?? 0);
-            $sizeTermId = (int) ($row->size_term_id ?? 0);
-            if ($parentId > 0 && $sizeTermId > 0) {
-                $pairs[] = [$parentId, $sizeTermId];
-            }
+            $pairs[] = [(int) $listing->parentProductId, (int) $listing->sizeTermId];
         }
-        $matchingByPair = $this->listings->findMatchingForSourcing($merchantId, $pairs);
+        $matchingByPair = $this->listings->findMatchingForPreOrder($merchantId, $pairs);
 
-        $items = [];
-        foreach ($result['items'] as $row) {
-            $items[] = $this->enrichRow($row, $merchantId, $matchingByPair);
+        foreach ($result['items'] as $listing) {
+            if (!$listing->orderId) {
+                continue;
+            }
+            if (!ListingPolicy::canViewPreOrderListing((string) ($listing->createdAt ?? ''), $merchantId)) {
+                continue;
+            }
+            $items[] = $this->enrichListing($listing, $merchantId, $matchingByPair);
         }
 
         if ($search !== '') {
@@ -128,81 +128,70 @@ final class SourcingFeedPresenter
     }
 
     /**
-     * Single request for merchant feed (open board or this merchant’s accepted rows).
-     *
      * @return array<string, mixed>|null
      */
-    public function presentOneForMerchant(int $requestId, int $merchantId): ?array
+    public function presentOneForMerchant(int $preOrderVariationId, int $merchantId): ?array
     {
-        $row = $this->sourcing->find($requestId);
-        if (!$row) {
+        $listing = $this->listings->find($preOrderVariationId);
+        if (!$listing || $listing->listingStatus !== ListingStatus::PRE_ORDER || !$listing->orderId) {
+            return null;
+        }
+        if (!ListingPolicy::canViewPreOrderListing((string) ($listing->createdAt ?? ''), $merchantId)) {
             return null;
         }
 
-        $status = (string) ($row->status ?? '');
-        $acceptedBy = (int) ($row->accepted_merchant_id ?? 0);
-        if ($status !== 'open' && $acceptedBy !== $merchantId) {
-            return null;
-        }
+        $matchingByPair = $this->listings->findMatchingForPreOrder(
+            $merchantId,
+            [[(int) $listing->parentProductId, (int) $listing->sizeTermId]]
+        );
 
-        $matchingByPair = [];
-        if ($status === 'open') {
-            $parentId = (int) ($row->parent_product_id ?? 0);
-            $sizeTermId = (int) ($row->size_term_id ?? 0);
-            if ($parentId > 0 && $sizeTermId > 0) {
-                $matchingByPair = $this->listings->findMatchingForSourcing($merchantId, [[$parentId, $sizeTermId]]);
-            }
-        }
-
-        return $this->enrichRow($row, $merchantId, $matchingByPair);
+        return $this->enrichListing($listing, $merchantId, $matchingByPair);
     }
 
     /**
      * @param array<string, Listing> $matchingByPair
      * @return array<string, mixed>
      */
-    private function enrichRow(object $row, int $merchantId, array $matchingByPair = []): array
+    private function enrichListing(Listing $listing, int $merchantId, array $matchingByPair = []): array
     {
-        $parentId = (int) $row->parent_product_id;
-        $sizeTermId = (int) ($row->size_term_id ?? 0);
+        $parentId = (int) $listing->parentProductId;
+        $sizeTermId = (int) $listing->sizeTermId;
         $sizeLabel = ProductSizeLookup::labelForTermId($sizeTermId);
 
-        $offerAsking = $this->sourcingService->askingForRequest($row);
+        $offerAsking = $this->sourcingService->askingForPreOrder($listing);
         $commissionPercent = MerchantLevels::commissionPercentForUser($merchantId);
         $estimatedNet = MarketplacePricing::netFromAsking($offerAsking, $commissionPercent);
 
         $deliverySeconds = OrderSettings::cargoDeadlineSecondsForShipmentType('standard');
         $deliveryAt = DeadlineCalculator::fromNow($deliverySeconds);
         $deliveryTs = strtotime($deliveryAt) ?: (current_time('timestamp') + $deliverySeconds);
-        $deliveryDisplay = date_i18n(get_option('date_format') ?: 'j F Y', $deliveryTs);
+        $deliveryDisplay = wp_date(get_option('date_format') ?: 'j F Y', $deliveryTs);
 
         $matching = null;
-        if ((string) $row->status === 'open' && $parentId && $sizeTermId) {
+        if ($parentId && $sizeTermId) {
             $pick = $matchingByPair[$parentId . ':' . $sizeTermId] ?? null;
             if ($pick instanceof Listing) {
                 $matching = [
-                    'listing_id' => $pick->id,
+                    'variation_id' => $pick->variationId,
                     'asking' => $pick->asking,
                     'asking_display' => MarketplacePricing::formatTl((float) $pick->asking),
-                    'variation_id' => $pick->variationId,
                 ];
             }
         }
 
         return [
-            'id' => (int) $row->id,
-            'order_id' => (int) $row->order_id,
-            'order_item_id' => (int) ($row->order_item_id ?? 0),
+            'id' => (int) $listing->variationId,
+            'variation_id' => (int) $listing->variationId,
+            'order_id' => (int) ($listing->orderId ?? 0),
+            'order_item_id' => (int) ($listing->orderItemId ?? 0),
             'parent_product_id' => $parentId,
             'size_term_id' => $sizeTermId,
-            'status' => (string) $row->status,
-            'accepted_merchant_id' => isset($row->accepted_merchant_id) ? (int) $row->accepted_merchant_id : null,
             'parent_title' => get_the_title($parentId),
             'product_code' => ProductCodeLookup::codeForProduct($parentId),
             'thumbnail' => ProductThumbnail::url($parentId),
             'size_label' => $sizeLabel,
             'permalink' => get_permalink($parentId) ?: '',
-            'created_at' => (string) ($row->created_at ?? ''),
+            'created_at' => (string) ($listing->createdAt ?? ''),
             'offer_asking' => $offerAsking,
             'offer_asking_display' => MarketplacePricing::formatTl((float) $offerAsking),
             'estimated_net' => (float) round($estimatedNet, 2),
@@ -210,8 +199,7 @@ final class SourcingFeedPresenter
             'delivery_deadline_at' => $deliveryAt,
             'delivery_deadline_display' => $deliveryDisplay,
             'matching_listing' => $matching,
-            'is_mine' => (int) ($row->accepted_merchant_id ?? 0) === $merchantId,
-            'can_accept' => (string) $row->status === 'open',
+            'is_own' => (int) $listing->merchantId === $merchantId,
         ];
     }
 }

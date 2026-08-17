@@ -7,16 +7,6 @@
   var showConfirm = SutoreMarketplace.showConfirm;
   var activeSourcingId = 0;
 
-  function sourcingStatusLabel(status) {
-    var map = {
-      open: t('sourcingOpen', 'Open'),
-      accepted: t('sourcingAccepted', 'Accepted'),
-      fulfilled: t('sourcingFulfilled', 'Completed'),
-      cancelled: t('sourcingCancelled', 'Cancel')
-    };
-    return map[status] || status;
-  }
-
   function $page() {
     return $('.sutore-mp-sourcing').first();
   }
@@ -41,10 +31,10 @@
     try {
       var u = new URL(base, window.location.origin);
       u.searchParams.delete('action');
-      u.searchParams.set('listing_id', String(listingId));
+      u.searchParams.set('variation_id', String(listingId));
       return u.toString();
     } catch (err) {
-      return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'listing_id=' + encodeURIComponent(String(listingId));
+      return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'variation_id=' + encodeURIComponent(String(listingId));
     }
   }
 
@@ -118,13 +108,15 @@
   function syncAcceptButton() {
     var $modalRoot = $modal();
     var checked = $modalRoot.find('.sutore-mp-sourcing-commitment-check').prop('checked');
-    $modalRoot.find('.sutore-mp-sourcing-accept-submit').prop('disabled', !checked);
-    $modalRoot.find('.sutore-mp-sourcing-commitment-hint').prop('hidden', true);
+    $modalRoot.find('.sutore-mp-sourcing-accept-submit').prop('disabled', false);
+    if (checked) {
+      $modalRoot.find('.sutore-mp-sourcing-commitment-hint').prop('hidden', true);
+    }
   }
 
   function acceptConfirmMessage(createNewListing) {
     var $modalRoot = $modal();
-    var listingId = parseInt($modalRoot.attr('data-listing-id'), 10) || 0;
+    var listingId = parseInt($modalRoot.attr('data-variation-id'), 10) || 0;
     var variationId = parseInt($modalRoot.attr('data-matching-variation-id'), 10) || 0;
     var existingPrice = $modalRoot.attr('data-matching-asking-display') || '';
     var offerPrice = $modalRoot.attr('data-offer-asking-display') || '';
@@ -191,26 +183,22 @@
       );
       $accept.empty().prop('hidden', true);
       $foot.prop('hidden', true);
-      $modalRoot.removeAttr('data-can-accept data-listing-id data-matching-variation-id data-matching-asking data-matching-asking-display data-offer-asking data-offer-asking-display');
+      $modalRoot.removeAttr('data-variation-id data-matching-variation-id data-matching-asking data-matching-asking-display data-offer-asking data-offer-asking-display');
       activeSourcingId = 0;
       return;
     }
 
     var title = item.parent_title || ('#' + item.parent_product_id);
-    var status = item.status || '';
-    var statusLabel = sourcingStatusLabel(status);
     var matching = item.matching_listing && typeof item.matching_listing === 'object'
       ? item.matching_listing
       : null;
-    var listingId = matching ? (parseInt(matching.listing_id, 10) || 0) : 0;
-    var canAccept = !!item.can_accept;
+    var listingId = matching ? (parseInt(matching.variation_id, 10) || 0) : 0;
     var deadlineDisplay = item.delivery_deadline_display || '';
 
     activeSourcingId = sourcingId;
     $modalRoot.attr({
       'data-sourcing-id': String(sourcingId),
-      'data-can-accept': canAccept ? '1' : '0',
-      'data-listing-id': String(listingId),
+      'data-variation-id': String(listingId),
       'data-matching-variation-id': matching ? String(matching.variation_id || '') : '',
       'data-matching-asking': matching && matching.asking != null ? String(matching.asking) : '',
       'data-matching-asking-display': matching ? String(matching.asking_display || '') : '',
@@ -218,9 +206,25 @@
       'data-offer-asking-display': String(item.offer_asking_display || '')
     });
 
-    $title.text(title);
-    $sub.text('#' + sourcingId);
-    $badge.text(statusLabel).prop('hidden', false);
+    if (item.permalink) {
+      $title.empty().append(
+        $('<a class="sutore-mp-manage-modal__title-link"/>')
+          .attr('href', item.permalink)
+          .attr('target', '_blank')
+          .attr('rel', 'noopener noreferrer')
+          .text(title)
+      );
+    } else {
+      $title.text(title);
+    }
+
+    var subParts = [];
+    if (item.product_code) {
+      subParts.push(item.product_code);
+    }
+    subParts.push('#' + sourcingId);
+    $sub.text(subParts.join(' · '));
+    $badge.text(t('sourcingOpen', 'Open')).prop('hidden', false);
 
     if (item.thumbnail && typeof thumbBox === 'function') {
       var $thumb = thumbBox(
@@ -235,6 +239,7 @@
             .attr('href', item.permalink)
             .attr('target', '_blank')
             .attr('rel', 'noopener noreferrer')
+            .attr('aria-label', title)
             .append($thumb)
         );
       } else {
@@ -245,24 +250,10 @@
       $media.prop('hidden', true);
     }
 
-    var productHtml = item.permalink
-      ? '<a href="' +
-        $('<div/>').text(item.permalink).html() +
-        '" target="_blank" rel="noopener noreferrer">' +
-        $('<div/>').text(title).html() +
-        '</a>'
-      : $('<div/>').text(title).html();
-
     var html = '<dl class="sutore-mp-form-context-meta sutore-mp-manage-summary-meta sutore-mp-sourcing-meta">';
-    html += metaRow(t('sourcingProduct', 'Product'), productHtml);
-    html += metaRow(t('status', 'Status'), $('<div/>').text(statusLabel).html());
-    if (item.product_code) {
-      html += metaRow(t('productCode', 'Product code'), $('<div/>').text(item.product_code).html());
-    }
     if (item.size_label) {
       html += metaRow(t('size', 'Size'), $('<div/>').text(item.size_label).html());
     }
-    html += metaRow(t('sourcingOffer', 'Pre-order'), '#' + sourcingId);
     if (item.offer_asking_display) {
       html += metaRow(t('sourcingOfferPrice', 'Sale price'), $('<div/>').text(item.offer_asking_display).html());
     }
@@ -272,87 +263,74 @@
     if (deadlineDisplay) {
       html += metaRow(t('sourcingDeliveryDeadline', 'Delivery deadline'), $('<div/>').text(deadlineDisplay).html());
     }
-    if (item.order_id) {
-      html += metaRow(t('sourcingOrder', 'Order'), '#' + item.order_id);
-    }
     html += '</dl>';
     $summary.html(html);
 
     $accept.empty();
-    if (canAccept) {
-      var $panel = $('<section class="sutore-mp-sourcing-accept-panel"/>');
-      $panel.append($('<h3 class="sutore-mp-sourcing-accept-heading"/>').text(t('sourcingConfirmAccept', 'Accept sale')));
+    var $panel = $('<section class="sutore-mp-sourcing-accept-panel"/>');
+    $panel.append($('<h3 class="sutore-mp-sourcing-accept-heading"/>').text(t('sourcingConfirmAccept', 'Accept sale')));
 
-      if (matching && listingId > 0) {
-        var variationId = parseInt(matching.variation_id, 10) || 0;
-        var existingPrice = matching.asking_display || '—';
-        var existingMessage = t(
-          'sourcingExistingListingNotice',
-          'You already have a listing for this product and size (%1$s, %2$s). It will be used for this pre-order; a new listing will not be created.'
-        ).replace('%2$s', existingPrice);
-        var messageParts = existingMessage.split('%1$s');
-        var variationLabel = variationId
-          ? t('variationNumber', 'Variation #%d').replace('%d', String(variationId))
-          : t('variationId', 'Variation ID');
-        var $existingNotice = $('<p class="sutore-mp-notice sutore-mp-sourcing-existing-notice"/>');
-        $existingNotice.append(document.createTextNode(messageParts.shift() || ''));
-        $existingNotice.append(
-          $('<a/>').attr('href', listingDetailUrl(listingId)).attr('target', '_blank').text(variationLabel)
-        );
-        $existingNotice.append(document.createTextNode(messageParts.join('%1$s')));
+    if (matching && listingId > 0) {
+      var variationId = parseInt(matching.variation_id, 10) || 0;
+      var existingPrice = matching.asking_display || '—';
+      var existingMessage = t(
+        'sourcingExistingListingNotice',
+        'You already have a listing for this product and size (%1$s, %2$s). It will be used for this pre-order; a new listing will not be created.'
+      ).replace('%2$s', existingPrice);
+      var messageParts = existingMessage.split('%1$s');
+      var variationLabel = variationId
+        ? t('variationNumber', 'Variation #%d').replace('%d', String(variationId))
+        : t('variationId', 'Variation ID');
+      var $existingNotice = $('<p class="sutore-mp-notice sutore-mp-sourcing-existing-notice"/>');
+      $existingNotice.append(document.createTextNode(messageParts.shift() || ''));
+      $existingNotice.append(
+        $('<a/>').attr('href', listingDetailUrl(listingId)).attr('target', '_blank').text(variationLabel)
+      );
+      $existingNotice.append(document.createTextNode(messageParts.join('%1$s')));
 
-        var existingAsking = Number(matching.asking);
-        var offerAsking = Number(item.offer_asking);
-        if (existingAsking && offerAsking && existingAsking !== offerAsking) {
-          var priceUpdateMessage = t(
-            'sourcingExistingPriceUpdate',
-            'Its price will be updated from %1$s to the pre-order price of %2$s when you accept.'
-          )
-            .replace('%1$s', existingPrice)
-            .replace('%2$s', item.offer_asking_display || String(offerAsking));
-          $existingNotice.append(document.createTextNode(' ' + priceUpdateMessage));
-        }
-        $panel.append($existingNotice);
-        $panel.append(
-          $('<div class="wc-block-components-checkbox sutore-mp-sourcing-existing-option"/>').append(
-            $('<label/>').append(
-              $('<input type="checkbox" class="wc-block-components-checkbox__input sutore-mp-sourcing-create-new-check"/>'),
-              $('<svg class="wc-block-components-checkbox__mark" aria-hidden="true" viewBox="0 0 24 20"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path></svg>'),
-              $('<span class="wc-block-components-checkbox__label"/>').text(
-                t('sourcingKeepExistingListing', 'Keep my existing listing; I will supply a new product.')
-              )
+      var existingAsking = Number(matching.asking);
+      var offerAsking = Number(item.offer_asking);
+      if (existingAsking && offerAsking && existingAsking !== offerAsking) {
+        var priceUpdateMessage = t(
+          'sourcingExistingPriceUpdate',
+          'Its price will be updated from %1$s to the pre-order price of %2$s when you accept.'
+        )
+          .replace('%1$s', existingPrice)
+          .replace('%2$s', item.offer_asking_display || String(offerAsking));
+        $existingNotice.append(document.createTextNode(' ' + priceUpdateMessage));
+      }
+      $panel.append($existingNotice);
+      $panel.append(
+        $('<div class="wc-block-components-checkbox sutore-mp-sourcing-existing-option"/>').append(
+          $('<label/>').append(
+            $('<input type="checkbox" class="wc-block-components-checkbox__input sutore-mp-sourcing-create-new-check"/>'),
+            $('<svg class="wc-block-components-checkbox__mark" aria-hidden="true" viewBox="0 0 24 20"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path></svg>'),
+            $('<span class="wc-block-components-checkbox__label"/>').text(
+              t('sourcingKeepExistingListing', 'Keep my existing listing; I will supply a new product.')
             )
           )
-        );
-      }
-
-      $panel.append(
-        $('<div class="wc-block-components-checkbox sutore-mp-sourcing-commitment"/>').append(
-          $('<label/>').append(
-            $('<input type="checkbox" class="wc-block-components-checkbox__input sutore-mp-sourcing-commitment-check"/>'),
-            $('<svg class="wc-block-components-checkbox__mark" aria-hidden="true" viewBox="0 0 24 20"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path></svg>'),
-            $('<span class="wc-block-components-checkbox__label"/>').text(commitmentText(deadlineDisplay))
-          )
         )
       );
-      $panel.append(
-        $('<p class="sutore-mp-sourcing-commitment-hint" hidden/>').text(
-          t('sourcingCommitmentRequired', 'Please confirm the commitment to continue.')
-        )
-      );
-      $panel.append($('<p class="sutore-mp-sourcing-accept-message" aria-live="polite"/>'));
-      $accept.append($panel).prop('hidden', false);
-      $foot.prop('hidden', false);
-      $foot.find('.sutore-mp-sourcing-accept-submit').prop('disabled', true);
-    } else {
-      $accept.prop('hidden', true);
-      $foot.prop('hidden', true);
-      if (status === 'accepted' && item.is_mine) {
-        $summary.append(
-          $('<p class="description"/>').text(t('sourcingAcceptedMine', 'You have accepted this pre-order.'))
-        );
-      }
     }
+
+    $panel.append(
+      $('<div class="wc-block-components-checkbox sutore-mp-sourcing-commitment"/>').append(
+        $('<label/>').append(
+          $('<input type="checkbox" class="wc-block-components-checkbox__input sutore-mp-sourcing-commitment-check"/>'),
+          $('<svg class="wc-block-components-checkbox__mark" aria-hidden="true" viewBox="0 0 24 20"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path></svg>'),
+          $('<span class="wc-block-components-checkbox__label"/>').text(commitmentText(deadlineDisplay))
+        )
+      )
+    );
+    $panel.append(
+      $('<p class="sutore-mp-sourcing-commitment-hint" hidden/>').text(
+        t('sourcingCommitmentRequired', 'Please confirm the commitment to continue.')
+      )
+    );
+    $panel.append($('<p class="sutore-mp-sourcing-accept-message" aria-live="polite"/>'));
+    $accept.append($panel).prop('hidden', false);
+    $foot.prop('hidden', false);
+    $foot.find('.sutore-mp-sourcing-accept-submit').prop('disabled', false);
   }
 
   function openModal(item, sourcingId) {
@@ -404,19 +382,14 @@
   }
 
   function filterState($root) {
-    var $filter = $root.find('.sutore-mp-sourcing-filter');
     var $sort = $root.find('.sutore-mp-sourcing-sort');
     return {
       search: String($root.find('.sutore-mp-sourcing-search').val() || '').trim(),
-      status: String($filter.find('[name="status"]').val() || ''),
       orderby: String($sort.find('[name="orderby"]').val() || 'default')
     };
   }
 
   function updateBadges($root, state) {
-    var filterCount = 0;
-    if (state.status) filterCount++;
-    SutoreMarketplace.setFilterBadge($root, filterCount);
     SutoreMarketplace.setSortBadge($root, state.orderby !== 'default');
   }
 
@@ -430,9 +403,6 @@
     var $chrome = $root.find('.sutore-mp-list-chrome');
     $box.attr('aria-busy', 'true').html(listSpinnerHtml());
     var payload = { page: 1, per_page: 30, orderby: state.orderby };
-    if (state.status) {
-      payload.status = state.status;
-    }
     if (state.search) {
       payload.search = state.search;
     }
@@ -445,10 +415,9 @@
       }
       var items = res.data.items || [];
       if (!items.length) {
-        var hasFilters = state.search || state.status;
         $box.append(
           $('<p class="sutore-mp-empty"/>').text(
-            hasFilters
+            state.search
               ? t('noResults', 'No results found.')
               : t('sourcingEmpty', 'There are no open pre-orders at the moment.')
           )
@@ -484,7 +453,7 @@
         if (codeLine) {
           $info.append($('<div class="sutore-mp-card-code"/>').text(codeLine));
         }
-        var metaParts = [sourcingStatusLabel(item.status)];
+        var metaParts = [t('sourcingOpen', 'Open')];
         if (item.offer_asking_display) {
           metaParts.push(t('sourcingOfferPrice', 'Sale price') + ': ' + item.offer_asking_display);
         }
@@ -496,7 +465,7 @@
         $actions.append(
           $('<button type="button" class="wp-element-button sutore-mp-open-sourcing"/>')
             .attr('data-id', String(item.id))
-            .text(item.can_accept ? t('sourcingReviewOffer', 'Review offer') : t('sourcingViewOffer', 'View offer'))
+            .text(t('sourcingReviewOffer', 'Review offer'))
         );
         $info.append($actions);
         $main.append($info);
@@ -548,9 +517,6 @@
 
   $(document).on('click', '.sutore-mp-sourcing-modal .sutore-mp-sourcing-accept-submit', function () {
     var $modalRoot = $modal();
-    if ($modalRoot.attr('data-can-accept') !== '1') {
-      return;
-    }
     var $check = $modalRoot.find('.sutore-mp-sourcing-commitment-check');
     if (!$check.prop('checked')) {
       $modalRoot.find('.sutore-mp-sourcing-commitment-hint').prop('hidden', false);
@@ -559,7 +525,7 @@
 
     var requestId = parseInt($modalRoot.attr('data-sourcing-id'), 10) || activeSourcingId || 0;
     var createNewListing = $modalRoot.find('.sutore-mp-sourcing-create-new-check').is(':checked');
-    var listingId = createNewListing ? '' : (parseInt($modalRoot.attr('data-listing-id'), 10) || '');
+    var listingId = createNewListing ? '' : (parseInt($modalRoot.attr('data-variation-id'), 10) || '');
     if (!requestId) {
       return;
     }
@@ -574,7 +540,7 @@
         $modalRoot.find('.sutore-mp-sourcing-accept-message').text('');
         api('marketplace_sourcing_accept', {
           request_id: requestId,
-          listing_id: listingId,
+          variation_id: listingId,
           create_new_listing: createNewListing
         }).done(function (res) {
           if (!res.success) {
@@ -592,19 +558,6 @@
         });
       }
     );
-  });
-
-  $(document).on('click', '.sutore-mp-sourcing-filter-apply', function () {
-    var $root = $(this).closest('.sutore-mp-sourcing');
-    SutoreMarketplace.closeListOverlays($root);
-    loadSourcing($root);
-  });
-
-  $(document).on('click', '.sutore-mp-sourcing-filter-clear', function () {
-    var $root = $(this).closest('.sutore-mp-sourcing');
-    $root.find('.sutore-mp-sourcing-filter [name="status"]').val('');
-    SutoreMarketplace.closeListOverlays($root);
-    loadSourcing($root);
   });
 
   $(document).on('click', '.sutore-mp-sourcing-sort-apply', function () {

@@ -12,29 +12,23 @@ final class SmsTemplates
         return [
             'payment_received_customer' => true,
             'sale_admin' => true,
-            'seller_confirm_request' => true,
-            'seller_confirm_reminder' => true,
-            'seller_cargo_reminder' => true,
-            'seller_cargo_expired' => true,
             'seller_confirmed_customer' => true,
-            'seller_confirmed_seller' => true,
             'international_warning' => true,
             'express_warning' => true,
             'shipped_to_sutore_customer' => true,
-            'shipped_to_sutore_seller' => true,
             'arrived_customer' => true,
-            'arrived_seller' => true,
             'verified_customer' => true,
-            'verified_seller' => true,
             'shipped_customer' => true,
-            'paid_seller' => true,
             'suspended_customer' => true,
-            'suspended_seller' => true,
+            'seller_cargo_expired' => true,
             'alternative_sourcing' => true,
             'sourcing_digest' => true,
+            'pre_order_swapped_customer' => true,
+            'pre_order_unsourced_customer' => true,
             'manual_order_attach_customer' => true,
             'order_completed' => true,
             'order_refunded' => true,
+            'order_cancelled_open_fulfillment' => true,
         ];
     }
 
@@ -64,9 +58,12 @@ final class SmsTemplates
             'suspended_seller' => 'Your {product} sale was taken off sale because it was not confirmed.',
             'alternative_sourcing' => 'Urgent sourcing request for {product}. Check the panel if you have a matching listing.',
             'sourcing_digest' => 'Pre-order list updated: {products}',
+            'pre_order_swapped_customer' => '{product} on your order {order_id} was sourced from another seller. We are tracking delivery to your estimated date.',
+            'pre_order_unsourced_customer' => 'We could not source {product} on order {order_id}. The item has been removed and a refund will be processed if payment was taken.',
             'manual_order_attach_customer' => '{product} on your order {order_id} was sourced from another seller. We are tracking delivery to your estimated date.',
             'order_completed' => 'Your order {order_id} is complete. Thank you.',
             'order_refunded' => 'A refund for your order {order_id} has been processed.',
+            'order_cancelled_open_fulfillment' => 'Order {order_id} was cancelled while {product} is still in fulfillment. Handle in Manage Products.',
         ];
     }
 
@@ -90,7 +87,7 @@ final class SmsTemplates
             'seller_confirm_request' => __('Merchant confirmation request', 'sutore-marketplace'),
             'seller_confirm_reminder' => __('Merchant confirmation reminder', 'sutore-marketplace'),
             'seller_cargo_reminder' => __('Shipping reminder', 'sutore-marketplace'),
-            'seller_cargo_expired' => __('Shipping deadline expired', 'sutore-marketplace'),
+            'seller_cargo_expired' => __('Shipping deadline expired (customer)', 'sutore-marketplace'),
             'seller_confirmed_customer' => __('Merchant confirmed (customer)', 'sutore-marketplace'),
             'seller_confirmed_seller' => __('Merchant confirmed (merchant)', 'sutore-marketplace'),
             'international_warning' => __('International warning', 'sutore-marketplace'),
@@ -107,9 +104,12 @@ final class SmsTemplates
             'suspended_seller' => __('Suspended (seller)', 'sutore-marketplace'),
             'alternative_sourcing' => __('Alternative sourcing', 'sutore-marketplace'),
             'sourcing_digest' => __('Pre-order digest', 'sutore-marketplace'),
+            'pre_order_swapped_customer' => __('Pre-order swap (customer)', 'sutore-marketplace'),
+            'pre_order_unsourced_customer' => __('Pre-order could not be sourced (customer)', 'sutore-marketplace'),
             'manual_order_attach_customer' => __('Manual order attach (customer)', 'sutore-marketplace'),
             'order_completed' => __('Order completed', 'sutore-marketplace'),
             'order_refunded' => __('Order refund', 'sutore-marketplace'),
+            'order_cancelled_open_fulfillment' => __('Cancelled order still in fulfillment (admin)', 'sutore-marketplace'),
         ];
     }
 

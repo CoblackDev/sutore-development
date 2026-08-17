@@ -11,9 +11,11 @@ use SutoreMarketplace\Shared\Settings\Settings;
 
 /**
  * Merchant WooCommerce My Account endpoints:
- * - listings  → Listinglerim (+ ?listing_id= manage / ?action=create|bulk modals)
+ * - listings  → Listinglerim (+ ?variation_id= manage / ?action=create|bulk modals)
  * - sourcing  → Pre-order (list + detail/accept modal)
  * - campaign-offers → Kampanya teklifleri
+ * - price-offers → Müşteri fiyat teklifleri
+ * - outlet → Outlet
  * - merchant-area → Satıcı Özel (profil, bakiye)
  * - tasks → Görevlerim
  * - notifications → Bildirimler
@@ -23,6 +25,8 @@ final class MerchantAccount
     public const ENDPOINT_LISTINGS = 'listings';
     public const ENDPOINT_SOURCING = 'sourcing';
     public const ENDPOINT_CAMPAIGN_OFFERS = 'campaign-offers';
+    public const ENDPOINT_PRICE_OFFERS = 'price-offers';
+    public const ENDPOINT_OUTLET = 'outlet';
     public const ENDPOINT_MERCHANT_AREA = 'merchant-area';
     public const ENDPOINT_TASKS = 'tasks';
     public const ENDPOINT_NOTIFICATIONS = 'notifications';
@@ -42,6 +46,8 @@ final class MerchantAccount
         add_action('woocommerce_account_' . self::ENDPOINT_LISTINGS . '_endpoint', [$this, 'renderListings']);
         add_action('woocommerce_account_' . self::ENDPOINT_SOURCING . '_endpoint', [$this, 'renderSourcing']);
         add_action('woocommerce_account_' . self::ENDPOINT_CAMPAIGN_OFFERS . '_endpoint', [$this, 'renderCampaignOffers']);
+        add_action('woocommerce_account_' . self::ENDPOINT_PRICE_OFFERS . '_endpoint', [$this, 'renderPriceOffers']);
+        add_action('woocommerce_account_' . self::ENDPOINT_OUTLET . '_endpoint', [$this, 'renderOutlet']);
         add_action('woocommerce_account_' . self::ENDPOINT_MERCHANT_AREA . '_endpoint', [$this, 'renderMerchantArea']);
         add_action('woocommerce_account_' . self::ENDPOINT_TASKS . '_endpoint', [$this, 'renderTasks']);
         add_action('woocommerce_account_' . self::ENDPOINT_NOTIFICATIONS . '_endpoint', [$this, 'renderNotifications']);
@@ -89,6 +95,14 @@ final class MerchantAccount
         }
         if (isset($wp->query_vars[self::ENDPOINT_CAMPAIGN_OFFERS])) {
             $this->assets->enqueueCampaignOffers();
+            return;
+        }
+        if (isset($wp->query_vars[self::ENDPOINT_PRICE_OFFERS])) {
+            $this->assets->enqueuePriceOffers();
+            return;
+        }
+        if (isset($wp->query_vars[self::ENDPOINT_OUTLET])) {
+            $this->assets->enqueueOutlet();
         }
     }
 
@@ -126,7 +140,7 @@ final class MerchantAccount
         ];
 
         if (MerchantMeta::isMerchant(get_current_user_id())) {
-            $extra[self::ENDPOINT_TASKS] = __('My Tasks', 'sutore-marketplace');
+            $extra[self::ENDPOINT_TASKS] = __('Opportunities', 'sutore-marketplace');
         }
 
         if (MerchantMeta::canViewMerchantDashboard(get_current_user_id())) {
@@ -145,7 +159,9 @@ final class MerchantAccount
 
         if (!is_wp_error(ListingPolicy::assertCanManage())) {
             $extra[self::ENDPOINT_LISTINGS] = __('My Listings', 'sutore-marketplace');
-            $extra[self::ENDPOINT_SOURCING] = __('Pre-order', 'sutore-marketplace');
+            if (ListingPolicy::canAccessSourcingBoard()) {
+                $extra[self::ENDPOINT_SOURCING] = __('Pre-order', 'sutore-marketplace');
+            }
             $pendingOffers = (new \SutoreMarketplace\Modules\Listings\Repositories\CampaignOfferRepository())
                 ->countForMerchant(get_current_user_id(), 'pending');
             $offersLabel = __('Campaign offers', 'sutore-marketplace');
@@ -158,6 +174,30 @@ final class MerchantAccount
                 );
             }
             $extra[self::ENDPOINT_CAMPAIGN_OFFERS] = $offersLabel;
+            $pendingPriceOffers = (new \SutoreMarketplace\Modules\Listings\Repositories\CustomerOfferRepository())
+                ->countForMerchant(get_current_user_id(), 'pending');
+            $priceOffersLabel = __('Customer offers', 'sutore-marketplace');
+            if ($pendingPriceOffers > 0) {
+                $priceOffersLabel = sprintf(
+                    /* translators: %d: pending customer offer count */
+                    __('%1$s (%2$d)', 'sutore-marketplace'),
+                    $priceOffersLabel,
+                    $pendingPriceOffers
+                );
+            }
+            $extra[self::ENDPOINT_PRICE_OFFERS] = $priceOffersLabel;
+            $joinableOutlet = (new \SutoreMarketplace\Modules\Listings\Services\OutletService())
+                ->countJoinableForMerchant(get_current_user_id());
+            $outletLabel = __('Outlet', 'sutore-marketplace');
+            if ($joinableOutlet > 0) {
+                $outletLabel = sprintf(
+                    /* translators: %d: outlet items available to join */
+                    __('%1$s (%2$d)', 'sutore-marketplace'),
+                    $outletLabel,
+                    $joinableOutlet
+                );
+            }
+            $extra[self::ENDPOINT_OUTLET] = $outletLabel;
         }
 
         $result = [];
@@ -210,6 +250,28 @@ final class MerchantAccount
             $this->assets->enqueueCampaignOffers();
             ob_start();
             include SUTORE_MARKETPLACE_PATH . 'templates/merchant-campaign-offers.php';
+
+            return (string) ob_get_clean();
+        });
+    }
+
+    public function renderPriceOffers(): void
+    {
+        echo $this->guarded(function (): string {
+            $this->assets->enqueuePriceOffers();
+            ob_start();
+            include SUTORE_MARKETPLACE_PATH . 'templates/merchant-price-offers.php';
+
+            return (string) ob_get_clean();
+        });
+    }
+
+    public function renderOutlet(): void
+    {
+        echo $this->guarded(function (): string {
+            $this->assets->enqueueOutlet();
+            ob_start();
+            include SUTORE_MARKETPLACE_PATH . 'templates/merchant-outlet.php';
 
             return (string) ob_get_clean();
         });
@@ -299,6 +361,8 @@ final class MerchantAccount
             self::ENDPOINT_LISTINGS,
             self::ENDPOINT_SOURCING,
             self::ENDPOINT_CAMPAIGN_OFFERS,
+            self::ENDPOINT_PRICE_OFFERS,
+            self::ENDPOINT_OUTLET,
         ];
     }
 
@@ -308,7 +372,7 @@ final class MerchantAccount
         return self::endpointSlugs();
     }
 
-    private const ENDPOINTS_REVISION = '20260718-campaign-offers';
+    private const ENDPOINTS_REVISION = '20260816-price-offers';
 
     public function maybeFlushRewrites(): void
     {

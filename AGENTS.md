@@ -30,17 +30,24 @@ Bundan sonraki geliştirmeler **REST-first** yapılır. Ayrıntı: `.cursor/rule
 
 | Alan | Route’lar |
 |------|-----------|
-| Listings | `GET/POST /listings`, `GET/PUT/DELETE /listings/{id}`, `search-parents`, `sizes/{id}`, `form-context`, `POST /admin/imported-products` |
+| Listings | `GET/POST /listings`, `GET/PUT/DELETE /listings/{id}`, `search-parents`, `sizes/{id}`, `form-context`, `GET/POST /catalog-product-requests`, `POST /catalog-product-requests/{id}/cancel` |
+| Customer offers | `GET/POST /my-offers`, `GET /my-offers/context`, `POST /my-offers/{id}/cancel` (müşteri); `GET /price-offers`, `POST /price-offers/{id}/accept`, `…/decline` (satıcı) |
+| Outlet | `GET /outlet`, `POST /outlet/{id}/opt-in`, `POST /outlet/optins/{id}/cancel` |
 | Fulfillments | `GET /fulfillments`, `GET /fulfillments/{id}`, `POST …/confirm`, `…/ship`, `…/actions` (staff) |
 | Merchants | `GET/PUT /merchant/profile`, `GET /merchant/districts`, `GET /merchant/balance`, notifications* |
 | Otp / Account | `GET /otp/config`, `POST /otp/request`, `PUT /account/details`, `PUT /account/password`, `DELETE /account` |
 | Sourcing | `GET /sourcing`, `GET /sourcing/{id}`, `POST /sourcing/{id}/accept` |
 | Tasks | `GET /tasks/dashboard` |
-| Admin / Staff | `GET/PUT /admin/merchants`, `GET /admin/merchants/{id}`, `POST /admin/merchants/status`, `POST /admin/merchants/{id}/commission-override`, `DELETE /admin/merchants/commission-overrides/{id}`, `/admin/restrictions*`, `POST /admin/sourcing*`, `/admin/campaigns*`, `/admin/listings*`, `/admin/tasks*` |
+| Admin / Staff | `GET/PUT /admin/merchants`, `GET /admin/merchants/{id}`, `POST /admin/merchants/status`, `POST /admin/merchants/{id}/commission-override`, `DELETE /admin/merchants/commission-overrides/{id}`, `/admin/restrictions*`, `POST /admin/sourcing*`, `/admin/campaigns*`, `/admin/outlet-windows*`, `/admin/listings*`, `/admin/catalog-product-requests*`, `/admin/tasks*` |
+| Invoices | `GET /invoices/{id}/pdf` (staff / owning seller / order customer; PDF is not a public upload) |
 
 My Account / admin UI `SutoreMarketplace.api()` veya staff REST client ile bu route’lara gider. `admin-ajax.php` kullanılmaz.
 
-**Staff My Account:** `manage-products` (fulfillments), `merchants` (satıcı listesi/detay — shell + REST). Admin Sellers sayfası yok.
+**Merchant My Account:** `listings`, `sourcing`, `campaign-offers`, `price-offers` (müşteri fiyat teklifi), `outlet`, `tasks`, `notifications`.
+
+**Customer My Account:** `my-offers` (gönderilen fiyat teklifleri + kabul kuponu).
+
+**Staff My Account:** `manage-products` (fulfillments), `manage-orders`, `merchants` (satıcı listesi/detay — shell + REST), `catalog-product-requests` (katalog talep kuyruğu). Admin Sellers sayfası yok.
 
 **UI deseni:** PHP şablon = shell (başlık, geri linki, spinner); liste/detay JS ile REST’ten yüklenir. Sunucu tarafında Presenter → şablon SSR yok.
 
@@ -62,15 +69,16 @@ Checkout kargo / toplam: WooCommerce classic `update_checkout` + Blocks **Store 
 
 | Modül | Sorumluluk |
 |---|---|
-| **Listings** | Listing CRUD, REST, kampanyalar, olaylar; **tek lineer ürün durumu** (`ListingStatus`) |
+| **Listings** | Listing CRUD, REST, kampanyalar, **outlet pencereleri** (ayrı tablo), **müşteri fiyat teklifi** (`customer_offers` + kupon; kampanya offer’ına dokunmaz), olaylar; **tek lineer ürün durumu** (`ListingStatus`); katalog ürün talebi (seviye şartlı kuyruk) |
 | **Tasks** | Satıcı görevleri, ilerleme, ödüller |
 | **Sourcing** | Ön sipariş talepleri (merchant My Account) |
-| **Merchants** | Profil, bildirimler, payout, kısıtlar, staff satıcı listesi/detay, `merchant_events` |
+| **Merchants** | Profil, bildirimler (tek `NotificationService::dispatch` → panel/SMS; push kanalı rezerv), payout, kısıtlar, staff satıcı listesi/detay, `merchant_events` |
 | **Otp** | SMS OTP, hesap güvenlik / silme REST |
 | **Orders** | Sale/lojistik alanları listing satırında (`confirm_deadline_at`, `cargo_deadline_at`, `merchant_shipment_code`…); ayrı fulfillments tablosu yok. `FulfillmentRepository` listings üzerinde facade (id = listing_id). SMS, webhook; staff UI: Manage Products |
 | **Shipping** | Checkout kargo, Store API / classic `update_checkout` hook'ları |
 | **Coupons** | Kupon kilidi, checkout UI |
 | **Contracts** | Checkout sözleşmeleri |
+| **Invoices** | Paraşüt e-Arşiv satış faturası: müşteri hizmet/güvence sipariş kapanınca (`verified` veya düşen kalemler); satıcı komisyon (`payout` paid). İade/credit faturası yok. Kuyruk + retry, satışı/payout’u bloklamaz |
 
 `Plugin::boot()` yalnızca modülleri ve paylaşılan hook'ları kaydeder.
 
@@ -131,6 +139,7 @@ Kaynak dil (msgid): **English**. Tüm UI string’leri `sutore-marketplace` text
 6. Asset → sayfa/modül bazlı enqueue; JS yalnızca REST; şablon shell + spinner.
 7. **i18n:** UI / hata / JS `i18n` string’leri `__()` + domain; hardcoded yok.
 8. `Module::boot()` içinde Rest kaydı.
+9. Tıklanabilir davranış değiştiyse `tools/seed-scenarios.php` (+ gerekirse `TESTING.md`) — `.cursor/rules/sutore-marketplace-demo-seeder.mdc`.
 
 ## Geliştirme ortamı
 
@@ -140,4 +149,4 @@ docker compose up -d
 
 ## Kurallar
 
-`.cursor/rules/sutore-marketplace-*.mdc` — özellikle `core.mdc` (WP/WC yerleşik API + tarih/saat), `api.mdc` (REST), `i18n.mdc` (multilanguage), `no-legacy.mdc` (geriye dönük uyumluluk yok; geliştirme aşaması).
+`.cursor/rules/sutore-marketplace-*.mdc` — özellikle `core.mdc` (WP/WC yerleşik API + tarih/saat), `api.mdc` (REST), `i18n.mdc` (multilanguage), `no-legacy.mdc` (geriye dönük uyumluluk yok; geliştirme aşaması), `demo-seeder.mdc` (senaryo seed).

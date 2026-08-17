@@ -16,7 +16,6 @@ use SutoreMarketplace\Modules\Listings\Repositories\ListingEventsRepository;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 use SutoreMarketplace\Modules\Merchants\Domain\NotificationType;
 use SutoreMarketplace\Modules\Merchants\Services\NotificationService;
-use SutoreMarketplace\Modules\Tasks\Services\TaskProgressService;
 use SutoreMarketplace\Shared\Domain\MarketplacePricing;
 use SutoreMarketplace\Shared\Domain\ReleasePriceService;
 use SutoreMarketplace\Shared\Settings\Settings;
@@ -46,6 +45,7 @@ final class ListingBulkImportService
         'damaged',
         'express',
         'international',
+        'imported',
     ];
 
     public function __construct(
@@ -59,9 +59,9 @@ final class ListingBulkImportService
     {
         $headers = array_merge(self::REQUIRED_HEADERS, self::OPTIONAL_HEADERS);
         $lines = [implode(',', $headers)];
-        $lines[] = 'AJ1-001,42,12500,0,0,0,0,0,0';
-        $lines[] = 'AJ1-001,43,12800,1,0,0,0,0,1';
-        $lines[] = 'DUNK-220,41,9900,0,0,0,0,0,0';
+        $lines[] = 'AJ1-001,42,12500,0,0,0,0,0,0,0';
+        $lines[] = 'AJ1-001,43,12800,1,0,0,0,0,1,0';
+        $lines[] = 'DUNK-220,41,9900,0,0,0,0,0,0,1';
 
         return implode("\n", $lines) . "\n";
     }
@@ -69,11 +69,11 @@ final class ListingBulkImportService
     /**
      * @return array{import_token: string, expires_in: int, summary: array<string, int>, rows: list<array<string, mixed>>}|\WP_Error
      */
-    public function validate(string $csv, int $merchantId): array|\WP_Error
+    public function validate(string $csv, int $actorId, ?int $forMerchantId = null): array|\WP_Error
     {
-        $auth = ListingPolicy::assertCanManage($merchantId);
-        if (is_wp_error($auth)) {
-            return $auth;
+        $owner = $this->resolveBulkOwner($actorId, $forMerchantId);
+        if (is_wp_error($owner)) {
+            return $owner;
         }
 
         $parsed = $this->parseCsv($csv);
@@ -87,7 +87,7 @@ final class ListingBulkImportService
 
         foreach ($parsed as $item) {
             $line = (int) $item['line'];
-            $row = $this->validateRow($item['data'], $line, $merchantId, $fingerprints);
+            $row = $this->validateRow($item['data'], $line, $owner, $fingerprints, $actorId);
             $rows[] = $row;
             $summary['total']++;
             $summary[$row['status']]++;
@@ -96,11 +96,12 @@ final class ListingBulkImportService
             }
         }
 
-        $rows = $this->enrichPreviewContext($rows, $merchantId);
+        $rows = $this->enrichPreviewContext($rows, $owner);
 
         $token = wp_generate_password(32, false, false);
         set_transient(self::TRANSIENT_PREFIX . $token, [
-            'merchant_id' => $merchantId,
+            'merchant_id' => $owner,
+            'actor_id' => $actorId,
             'rows' => $rows,
             'created_at' => time(),
         ], self::TRANSIENT_TTL);
@@ -111,6 +112,60 @@ final class ListingBulkImportService
             'summary' => $summary,
             'rows' => $this->publicRows($rows),
         ];
+    }
+
+    /**
+     * Staff pick the seller in the preview step, so a session may start without an owner (0).
+     * Such a session can be previewed but never committed — see queueJob().
+     *
+     * @return int|\WP_Error merchant id that will own created listings
+     */
+    private function resolveBulkOwner(int $actorId, ?int $forMerchantId): int|\WP_Error
+    {
+        $auth = ListingPolicy::assertCanManage($actorId);
+        if (is_wp_error($auth)) {
+            return $auth;
+        }
+
+        if ($forMerchantId !== null && $forMerchantId > 0 && $forMerchantId !== $actorId) {
+            return ListingPolicy::resolveCreateMerchantId($actorId, [], ['merchant_id' => $forMerchantId]);
+        }
+
+        if (user_can($actorId, 'manage_woocommerce')) {
+            return 0;
+        }
+
+        return $actorId;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function assertActorOwnsSession(array $payload, int $actorId): true|\WP_Error
+    {
+        $sessionActor = (int) ($payload['actor_id'] ?? 0);
+        if ($sessionActor > 0) {
+            if ($sessionActor !== $actorId) {
+                return new \WP_Error(
+                    'sutore_bulk_import_expired',
+                    __('Import session expired. Please upload the file again.', 'sutore-marketplace'),
+                    ['status' => 410]
+                );
+            }
+
+            return true;
+        }
+
+        // Older sessions: merchant_id was the acting user.
+        if ((int) ($payload['merchant_id'] ?? 0) === $actorId) {
+            return true;
+        }
+
+        return new \WP_Error(
+            'sutore_bulk_import_expired',
+            __('Import session expired. Please upload the file again.', 'sutore-marketplace'),
+            ['status' => 410]
+        );
     }
 
     /** @param list<array<string, mixed>> $rows @return list<array<string, mixed>> */
@@ -126,21 +181,27 @@ final class ListingBulkImportService
     /**
      * @return array{import_token: string, summary: array<string, int>, rows: list<array<string, mixed>>}|\WP_Error
      */
-    public function updateRowPrice(string $token, int $merchantId, int $line, string $priceRaw): array|\WP_Error
+    public function updateRowPrice(string $token, int $actorId, int $line, string $priceRaw): array|\WP_Error
     {
-        $auth = ListingPolicy::assertCanManage($merchantId);
+        $auth = ListingPolicy::assertCanManage($actorId);
         if (is_wp_error($auth)) {
             return $auth;
         }
 
         $payload = get_transient(self::TRANSIENT_PREFIX . $token);
-        if (!is_array($payload) || (int) ($payload['merchant_id'] ?? 0) !== $merchantId) {
+        if (!is_array($payload)) {
             return new \WP_Error(
                 'sutore_bulk_import_expired',
                 __('Import session expired. Please upload the file again.', 'sutore-marketplace'),
                 ['status' => 410]
             );
         }
+        $owns = $this->assertActorOwnsSession($payload, $actorId);
+        if (is_wp_error($owns)) {
+            return $owns;
+        }
+
+        $merchantId = (int) ($payload['merchant_id'] ?? 0);
 
         /** @var list<array<string, mixed>> $rows */
         $rows = $payload['rows'] ?? [];
@@ -174,7 +235,7 @@ final class ListingBulkImportService
                 $csvData['price'] = trim($priceRaw);
             }
 
-            $refreshed[] = $this->validateRow($csvData, $rowLine, $merchantId, $fingerprints);
+            $refreshed[] = $this->validateRow($csvData, $rowLine, $merchantId, $fingerprints, $actorId);
             $last = $refreshed[count($refreshed) - 1];
             if ($last['status'] !== 'error' && !empty($last['row_key'])) {
                 $fingerprints[(string) $last['row_key']] = $rowLine;
@@ -186,6 +247,7 @@ final class ListingBulkImportService
 
         set_transient(self::TRANSIENT_PREFIX . $token, [
             'merchant_id' => $merchantId,
+            'actor_id' => (int) ($payload['actor_id'] ?? $actorId),
             'rows' => $refreshed,
             'created_at' => (int) ($payload['created_at'] ?? time()),
         ], self::TRANSIENT_TTL);
@@ -200,21 +262,27 @@ final class ListingBulkImportService
     /**
      * @return array{import_token: string, summary: array<string, int>, rows: list<array<string, mixed>>}|\WP_Error
      */
-    public function deleteRow(string $token, int $merchantId, int $line): array|\WP_Error
+    public function deleteRow(string $token, int $actorId, int $line): array|\WP_Error
     {
-        $auth = ListingPolicy::assertCanManage($merchantId);
+        $auth = ListingPolicy::assertCanManage($actorId);
         if (is_wp_error($auth)) {
             return $auth;
         }
 
         $payload = get_transient(self::TRANSIENT_PREFIX . $token);
-        if (!is_array($payload) || (int) ($payload['merchant_id'] ?? 0) !== $merchantId) {
+        if (!is_array($payload)) {
             return new \WP_Error(
                 'sutore_bulk_import_expired',
                 __('Import session expired. Please upload the file again.', 'sutore-marketplace'),
                 ['status' => 410]
             );
         }
+        $owns = $this->assertActorOwnsSession($payload, $actorId);
+        if (is_wp_error($owns)) {
+            return $owns;
+        }
+
+        $merchantId = (int) ($payload['merchant_id'] ?? 0);
 
         /** @var list<array<string, mixed>> $rows */
         $rows = $payload['rows'] ?? [];
@@ -241,7 +309,7 @@ final class ListingBulkImportService
                 continue;
             }
 
-            $refreshed[] = $this->validateRow($csvData, $rowLine, $merchantId, $fingerprints);
+            $refreshed[] = $this->validateRow($csvData, $rowLine, $merchantId, $fingerprints, $actorId);
             $last = $refreshed[count($refreshed) - 1];
             if ($last['status'] !== 'error' && !empty($last['row_key'])) {
                 $fingerprints[(string) $last['row_key']] = $rowLine;
@@ -253,6 +321,7 @@ final class ListingBulkImportService
 
         set_transient(self::TRANSIENT_PREFIX . $token, [
             'merchant_id' => $merchantId,
+            'actor_id' => (int) ($payload['actor_id'] ?? $actorId),
             'rows' => $refreshed,
             'created_at' => (int) ($payload['created_at'] ?? time()),
         ], self::TRANSIENT_TTL);
@@ -267,6 +336,11 @@ final class ListingBulkImportService
     /** @param list<array<string, mixed>> $rows @return list<array<string, mixed>> */
     private function enrichPreviewContext(array $rows, int $merchantId): array
     {
+        // Seller not chosen yet: queue position and lowest-on-sale context would be misleading.
+        if ($merchantId <= 0) {
+            return $rows;
+        }
+
         /** @var array<int, Listing> $drafts */
         $drafts = [];
         foreach ($rows as $row) {
@@ -320,14 +394,13 @@ final class ListingBulkImportService
             $queuePosition = 1;
             $queueTotal = count($ranked);
             foreach ($ranked as $index => $listing) {
-                if ((int) $listing->id === $draftId) {
+                if ((int) $listing->variationId === $draftId) {
                     $queuePosition = $index + 1;
                     break;
                 }
             }
 
-            $blocked = ListingConditionRank::isBlockedByBetterCondition($ranked, $draftId);
-            $canWin = $queuePosition === 1 && !$blocked;
+            $canWin = $queuePosition === 1;
             $firstPlace = ListingConditionRank::firstPlaceAskingForDraft($ranked, $draftId);
 
             $row['preview'] = [
@@ -340,7 +413,6 @@ final class ListingBulkImportService
                 'queue_total' => $queueTotal,
                 'can_win_sale' => $canWin,
                 'merchant_auto_activates' => $merchantAutoActivates,
-                'blocked_by_better_condition' => $blocked,
                 'first_place_asking' => $firstPlace,
                 'first_place_display' => $firstPlace !== null
                     ? MarketplacePricing::formatTl($firstPlace)
@@ -377,8 +449,7 @@ final class ListingBulkImportService
         $createdAt = gmdate('Y-m-d H:i:s', 2000000000 + $line);
 
         return new Listing(
-            id: -$line,
-            variationId: 0,
+            variationId: -$line,
             parentProductId: $parentId,
             sizeTermId: $sizeTermId,
             merchantId: $merchantId,
@@ -432,9 +503,9 @@ final class ListingBulkImportService
      *
      * @return array{job_id: string, status: string, total_rows: int, skipped_rows: int}|\WP_Error
      */
-    public function queueJob(string $token, int $merchantId): array|\WP_Error
+    public function queueJob(string $token, int $actorId): array|\WP_Error
     {
-        $auth = ListingPolicy::assertCanManage($merchantId);
+        $auth = ListingPolicy::assertCanManage($actorId);
         if (is_wp_error($auth)) {
             return $auth;
         }
@@ -447,20 +518,33 @@ final class ListingBulkImportService
             );
         }
 
+        $payload = get_transient(self::TRANSIENT_PREFIX . $token);
+        if (!is_array($payload)) {
+            return new \WP_Error(
+                'sutore_bulk_import_expired',
+                __('Import session expired. Please upload the file again.', 'sutore-marketplace'),
+                ['status' => 410]
+            );
+        }
+        $owns = $this->assertActorOwnsSession($payload, $actorId);
+        if (is_wp_error($owns)) {
+            return $owns;
+        }
+
+        $merchantId = (int) ($payload['merchant_id'] ?? 0);
+        if ($merchantId <= 0) {
+            return new \WP_Error(
+                'sutore_marketplace_merchant_required',
+                __('Select a seller.', 'sutore-marketplace'),
+                ['status' => 400]
+            );
+        }
+
         if (BulkImportContext::isActiveForMerchant($merchantId)) {
             return new \WP_Error(
                 'sutore_bulk_import_active',
                 __('Another bulk import is already running for your account.', 'sutore-marketplace'),
                 ['status' => 409]
-            );
-        }
-
-        $payload = get_transient(self::TRANSIENT_PREFIX . $token);
-        if (!is_array($payload) || (int) ($payload['merchant_id'] ?? 0) !== $merchantId) {
-            return new \WP_Error(
-                'sutore_bulk_import_expired',
-                __('Import session expired. Please upload the file again.', 'sutore-marketplace'),
-                ['status' => 410]
             );
         }
 
@@ -501,6 +585,7 @@ final class ListingBulkImportService
         $job = [
             'job_id' => $jobId,
             'merchant_id' => $merchantId,
+            'actor_id' => $actorId,
             'status' => 'queued',
             'pending' => $pending,
             'offset' => 0,
@@ -558,7 +643,12 @@ final class ListingBulkImportService
         $pending = $job['pending'] ?? [];
         $offset = (int) ($job['offset'] ?? 0);
         $batch = array_slice($pending, $offset, self::BATCH_SIZE);
-        $createOptions = ['defer_selector' => true, 'skip_task_increment' => true];
+        $createOptions = [
+            'defer_selector' => true,
+            'skip_task_increment' => true,
+            'merchant_id' => $merchantId,
+        ];
+        $actorId = (int) ($job['actor_id'] ?? $merchantId);
 
         try {
             foreach ($batch as $row) {
@@ -569,7 +659,7 @@ final class ListingBulkImportService
                     continue;
                 }
 
-                $result = $this->listings->create($input, $merchantId, $createOptions);
+                $result = $this->listings->create($input, $actorId, $createOptions);
                 if (is_wp_error($result)) {
                     $job['failed'][] = [
                         'line' => $line,
@@ -587,7 +677,7 @@ final class ListingBulkImportService
 
                 $job['created'][] = [
                     'line' => $line,
-                    'listing_id' => (int) $result->id,
+                    'variation_id' => (int) $result->variationId,
                 ];
             }
 
@@ -613,15 +703,28 @@ final class ListingBulkImportService
     /**
      * @return array<string, mixed>|\WP_Error
      */
-    public function getJob(string $jobId, int $merchantId): array|\WP_Error
+    public function getJob(string $jobId, int $actorId): array|\WP_Error
     {
-        $auth = ListingPolicy::assertCanManage($merchantId);
+        $auth = ListingPolicy::assertCanManage($actorId);
         if (is_wp_error($auth)) {
             return $auth;
         }
 
         $job = $this->loadJob($jobId);
-        if ($job === null || (int) ($job['merchant_id'] ?? 0) !== $merchantId) {
+        if ($job === null) {
+            return new \WP_Error(
+                'sutore_bulk_job_missing',
+                __('Import job not found.', 'sutore-marketplace'),
+                ['status' => 404]
+            );
+        }
+
+        $jobActor = (int) ($job['actor_id'] ?? 0);
+        $jobMerchant = (int) ($job['merchant_id'] ?? 0);
+        $allowed = ($jobActor > 0 && $jobActor === $actorId)
+            || ($jobActor <= 0 && $jobMerchant === $actorId)
+            || (user_can($actorId, 'manage_woocommerce') && $jobMerchant > 0);
+        if (!$allowed) {
             return new \WP_Error(
                 'sutore_bulk_job_missing',
                 __('Import job not found.', 'sutore-marketplace'),
@@ -655,7 +758,7 @@ final class ListingBulkImportService
             if (!is_array($item)) {
                 continue;
             }
-            $fresh = $repo->find((int) ($item['listing_id'] ?? 0));
+            $fresh = $repo->find((int) ($item['variation_id'] ?? 0));
             if (!$fresh) {
                 continue;
             }
@@ -670,9 +773,6 @@ final class ListingBulkImportService
         unset($item);
 
         $createdCount = count($created);
-        if ($createdCount > 0) {
-            (new TaskProgressService())->increment($merchantId, 'listings_created', $createdCount);
-        }
 
         $this->events->log('listing_bulk_import', [
             'import_id' => $jobId,
@@ -680,7 +780,7 @@ final class ListingBulkImportService
             'failed_count' => count($failed),
             'winner_count' => $winnerCount,
             'queued_count' => $queuedCount,
-        ], null, null, $merchantId, 'merchant_visible');
+        ], null, $merchantId, 'merchant_visible');
 
         if ($createdCount > 0) {
             $listingsUrl = function_exists('wc_get_account_endpoint_url')
@@ -824,7 +924,7 @@ final class ListingBulkImportService
      * @param array<string, int> $fingerprints
      * @return array<string, mixed>
      */
-    private function validateRow(array $data, int $line, int $merchantId, array &$fingerprints): array
+    private function validateRow(array $data, int $line, int $merchantId, array &$fingerprints, ?int $actorId = null): array
     {
         $errors = [];
         $warnings = [];
@@ -864,8 +964,15 @@ final class ListingBulkImportService
         $conditions = $this->conditionsFromRow($data);
         $express = $this->boolFromCell($data['express'] ?? '0');
         $international = $this->boolFromCell($data['international'] ?? '0');
+        $imported = $this->boolFromCell($data['imported'] ?? '0');
 
-        if ($express && !ListingPolicy::canUseFastShipment($merchantId)) {
+        if ($imported && !ListingPolicy::canFlagImported($actorId)) {
+            $imported = false;
+            $warnings[] = __('Only staff can mark rows as imported. The column was ignored.', 'sutore-marketplace');
+        }
+
+        $staffForMerchant = $actorId !== null && $actorId !== $merchantId;
+        if ($express && !$staffForMerchant && !ListingPolicy::canUseFastShipment($merchantId)) {
             $errors[] = __('You are not eligible for fast shipping.', 'sutore-marketplace');
         }
 
@@ -921,6 +1028,7 @@ final class ListingBulkImportService
                 'conditions' => $conditions,
                 'fast_shipment' => $express,
                 'has_invoice' => $international,
+                'is_imported' => $imported,
             ];
         }
 
@@ -941,6 +1049,7 @@ final class ListingBulkImportService
             'conditions' => $conditions,
             'express' => $express,
             'international' => $international,
+            'imported' => $imported,
             'conditions_label' => $this->conditionsLabel($conditions),
             'shipping_label' => $this->shippingLabel($express, $international),
             'input' => $input,

@@ -27,6 +27,25 @@
     );
   }
 
+  function alertError(message) {
+    var text = String(message || t('error', 'Error'));
+    if (window.SutoreMarketplace && SutoreMarketplace.showAlert) {
+      SutoreMarketplace.showAlert(t('error', 'Error'), text, t('ok', 'OK'));
+      return;
+    }
+    window.alert(text);
+  }
+
+  function confirmAction(title, text, onConfirm) {
+    if (window.SutoreMarketplace && SutoreMarketplace.showConfirm) {
+      SutoreMarketplace.showConfirm(title, text, t('confirm', 'Confirm'), onConfirm);
+      return;
+    }
+    if (window.confirm(text)) {
+      onConfirm();
+    }
+  }
+
   function ajax(method, path, data) {
     var opts = {
       url: (cfg.restUrl || '') + path,
@@ -110,21 +129,6 @@
     };
   }
 
-  function selectOptions(options, selected, emptyLabel) {
-    var html = '<option value="">' + esc(emptyLabel) + '</option>';
-    options.forEach(function (opt) {
-      html +=
-        '<option value="' +
-        esc(opt.value) +
-        '"' +
-        (String(opt.value) === String(selected) ? ' selected' : '') +
-        '>' +
-        esc(opt.label) +
-        '</option>';
-    });
-    return html;
-  }
-
   function $pageShell($from) {
     return $from.closest('.sutore-mp-staff-merchants');
   }
@@ -163,7 +167,6 @@
     var perPage = parseInt(data.per_page, 10) || state.perPage || 30;
     var total = parseInt(data.total, 10) || 0;
     var totalPages = Math.max(1, Math.ceil(total / perPage));
-    var baseUrl = state.baseUrl || '';
 
     var html =
       '<div class="sutore-mp-staff-table-wrap"><table class="sutore-mp-staff-table"><thead><tr>' +
@@ -230,11 +233,11 @@
           esc(item.formatted_pending || '—') +
           '</td><td>' +
           esc(item.formatted_paid || '—') +
-          '</td><td><a class="wp-element-button is-style-outline" href="' +
-          esc(detailUrl(baseUrl, item.id)) +
+          '</td><td><button type="button" class="wp-element-button is-style-outline sutore-mp-staff-open-merchant" data-merchant-id="' +
+          esc(String(item.id)) +
           '">' +
           esc(t('detail', 'Detail')) +
-          '</a></td></tr>';
+          '</button></td></tr>';
       });
     }
 
@@ -272,11 +275,210 @@
       html += '</nav>';
     }
 
+    return renderPlatformCampaigns(data.platform_overrides) + html;
+  }
+
+  function adjustmentOptions(selected) {
+    selected = selected || 'absolute';
+    var opts = [
+      ['absolute', t('adjustmentAbsolute', 'Absolute rate')],
+      ['percent_off', t('adjustmentPercentOff', 'Percent off current rate')],
+      ['points_off', t('adjustmentPointsOff', 'Points off current rate')]
+    ];
+    return opts
+      .map(function (pair) {
+        return (
+          '<option value="' +
+          esc(pair[0]) +
+          '"' +
+          (pair[0] === selected ? ' selected' : '') +
+          '>' +
+          esc(pair[1]) +
+          '</option>'
+        );
+      })
+      .join('');
+  }
+
+  function overrideWindowLabel(o) {
+    var parts = [];
+    if (o.scheduled) {
+      parts.push(t('scheduled', 'Scheduled'));
+    }
+    if (o.starts_at) {
+      parts.push(t('startsAt', 'Starts at') + ' ' + o.starts_at);
+    }
+    parts.push(o.expires_at ? o.expires_at : t('noExpiry', 'No end date'));
+    return parts.join(' · ');
+  }
+
+  function renderOverrideTable(overrides, emptyText) {
+    if (!overrides.length) {
+      return '<p class="sutore-mp-empty">' + esc(emptyText) + '</p>';
+    }
+    var html =
+      '<div class="sutore-mp-staff-table-wrap"><table class="sutore-mp-staff-table"><thead><tr>' +
+      '<th>' +
+      esc(t('commission', 'Commission')) +
+      '</th><th>' +
+      esc(t('adjustment', 'Rate type')) +
+      '</th><th>' +
+      esc(t('source', 'Source')) +
+      '</th><th>' +
+      esc(t('expiresAt', 'Expires at')) +
+      '</th><th>' +
+      esc(t('note', 'Note')) +
+      '</th><th>' +
+      esc(t('actions', 'Actions')) +
+      '</th></tr></thead><tbody>';
+    overrides.forEach(function (o) {
+      var valueLabel = '%' + String(o.commission_percent);
+      if (o.effective_percent != null && o.adjustment && o.adjustment !== 'absolute') {
+        valueLabel += ' → %' + String(o.effective_percent);
+      }
+      if (o.raises_level) {
+        valueLabel += ' ↑';
+      }
+      if (o.is_platform) {
+        valueLabel += ' · ' + t('allSellers', 'All sellers');
+      }
+      html +=
+        '<tr><td>' +
+        esc(valueLabel) +
+        '</td><td>' +
+        esc(o.adjustment_label || o.adjustment || '—') +
+        '</td><td>' +
+        esc(o.source_label || o.source || '—') +
+        '</td><td>' +
+        esc(overrideWindowLabel(o)) +
+        '</td><td>' +
+        esc(dash(o.note)) +
+        '</td><td>' +
+        '<button type="button" class="wp-element-button is-style-outline sutore-mp-staff-delete-commission" data-id="' +
+        esc(String(o.id)) +
+        '">' +
+        esc(t('deleteOverride', 'Delete')) +
+        '</button></td></tr>';
+    });
+    html += '</tbody></table></div>';
     return html;
   }
 
-  function metaItem(label, valueHtml) {
-    return '<div><dt>' + esc(label) + '</dt><dd>' + valueHtml + '</dd></div>';
+  function renderCommissionFields(selectedAdjustment) {
+    return (
+      '<div class="sutore-mp-staff-form-grid">' +
+      '<label>' +
+      esc(t('adjustment', 'Rate type')) +
+      '<select name="adjustment" class="sutore-mp-input">' +
+      adjustmentOptions(selectedAdjustment || 'absolute') +
+      '</select></label>' +
+      '<label>' +
+      esc(t('commissionValue', 'Value')) +
+      '<input type="number" name="commission_percent" class="sutore-mp-input" min="0" max="100" step="0.01" required /></label>' +
+      '<label>' +
+      esc(t('note', 'Note')) +
+      '<input type="text" name="note" class="sutore-mp-input" /></label>' +
+      '<label>' +
+      esc(t('startsAt', 'Starts at')) +
+      '<input type="datetime-local" name="starts_at" class="sutore-mp-input" /></label>' +
+      '<label>' +
+      esc(t('expiresAt', 'Expires at')) +
+      '<input type="datetime-local" name="expires_at" class="sutore-mp-input" /></label></div>' +
+      '<p class="description sutore-mp-staff-form-hint">' +
+      esc(t('startsAtHelp', 'Optional. Leave empty to start immediately.')) +
+      ' ' +
+      esc(t('expiresAtHelp', 'Optional. Leave empty for no end date.')) +
+      '</p>' +
+      '<p class="sutore-mp-staff-commission-raise-warn sutore-mp-staff-meta-warn" hidden>' +
+      esc(
+        t(
+          'raisesLevelWarn',
+          'This rate is higher than the seller level and will increase commission.'
+        )
+      ) +
+      '</p>'
+    );
+  }
+
+  function renderPlatformCampaigns(overrides) {
+    overrides = overrides || [];
+    return (
+      '<section class="sutore-mp-staff-platform-commission">' +
+      '<h3 class="sutore-mp-staff-panel-title">' +
+      esc(t('platformCampaigns', 'Platform commission campaigns')) +
+      '</h3>' +
+      '<p class="description">' +
+      esc(
+        t(
+          'platformCampaignsHelp',
+          'One record applies to every seller. Relative discounts follow each seller’s level rate.'
+        )
+      ) +
+      '</p>' +
+      renderOverrideTable(overrides, t('noPlatformCampaigns', 'No platform commission campaigns.')) +
+      '<h3 class="sutore-mp-staff-panel-title sutore-mp-staff-subheading">' +
+      esc(t('addPlatformCampaign', 'Set platform commission campaign')) +
+      '</h3>' +
+      '<form class="sutore-mp-staff-platform-commission-form sutore-mp-staff-form">' +
+      renderCommissionFields('percent_off') +
+      '<div class="sutore-mp-staff-actions">' +
+      '<button type="submit" class="wp-element-button is-style-outline">' +
+      esc(t('save', 'Save')) +
+      '</button></div></form></section>'
+    );
+  }
+
+  function manageProductUrl(variationId) {
+    variationId = parseInt(variationId, 10) || 0;
+    var base = String(cfg.manageProductsUrl || '').trim();
+    if (!variationId || !base) {
+      return '';
+    }
+    try {
+      var u = new URL(base, window.location.origin);
+      u.searchParams.set('variation_id', String(variationId));
+      return u.pathname + u.search + u.hash;
+    } catch (err) {
+      return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'variation_id=' + variationId;
+    }
+  }
+
+  function payoutProductCell(p) {
+    var title = String(p.product_title || '').trim();
+    var variationId = parseInt(p.variation_id, 10) || 0;
+    var sub =
+      variationId > 0
+        ? '<div class="sutore-mp-staff-sub">#' + esc(String(variationId)) + '</div>'
+        : '';
+    if (!variationId || title === '') {
+      return esc(title || '—') + sub;
+    }
+    var href = manageProductUrl(variationId);
+    return (
+      '<a class="sutore-mp-staff-merchant-product-link sutore-mp-staff-open-manage" href="' +
+      esc(href || '#') +
+      '" data-variation-id="' +
+      esc(String(variationId)) +
+      '" data-product-title="' +
+      esc(title) +
+      '" title="' +
+      esc(t('openListingDetail', 'Open listing detail')) +
+      '">' +
+      esc(title) +
+      '</a>' +
+      sub
+    );
+  }
+
+
+  function kvRow(label, valueHtml) {
+    return (
+      '<div class="sutore-mp-manage-kv__row"><dt>' +
+      esc(label) +
+      '</dt><dd>' +
+      valueHtml +
+      '</dd></div>'
+    );
   }
 
   function profileFieldRow(name, label, type, attrs, className) {
@@ -397,7 +599,7 @@
 
   function renderActivity(events) {
     if (!events || !events.length) {
-      return '<p>' + esc(t('noActivity', 'No activity recorded yet.')) + '</p>';
+      return '<p class="sutore-mp-empty">' + esc(t('noActivity', 'No activity recorded yet.')) + '</p>';
     }
 
     var rows = events
@@ -457,7 +659,13 @@
         : t('noActiveRestriction', 'None');
 
     var commission = data.commission || {};
-    var commissionLabel = '%' + String(commission.effective_percent != null ? commission.effective_percent : data.commission_percent || 0);
+    var commissionLabel =
+      '%' +
+      String(
+        commission.effective_percent != null
+          ? commission.effective_percent
+          : data.commission_percent || 0
+      );
     if (commission.is_overridden) {
       commissionLabel +=
         ' (' +
@@ -465,6 +673,9 @@
         ' %' +
         String(commission.level_percent || 0) +
         ')';
+      if (commission.raises_level) {
+        commissionLabel += ' · ' + t('raisesLevelWarn', 'This rate is higher than the seller level and will increase commission.');
+      }
       if (commission.expires_at) {
         commissionLabel += ' · ' + t('expiresAt', 'Expires at') + ' ' + commission.expires_at;
       } else {
@@ -475,43 +686,54 @@
     var html = '<article class="sutore-mp-staff-detail">';
 
     html +=
+      '<div class="sutore-mp-manage-panel" data-panel="profile">' +
       '<section class="sutore-mp-staff-summary">' +
-      '<dl class="sutore-mp-staff-meta">' +
-      metaItem(t('userId', 'User ID'), esc('#' + String(data.id))) +
-      metaItem(t('login', 'Username'), esc((data.user && data.user.login) || '—')) +
-      metaItem(t('level', 'Level'), esc(data.level_label || '—')) +
-      metaItem(
+      '<dl class="sutore-mp-manage-kv">' +
+      kvRow(t('userId', 'User ID'), esc('#' + String(data.id))) +
+      kvRow(t('login', 'Username'), esc((data.user && data.user.login) || '—')) +
+      kvRow(
+        t('registered', 'Registered'),
+        esc((data.user && (data.user.registered_label || data.user.registered)) || '—')
+      ) +
+      kvRow(t('level', 'Level'), esc(data.level_label || '—')) +
+      kvRow(
         t('commission', 'Commission'),
         commission.is_overridden
           ? '<span class="sutore-mp-staff-meta-warn">' + esc(commissionLabel) + '</span>'
           : esc(commissionLabel)
       ) +
-      metaItem(
+      kvRow(
         t('tc', 'TC identity'),
         esc(
           data.tc_verified_label ||
             (data.tc_verified ? t('tcVerified', 'TC verified') : t('tcNotVerified', 'TC not verified'))
         )
       ) +
-      metaItem(
+      kvRow(
         t('restrictionStatus', 'Restrictions'),
         activeRestrictions.length
           ? '<span class="sutore-mp-staff-meta-warn">' + esc(restrictionSummary) + '</span>'
           : esc(restrictionSummary)
       ) +
-      metaItem(t('listings', 'Listings'), esc(String(data.listing_count || 0))) +
-      metaItem(t('pendingBalance', 'Pending balance'), esc(balance.formatted_pending || '—')) +
-      metaItem(t('paidTotal', 'Paid total'), esc(balance.formatted_paid || '—')) +
-      '</dl></section>';
-
-    html +=
-      '<section class="sutore-mp-staff-shipping-details">' +
-      '<h3>' +
-      esc(t('profile', 'Profile')) +
-      '</h3>' +
-      '<p class="description">' +
-      esc(t('profileDesc', 'Edit seller profile fields. Sensitive changes are recorded in activity history.')) +
-      '</p>' +
+      kvRow(t('listings', 'Listings'), esc(String(data.listing_count || 0))) +
+      kvRow(t('inviteCode', 'Invite code'), esc((data.referral && data.referral.code) || '—')) +
+      kvRow(
+        t('referredBy', 'Referred by'),
+        esc(
+          (data.referral && data.referral.referred_by_login) ||
+            (data.referral && data.referral.referred_by_user_id
+              ? '#' + String(data.referral.referred_by_user_id)
+              : '—')
+        )
+      ) +
+      kvRow(
+        t('referralRewarded', 'Referral rewarded'),
+        esc((data.referral && data.referral.rewarded_at) || '—')
+      ) +
+      kvRow(t('pendingBalance', 'Pending balance'), esc(balance.formatted_pending || '—')) +
+      kvRow(t('paidTotal', 'Paid total'), esc(balance.formatted_paid || '—')) +
+      '</dl></section>' +
+      '<section class="sutore-mp-staff-profile-panel">' +
       '<form class="sutore-mp-staff-merchant-profile woocommerce-EditAccountForm edit-account" data-merchant-id="' +
       esc(String(data.id)) +
       '" autocomplete="off">' +
@@ -605,7 +827,7 @@
       ) +
       profileFieldRow(
         'account_state',
-        t('district', 'District / Neighborhood'),
+        t('district', 'District'),
         'select',
         { required: true, optionsHtml: '<option value="">' + esc(t('pickDistrict', 'Select')) + '</option>' },
         'form-row-last'
@@ -619,8 +841,7 @@
       '<div class="sutore-mp-staff-actions">' +
       '<button type="submit" class="woocommerce-Button button wp-element-button">' +
       esc(t('save', 'Save')) +
-      '</button>' +
-      '<p class="sutore-mp-staff-msg" hidden></p></div></form></section>';
+      '</button></div></form></section></div>';
 
     var levelOpts = '';
     var levelOptions = data.level_options || {};
@@ -636,91 +857,55 @@
     });
 
     html +=
+      '<div class="sutore-mp-manage-panel" data-panel="level" hidden>' +
       '<section class="sutore-mp-staff-actions-panel">' +
-      '<h3>' +
-      esc(t('actions', 'Actions')) +
+      '<h3 class="sutore-mp-staff-panel-title">' +
+      esc(t('updateLevel', 'Update level')) +
       '</h3>' +
-      '<p class="description">' +
-      esc(t('actionsDesc', 'Update seller level, commission overrides, and account restrictions.')) +
-      '</p>' +
       '<form class="sutore-mp-staff-merchant-level sutore-mp-staff-form" data-merchant-id="' +
       esc(String(data.id)) +
       '">' +
-      '<div class="sutore-mp-staff-actions">' +
+      '<div class="sutore-mp-staff-form-grid sutore-mp-staff-form-grid--level">' +
       '<label>' +
-      esc(t('updateLevel', 'Update level')) +
+      esc(t('level', 'Level')) +
       '<select name="status" class="sutore-mp-input">' +
       levelOpts +
-      '</select></label>' +
-      '<button type="submit" class="wp-element-button is-style-outline">' +
-      esc(t('save', 'Save')) +
-      '</button>' +
-      '<p class="sutore-mp-staff-msg" hidden></p></div></form>';
-
-    var overrides = commission.active_overrides || [];
-    html += '<h4 class="sutore-mp-staff-subheading">' + esc(t('commissionOverrides', 'Commission overrides')) + '</h4>';
-    if (!overrides.length) {
-      html += '<p class="description">' + esc(t('noCommissionOverrides', 'No active commission overrides.')) + '</p>';
-    } else {
-      html +=
-        '<div class="sutore-mp-staff-table-wrap"><table class="sutore-mp-staff-table"><thead><tr>' +
-        '<th>' +
-        esc(t('commission', 'Commission')) +
-        '</th><th>' +
-        esc(t('source', 'Source')) +
-        '</th><th>' +
-        esc(t('expiresAt', 'Expires at')) +
-        '</th><th>' +
-        esc(t('note', 'Note')) +
-        '</th><th>' +
-        esc(t('actions', 'Actions')) +
-        '</th></tr></thead><tbody>';
-      overrides.forEach(function (o) {
-        html +=
-          '<tr><td>' +
-          esc('%' + String(o.commission_percent)) +
-          '</td><td>' +
-          esc(o.source || '—') +
-          '</td><td>' +
-          esc(o.expires_at ? o.expires_at : t('noExpiry', 'No end date')) +
-          '</td><td>' +
-          esc(dash(o.note)) +
-          '</td><td>' +
-          '<button type="button" class="wp-element-button is-style-outline sutore-mp-staff-delete-commission" data-id="' +
-          esc(String(o.id)) +
-          '">' +
-          esc(t('deleteOverride', 'Delete')) +
-          '</button></td></tr>';
-      });
-      html += '</tbody></table></div>';
-    }
-
-    html +=
-      '<form class="sutore-mp-staff-merchant-commission sutore-mp-staff-form" data-merchant-id="' +
-      esc(String(data.id)) +
-      '">' +
-      '<div class="sutore-mp-staff-form-grid">' +
-      '<label>' +
-      esc(t('commissionPercent', 'Commission %')) +
-      '<input type="number" name="commission_percent" class="sutore-mp-input" min="0" max="100" step="0.01" required /></label>' +
-      '<label>' +
-      esc(t('expiresAt', 'Expires at')) +
-      '<input type="datetime-local" name="expires_at" class="sutore-mp-input" />' +
-      '<span class="description">' +
-      esc(t('expiresAtHelp', 'Optional. Leave empty for no end date.')) +
-      '</span></label>' +
-      '<label>' +
-      esc(t('note', 'Note')) +
-      '<input type="text" name="note" class="sutore-mp-input" /></label></div>' +
+      '</select></label></div>' +
       '<div class="sutore-mp-staff-actions">' +
       '<button type="submit" class="wp-element-button is-style-outline">' +
-      esc(t('addCommissionOverride', 'Set commission override')) +
-      '</button>' +
-      '<p class="sutore-mp-staff-msg" hidden></p></div></form>';
+      esc(t('save', 'Save')) +
+      '</button></div></form></section></div>';
 
-    html += '<h4 class="sutore-mp-staff-subheading">' + esc(t('restrictions', 'Restrictions')) + '</h4>';
+    var overrides = commission.active_overrides || [];
+    html +=
+      '<div class="sutore-mp-manage-panel" data-panel="commission" hidden>' +
+      '<section class="sutore-mp-staff-actions-panel">' +
+      '<h3 class="sutore-mp-staff-panel-title">' +
+      esc(t('commissionOverrides', 'Commission overrides')) +
+      '</h3>' +
+      renderOverrideTable(overrides, t('noCommissionOverrides', 'No active commission overrides.')) +
+      '<h3 class="sutore-mp-staff-panel-title sutore-mp-staff-subheading">' +
+      esc(t('addCommissionOverride', 'Set commission override')) +
+      '</h3>' +
+      '<form class="sutore-mp-staff-merchant-commission sutore-mp-staff-form" data-merchant-id="' +
+      esc(String(data.id)) +
+      '" data-level-percent="' +
+      esc(String(commission.level_percent || 0)) +
+      '">' +
+      renderCommissionFields() +
+      '<div class="sutore-mp-staff-actions">' +
+      '<button type="submit" class="wp-element-button is-style-outline">' +
+      esc(t('save', 'Save')) +
+      '</button></div></form></section></div>';
+
+    html +=
+      '<div class="sutore-mp-manage-panel" data-panel="restrictions" hidden>' +
+      '<section class="sutore-mp-staff-actions-panel">' +
+      '<h3 class="sutore-mp-staff-panel-title">' +
+      esc(t('restrictions', 'Restrictions')) +
+      '</h3>';
     if (!restrictions.length) {
-      html += '<p class="description">' + esc(t('noRestrictions', 'No restrictions.')) + '</p>';
+      html += '<p class="sutore-mp-empty">' + esc(t('noRestrictions', 'No restrictions.')) + '</p>';
     } else {
       html +=
         '<div class="sutore-mp-staff-table-wrap"><table class="sutore-mp-staff-table"><thead><tr>' +
@@ -778,6 +963,9 @@
     });
 
     html +=
+      '<h3 class="sutore-mp-staff-panel-title sutore-mp-staff-subheading">' +
+      esc(t('addRestriction', 'Add restriction')) +
+      '</h3>' +
       '<form class="sutore-mp-staff-merchant-restriction sutore-mp-staff-form" data-merchant-id="' +
       esc(String(data.id)) +
       '">' +
@@ -792,27 +980,24 @@
       '<input type="text" name="reason" class="sutore-mp-input" /></label>' +
       '<label>' +
       esc(t('expiresAt', 'Expires at')) +
-      '<input type="datetime-local" name="expires_at" class="sutore-mp-input" />' +
-      '<span class="description">' +
+      '<input type="datetime-local" name="expires_at" class="sutore-mp-input" /></label></div>' +
+      '<p class="description sutore-mp-staff-form-hint">' +
       esc(t('expiresAtHelp', 'Optional. Leave empty for no end date.')) +
-      '</span></label></div>' +
+      '</p>' +
       '<div class="sutore-mp-staff-actions">' +
       '<button type="submit" class="wp-element-button is-style-outline">' +
-      esc(t('addRestriction', 'Add restriction')) +
-      '</button>' +
-      '<p class="sutore-mp-staff-msg" hidden></p></div></form></section>';
+      esc(t('save', 'Save')) +
+      '</button></div></form></section></div>';
 
     html +=
+      '<div class="sutore-mp-manage-panel" data-panel="payouts" hidden>' +
       '<section class="sutore-mp-staff-payout-details">' +
-      '<h3>' +
+      '<h3 class="sutore-mp-staff-panel-title">' +
       esc(t('recentPayouts', 'Recent payouts')) +
-      '</h3>' +
-      '<p class="description">' +
-      esc(t('recentPayoutsDesc', 'Latest payout lines for this seller.')) +
-      '</p>';
+      '</h3>';
     var payouts = data.recent_payouts || [];
     if (!payouts.length) {
-      html += '<p>' + esc(t('noPayouts', 'No payout lines yet.')) + '</p>';
+      html += '<p class="sutore-mp-empty">' + esc(t('noPayouts', 'No payout lines yet.')) + '</p>';
     } else {
       html +=
         '<div class="sutore-mp-staff-table-wrap"><table class="sutore-mp-staff-table"><thead><tr>' +
@@ -826,47 +1011,108 @@
         esc(t('date', 'Date')) +
         '</th></tr></thead><tbody>';
       payouts.forEach(function (p) {
+        var statusText = p.scheduled_message || p.payout_status_label || '—';
+        var dateText = p.paid_at_display || p.scheduled_payout_date_display || p.created_at || '';
         html +=
           '<tr><td>' +
-          esc(p.product_title || '') +
-          (p.listing_id
-            ? '<span class="sutore-mp-staff-sub">#' + esc(String(p.listing_id)) + '</span>'
-            : '') +
+          payoutProductCell(p) +
           '</td><td>' +
           esc(p.formatted_net || '') +
           '</td><td>' +
-          esc(p.payout_status_label || '—') +
+          esc(statusText) +
           '</td><td>' +
-          esc(p.created_at || '') +
+          esc(dateText) +
           '</td></tr>';
       });
       html += '</tbody></table></div>';
     }
-    html += '</section>';
+    html += '</section></div>';
 
     html +=
+      '<div class="sutore-mp-manage-panel" data-panel="activity" hidden>' +
       '<section class="sutore-mp-staff-activity">' +
-      '<h3>' +
+      '<h3 class="sutore-mp-staff-panel-title">' +
       esc(t('activityHistory', 'Activity history')) +
       '</h3>' +
-      '<p class="description">' +
-      esc(t('activityHistoryDesc', 'Profile, level, and restriction changes for this seller.')) +
-      '</p>' +
       renderActivity(data.events || []) +
-      '</section>';
+      '</section></div>';
 
     html += '</article>';
 
-    return { title: title, html: html };
+    var subParts = ['#' + String(data.id)];
+    if (data.user && data.user.login) {
+      subParts.push(String(data.user.login));
+    }
+    if (data.user && data.user.email) {
+      subParts.push(String(data.user.email));
+    }
+
+    return {
+      title: title,
+      sub: subParts.join(' · '),
+      badge: data.level_label || '',
+      activeRestrictionCount: activeRestrictions.length,
+      html: html
+    };
+  }
+
+  function setDetailTab($host, tab) {
+    var allowed = {
+      profile: 1,
+      level: 1,
+      commission: 1,
+      restrictions: 1,
+      payouts: 1,
+      activity: 1
+    };
+    if (!allowed[tab]) {
+      tab = 'profile';
+    }
+    $host.find('.sutore-mp-staff-detail-tabs .sutore-mp-manage-tab').each(function () {
+      var name = $(this).attr('data-tab');
+      $(this).attr('aria-selected', name === tab ? 'true' : 'false');
+    });
+    $host.find('.sutore-mp-staff-detail-panels .sutore-mp-manage-panel').each(function () {
+      $(this).prop('hidden', $(this).attr('data-panel') !== tab);
+    });
+  }
+
+  function setRestrictionsTabBadge($host, count) {
+    var $badge = $host.find('.sutore-mp-manage-tab[data-tab="restrictions"] .sutore-mp-staff-tab-badge');
+    if (!$badge.length) {
+      return;
+    }
+    count = parseInt(count, 10) || 0;
+    if (count > 0) {
+      $badge.text(String(count)).prop('hidden', false);
+    } else {
+      $badge.text('').prop('hidden', true);
+    }
+  }
+
+  function showToast(message, type) {
+    if (window.SutoreMarketplace && typeof SutoreMarketplace.showToast === 'function') {
+      SutoreMarketplace.showToast(message, type);
+      return;
+    }
+    if (type === 'error') {
+      alertError(message);
+      return;
+    }
+    window.alert(message);
   }
 
   function showMsg($form, ok, message) {
-    var $msg = $form.find('.sutore-mp-staff-msg');
-    $msg
-      .prop('hidden', false)
-      .toggleClass('sutore-mp-staff-msg--ok', !!ok)
-      .toggleClass('sutore-mp-staff-msg--err', !ok)
-      .text(message || (ok ? t('saved', 'Saved') : t('error', 'Error')));
+    var text = message || (ok ? t('saved', 'Saved') : t('error', 'Error'));
+    if (ok) {
+      showToast(text, 'success');
+      return;
+    }
+    if (window.SutoreMarketplace && typeof SutoreMarketplace.showAlert === 'function') {
+      SutoreMarketplace.showAlert(t('error', 'Error'), text, t('ok', 'OK'));
+      return;
+    }
+    showToast(text, 'error');
   }
 
   function collectFilterState($shell) {
@@ -940,6 +1186,11 @@
         syncListUrl(state.baseUrl, state);
         $root.attr('aria-busy', 'false').html(renderList(res.data, state));
         $chrome.prop('hidden', false);
+        var openId = parseInt($shell.attr('data-open-merchant-id'), 10) || 0;
+        if (openId > 0) {
+          $shell.attr('data-open-merchant-id', '0');
+          openMerchantModal(openId, { replaceUrl: true, syncUrl: true });
+        }
       })
       .fail(function (xhr) {
         var msg = t('error', 'Error');
@@ -951,60 +1202,215 @@
       });
   }
 
-  function loadDetailRoot($root) {
-    var id = parseInt($root.data('merchantId'), 10) || 0;
-    var $chrome = $root.closest('.sutore-mp-staff-merchants').find('.sutore-mp-detail-chrome');
-    $chrome.prop('hidden', true);
-    if (!id || !cfg.restUrl) {
-      $root.attr('aria-busy', 'false').html(
-        '<p class="sutore-mp-error">' + esc(t('error', 'Error')) + '</p>'
-      );
-      $chrome.prop('hidden', false);
+  function $detailHost() {
+    return $('.sutore-mp-staff-merchant-detail-host').first();
+  }
+
+  function $detailOverlay() {
+    return $detailHost().find('.sutore-mp-staff-merchant-detail-overlay');
+  }
+
+  function isMerchantListPage() {
+    return $('.sutore-mp-staff-merchants-list-root').length > 0;
+  }
+
+  function otherManageOverlaysOpen() {
+    return $(
+      '.sutore-mp-manage-overlay.is-open:not(.sutore-mp-staff-merchant-detail-overlay)'
+    ).length > 0;
+  }
+
+  function setDetailHeader($host, rendered) {
+    $host.find('.sutore-mp-staff-detail-title').text(rendered.title || t('seller', 'Seller'));
+    $host.find('.sutore-mp-staff-detail-sub').text(rendered.sub || '');
+    var $badge = $host.find('.sutore-mp-staff-detail-badge');
+    if (rendered.badge) {
+      $badge.text(rendered.badge).prop('hidden', false);
+    } else {
+      $badge.text('').prop('hidden', true);
+    }
+  }
+
+  function reloadMerchantDetail(merchantId, options) {
+    options = options || {};
+    var $host = $detailHost();
+    merchantId = parseInt(merchantId, 10) || parseInt($host.data('currentMerchantId'), 10) || 0;
+    var $root = $host.find('.sutore-mp-staff-detail-root');
+    var $panels = $host.find('.sutore-mp-staff-detail-panels');
+    var $loading = $host.find('.sutore-mp-staff-manage-loading');
+    var keepTab =
+      options.tab ||
+      String($host.find('.sutore-mp-manage-tab[aria-selected="true"]').attr('data-tab') || 'profile');
+    if (keepTab === 'controls') {
+      keepTab = 'level';
+    }
+
+    if (!merchantId || !cfg.restUrl) {
+      $panels.html('<p class="sutore-mp-error">' + esc(t('error', 'Error')) + '</p>');
       return;
     }
 
-    $root.attr('aria-busy', 'true').html(loadingHtml());
+    $host.data('currentMerchantId', merchantId);
+    $root.attr('aria-busy', 'true');
+    $loading.prop('hidden', false);
 
-    ajax('GET', 'admin/merchants/' + id)
+    return ajax('GET', 'admin/merchants/' + merchantId)
       .done(function (res) {
+        $loading.prop('hidden', true);
+        $root.attr('aria-busy', 'false');
         if (!res || !res.success || !res.data) {
-          $root.attr('aria-busy', 'false').html(
+          setDetailHeader($host, { title: t('seller', 'Seller') });
+          $panels.html(
             '<p class="sutore-mp-error">' +
               esc((res && res.message) || t('notFound', 'Seller not found.')) +
               '</p>'
           );
-          $chrome.find('.sutore-mp-staff-detail-title').text(t('seller', 'Seller'));
-          $chrome.prop('hidden', false);
           return;
         }
         var rendered = renderDetail(res.data);
-        $chrome.find('.sutore-mp-staff-detail-title').text(rendered.title);
-        $root.attr('aria-busy', 'false').html(rendered.html);
+        setDetailHeader($host, rendered);
+        setRestrictionsTabBadge($host, rendered.activeRestrictionCount);
+        $panels.html(rendered.html);
+        setDetailTab($host, keepTab);
         bindProfileLocation(
-          $root.find('.sutore-mp-staff-merchant-profile'),
-          (res.data && res.data.profile) || {}
+          $panels.find('.sutore-mp-staff-merchant-profile'),
+          res.data.profile || {}
         );
-        $chrome.prop('hidden', false);
       })
       .fail(function (xhr) {
-        var msg = t('notFound', 'Seller not found.');
-        if (xhr.responseJSON && xhr.responseJSON.message) {
-          msg = xhr.responseJSON.message;
-        }
-        $root.attr('aria-busy', 'false').html('<p class="sutore-mp-error">' + esc(msg) + '</p>');
-        $chrome.find('.sutore-mp-staff-detail-title').text(t('seller', 'Seller'));
-        $chrome.prop('hidden', false);
+        $loading.prop('hidden', true);
+        $root.attr('aria-busy', 'false');
+        setDetailHeader($host, { title: t('seller', 'Seller') });
+        $panels.html(
+          '<p class="sutore-mp-error">' +
+            esc((xhr.responseJSON && xhr.responseJSON.message) || t('notFound', 'Seller not found.')) +
+            '</p>'
+        );
       });
   }
 
-  $(function () {
-    var $detail = $('.sutore-mp-staff-merchants-detail-root');
-    if ($detail.length) {
-      loadDetailRoot($detail);
+  function refreshDetailFrom() {
+    reloadMerchantDetail($detailHost().data('currentMerchantId'));
+  }
+
+  function openMerchantModal(merchantId, options) {
+    options = options || {};
+    merchantId = parseInt(merchantId, 10) || 0;
+    if (!merchantId) {
+      return;
     }
+    var $host = $detailHost();
+    var $overlay = $detailOverlay();
+    if (!$overlay.length) {
+      return;
+    }
+    var syncUrl = options.syncUrl === true || (options.syncUrl !== false && isMerchantListPage());
+    $overlay.prop('hidden', false).addClass('is-open');
+    $('body').addClass('sutore-mp-modal-open');
+    setDetailHeader($host, { title: t('seller', 'Seller') });
+    setRestrictionsTabBadge($host, 0);
+    setDetailTab($host, 'profile');
+    $host.find('.sutore-mp-staff-detail-panels').empty();
+    if (syncUrl) {
+      var baseUrl = String($('.sutore-mp-staff-merchants-list-root').data('baseUrl') || cfg.merchantsUrl || '');
+      try {
+        var method = options.replaceUrl ? 'replaceState' : 'pushState';
+        window.history[method]({}, '', detailUrl(baseUrl, merchantId));
+      } catch (err) {
+        /* ignore */
+      }
+    }
+    reloadMerchantDetail(merchantId, { tab: 'profile' });
+  }
+
+  function closeMerchantModal(options) {
+    options = options || {};
+    var $host = $detailHost();
+    var $overlay = $detailOverlay();
+    $overlay.prop('hidden', true).removeClass('is-open');
+    $host.find('.sutore-mp-staff-detail-panels').empty();
+    $host.removeData('currentMerchantId');
+    if (!otherManageOverlaysOpen()) {
+      $('body').removeClass('sutore-mp-modal-open');
+    }
+    var syncUrl = options.syncUrl === true || (options.syncUrl !== false && isMerchantListPage());
+    if (syncUrl) {
+      var $root = $('.sutore-mp-staff-merchants-list-root');
+      if ($root.length) {
+        syncListUrl(String($root.data('baseUrl') || ''), readListState($root));
+      }
+      $('.sutore-mp-staff-merchants').first().attr('data-open-merchant-id', '0');
+    }
+  }
+
+  function isStaffMerchantOpen() {
+    return $detailOverlay().hasClass('is-open') && !$detailOverlay().prop('hidden');
+  }
+
+  window.SutoreMarketplace = window.SutoreMarketplace || {};
+  SutoreMarketplace.openStaffMerchant = function (merchantId, options) {
+    openMerchantModal(merchantId, options || { syncUrl: false });
+  };
+  SutoreMarketplace.closeStaffMerchant = function (options) {
+    closeMerchantModal(options || { syncUrl: false });
+  };
+  SutoreMarketplace.isStaffMerchantOpen = isStaffMerchantOpen;
+
+  $(function () {
     var $list = $('.sutore-mp-staff-merchants-list-root');
     if ($list.length) {
       loadListRoot($list);
+    }
+  });
+
+  $(document).on('click', '.sutore-mp-staff-open-merchant', function (e) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.which === 2) {
+      return;
+    }
+    e.preventDefault();
+    var merchantId =
+      parseInt($(this).attr('data-merchant-id'), 10) ||
+      parseInt($(this).data('merchant-id'), 10) ||
+      0;
+    if (merchantId > 0) {
+      openMerchantModal(merchantId, {
+        syncUrl: isMerchantListPage()
+      });
+    }
+  });
+
+  $(document).on('click', '.sutore-mp-staff-merchants-close', function (e) {
+    e.preventDefault();
+    closeMerchantModal({ syncUrl: isMerchantListPage() });
+  });
+
+  $(document).on('click', '.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-detail-tabs .sutore-mp-manage-tab', function (e) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    setDetailTab($detailHost(), String($(this).attr('data-tab') || 'profile'));
+  });
+
+  $(document).on('click', '.sutore-mp-staff-merchant-detail-overlay', function (e) {
+    if (e.target === this) {
+      closeMerchantModal({ syncUrl: isMerchantListPage() });
+    }
+  });
+
+  $(document).on('keydown', function (e) {
+    if (e.key !== 'Escape' || $('.sutore-mp-confirm').length) {
+      return;
+    }
+    if (
+      window.SutoreMarketplace &&
+      SutoreMarketplace.isStaffProductOpen &&
+      SutoreMarketplace.isStaffProductOpen() &&
+      $('.sutore-mp-staff-product-detail-overlay.is-over-merchant').length
+    ) {
+      return;
+    }
+    if (isStaffMerchantOpen()) {
+      closeMerchantModal({ syncUrl: isMerchantListPage() });
+      e.stopImmediatePropagation();
     }
   });
 
@@ -1088,7 +1494,7 @@
           return;
         }
         showMsg($form, true, (res.data && res.data.message) || t('saved', 'Saved'));
-        loadDetailRoot($('.sutore-mp-staff-merchants-detail-root'));
+        refreshDetailFrom($form);
       })
       .fail(function (xhr) {
         var msg = t('error', 'Error');
@@ -1116,7 +1522,7 @@
           return;
         }
         showMsg($form, true, (res.data && res.data.message) || t('saved', 'Saved'));
-        loadDetailRoot($('.sutore-mp-staff-merchants-detail-root'));
+        refreshDetailFrom($form);
       })
       .fail(function (xhr) {
         var msg = t('error', 'Error');
@@ -1133,6 +1539,8 @@
     var id = parseInt($form.data('merchant-id'), 10) || 0;
     ajax('POST', 'admin/merchants/' + id + '/commission-override', {
       commission_percent: String($form.find('[name="commission_percent"]').val() || ''),
+      adjustment: String($form.find('[name="adjustment"]').val() || 'absolute'),
+      starts_at: String($form.find('[name="starts_at"]').val() || ''),
       expires_at: String($form.find('[name="expires_at"]').val() || ''),
       note: String($form.find('[name="note"]').val() || '')
     })
@@ -1142,7 +1550,7 @@
           return;
         }
         showMsg($form, true, (res.data && res.data.message) || t('saved', 'Saved'));
-        loadDetailRoot($('.sutore-mp-staff-merchants-detail-root'));
+        refreshDetailFrom($form);
       })
       .fail(function (xhr) {
         var msg = t('error', 'Error');
@@ -1160,28 +1568,85 @@
     if (!id) {
       return;
     }
-    if (!window.confirm(t('deleteOverrideConfirm', 'Delete this commission override?'))) {
-      return;
-    }
-    $btn.prop('disabled', true).text(t('deleting', 'Deleting…'));
-    ajax('DELETE', 'admin/merchants/commission-overrides/' + id, {})
+    confirmAction(
+      t('deleteOverride', 'Delete'),
+      t('deleteOverrideConfirm', 'Delete this commission override?'),
+      function () {
+        $btn.prop('disabled', true).text(t('deleting', 'Deleting…'));
+        ajax('DELETE', 'admin/merchants/commission-overrides/' + id, {})
+          .done(function (res) {
+            if (!res || !res.success) {
+              alertError((res && res.message) || t('error', 'Error'));
+              $btn.prop('disabled', false).text(t('deleteOverride', 'Delete'));
+              return;
+            }
+            refreshDetailFrom($btn);
+            var $root = $('.sutore-mp-staff-merchants-list-root');
+            if ($root.length) {
+              loadListRoot($root);
+            }
+          })
+          .fail(function (xhr) {
+            alertError((xhr.responseJSON && xhr.responseJSON.message) || t('error', 'Error'));
+            $btn.prop('disabled', false).text(t('deleteOverride', 'Delete'));
+          });
+      }
+    );
+  });
+
+  $(document).on('submit', '.sutore-mp-staff-platform-commission-form', function (e) {
+    e.preventDefault();
+    var $form = $(this);
+    $form.find('button[type="submit"]').prop('disabled', true).text(t('saving', 'Saving…'));
+    ajax('POST', 'admin/commission-overrides', {
+      commission_percent: String($form.find('[name="commission_percent"]').val() || ''),
+      adjustment: String($form.find('[name="adjustment"]').val() || 'percent_off'),
+      starts_at: String($form.find('[name="starts_at"]').val() || ''),
+      expires_at: String($form.find('[name="expires_at"]').val() || ''),
+      note: String($form.find('[name="note"]').val() || '')
+    })
       .done(function (res) {
         if (!res || !res.success) {
-          window.alert((res && res.message) || t('error', 'Error'));
-          $btn.prop('disabled', false).text(t('deleteOverride', 'Delete'));
+          showMsg($form, false, (res && res.message) || t('error', 'Error'));
           return;
         }
-        loadDetailRoot($('.sutore-mp-staff-merchants-detail-root'));
+        showMsg($form, true, (res.data && res.data.message) || t('saved', 'Saved'));
+        var $root = $('.sutore-mp-staff-merchants-list-root');
+        if ($root.length) {
+          loadListRoot($root);
+        }
       })
       .fail(function (xhr) {
         var msg = t('error', 'Error');
         if (xhr.responseJSON && xhr.responseJSON.message) {
           msg = xhr.responseJSON.message;
         }
-        window.alert(msg);
-        $btn.prop('disabled', false).text(t('deleteOverride', 'Delete'));
+        showMsg($form, false, msg);
+      })
+      .always(function () {
+        $form.find('button[type="submit"]').prop('disabled', false).text(t('save', 'Save'));
       });
   });
+
+  function syncRaiseWarn($form) {
+    var $warn = $form.find('.sutore-mp-staff-commission-raise-warn');
+    if (!$warn.length) {
+      return;
+    }
+    var level = parseFloat($form.data('level-percent'));
+    var mode = String($form.find('[name="adjustment"]').val() || 'absolute');
+    var val = parseFloat($form.find('[name="commission_percent"]').val());
+    var show = mode === 'absolute' && !isNaN(level) && !isNaN(val) && val > level;
+    $warn.prop('hidden', !show);
+  }
+
+  $(document).on(
+    'input change',
+    '.sutore-mp-staff-merchant-commission [name="commission_percent"], .sutore-mp-staff-merchant-commission [name="adjustment"]',
+    function () {
+      syncRaiseWarn($(this).closest('form'));
+    }
+  );
 
   $(document).on('submit', '.sutore-mp-staff-merchant-restriction', function (e) {
     e.preventDefault();
@@ -1199,7 +1664,7 @@
           return;
         }
         showMsg($form, true, (res.data && res.data.message) || t('saved', 'Saved'));
-        loadDetailRoot($('.sutore-mp-staff-merchants-detail-root'));
+        refreshDetailFrom($form);
       })
       .fail(function (xhr) {
         var msg = t('error', 'Error');
@@ -1217,26 +1682,25 @@
     if (!id) {
       return;
     }
-    if (!window.confirm(t('deactivateConfirm', 'Remove this restriction?'))) {
-      return;
-    }
-    $btn.prop('disabled', true).text(t('removing', 'Removing…'));
-    ajax('POST', 'admin/restrictions/' + id + '/deactivate', {})
-      .done(function (res) {
-        if (!res || !res.success) {
-          window.alert((res && res.message) || t('error', 'Error'));
-          $btn.prop('disabled', false).text(t('deactivate', 'Remove restriction'));
-          return;
-        }
-        loadDetailRoot($('.sutore-mp-staff-merchants-detail-root'));
-      })
-      .fail(function (xhr) {
-        var msg = t('error', 'Error');
-        if (xhr.responseJSON && xhr.responseJSON.message) {
-          msg = xhr.responseJSON.message;
-        }
-        window.alert(msg);
-        $btn.prop('disabled', false).text(t('deactivate', 'Remove restriction'));
-      });
+    confirmAction(
+      t('deactivate', 'Remove restriction'),
+      t('deactivateConfirm', 'Remove this restriction?'),
+      function () {
+        $btn.prop('disabled', true).text(t('removing', 'Removing…'));
+        ajax('POST', 'admin/restrictions/' + id + '/deactivate', {})
+          .done(function (res) {
+            if (!res || !res.success) {
+              alertError((res && res.message) || t('error', 'Error'));
+              $btn.prop('disabled', false).text(t('deactivate', 'Remove restriction'));
+              return;
+            }
+            refreshDetailFrom($btn);
+          })
+          .fail(function (xhr) {
+            alertError((xhr.responseJSON && xhr.responseJSON.message) || t('error', 'Error'));
+            $btn.prop('disabled', false).text(t('deactivate', 'Remove restriction'));
+          });
+      }
+    );
   });
 })(jQuery);

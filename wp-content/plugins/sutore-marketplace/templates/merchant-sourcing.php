@@ -14,12 +14,13 @@ if (!defined('ABSPATH')) {
                 $input_class = 'sutore-mp-sourcing-search';
                 $value = '';
                 $placeholder = __('product code, name…', 'sutore-marketplace');
+                $show_filter = false;
                 include SUTORE_MARKETPLACE_PATH . 'templates/partials/list-controls-row.php';
                 ?>
             </div>
         </div>
         <p class="sutore-mp-panel-lead">
-            <?php esc_html_e('You can accept open requests and track the status of pre-orders assigned to you.', 'sutore-marketplace'); ?>
+            <?php esc_html_e('Accept an open request to add it to your listings. Accepted pre-orders are tracked under My Listings.', 'sutore-marketplace'); ?>
         </p>
     </div>
     <div class="sutore-mp-sourcing-results" aria-live="polite" aria-busy="true">
@@ -27,30 +28,6 @@ if (!defined('ABSPATH')) {
             <span class="sutore-mp-list-spinner" aria-hidden="true"></span>
             <span class="screen-reader-text"><?php esc_html_e('Loading…', 'sutore-marketplace'); ?></span>
         </div>
-    </div>
-
-    <div class="sutore-mp-filter-overlay" hidden>
-        <form class="sutore-mp-filter-modal sutore-mp-sourcing-filter" role="dialog" aria-modal="true" aria-labelledby="sutore-mp-sourcing-filter-title" action="#">
-            <div class="sutore-mp-filter-head">
-                <h2 id="sutore-mp-sourcing-filter-title"><?php esc_html_e('Filter', 'sutore-marketplace'); ?></h2>
-                <button type="button" class="sutore-mp-filter-close" aria-label="<?php esc_attr_e('Close', 'sutore-marketplace'); ?>">×</button>
-            </div>
-            <div class="sutore-mp-filter-body">
-                <label class="sutore-mp-field-label" for="sutore-mp-sourcing-status"><?php esc_html_e('Status', 'sutore-marketplace'); ?></label>
-                <select id="sutore-mp-sourcing-status" name="status" class="sutore-mp-input">
-                    <option value=""><?php esc_html_e('All', 'sutore-marketplace'); ?></option>
-                    <option value="open"><?php esc_html_e('Open', 'sutore-marketplace'); ?></option>
-                    <option value="accepted"><?php esc_html_e('Accepted', 'sutore-marketplace'); ?></option>
-                    <option value="fulfilled"><?php esc_html_e('Completed', 'sutore-marketplace'); ?></option>
-                    <option value="cancelled"><?php esc_html_e('Cancelled', 'sutore-marketplace'); ?></option>
-                </select>
-            </div>
-            <?php
-            $clear_class = 'sutore-mp-sourcing-filter-clear';
-            $apply_class = 'sutore-mp-sourcing-filter-apply';
-            include SUTORE_MARKETPLACE_PATH . 'templates/partials/list-modal-footer.php';
-            ?>
-        </form>
     </div>
 
     <div class="sutore-mp-sort-overlay" hidden>
@@ -84,15 +61,16 @@ if (!defined('ABSPATH')) {
             aria-modal="true"
             aria-labelledby="sutore-mp-sourcing-modal-title"
         >
+            <div class="sutore-mp-manage-modal__handle" aria-hidden="true"><span></span></div>
             <div class="sutore-mp-manage-modal__head">
                 <div class="sutore-mp-manage-modal__media" hidden></div>
                 <div class="sutore-mp-manage-modal__titles">
                     <h2 id="sutore-mp-sourcing-modal-title" class="sutore-mp-manage-modal__title">
                         <?php esc_html_e('Pre-order', 'sutore-marketplace'); ?>
                     </h2>
-                    <div class="sutore-mp-manage-modal__sub"></div>
-                    <span class="sutore-mp-manage-modal__badge" hidden></span>
+                    <p class="sutore-mp-manage-modal__sub"></p>
                 </div>
+                <span class="sutore-mp-manage-modal__badge" hidden></span>
                 <button
                     type="button"
                     class="sutore-mp-manage-modal__close sutore-mp-sourcing-close"

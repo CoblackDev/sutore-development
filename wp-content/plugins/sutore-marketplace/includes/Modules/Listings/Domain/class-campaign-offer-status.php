@@ -10,7 +10,6 @@ final class CampaignOfferStatus
     public const ACCEPTED = 'accepted';
     public const DECLINED = 'declined';
     public const EXPIRED = 'expired';
-    public const WITHDRAWN = 'withdrawn';
 
     /** @return list<string> */
     public static function all(): array
@@ -20,7 +19,6 @@ final class CampaignOfferStatus
             self::ACCEPTED,
             self::DECLINED,
             self::EXPIRED,
-            self::WITHDRAWN,
         ];
     }
 
@@ -37,7 +35,6 @@ final class CampaignOfferStatus
             self::ACCEPTED => __('Accepted', 'sutore-marketplace'),
             self::DECLINED => __('Declined', 'sutore-marketplace'),
             self::EXPIRED => __('Expired', 'sutore-marketplace'),
-            self::WITHDRAWN => __('Withdrawn', 'sutore-marketplace'),
         ];
     }
 

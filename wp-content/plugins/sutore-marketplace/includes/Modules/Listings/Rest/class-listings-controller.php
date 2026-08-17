@@ -9,6 +9,7 @@ use SutoreMarketplace\Modules\Listings\Domain\ProductCodeLookup;
 use SutoreMarketplace\Modules\Listings\Domain\ProductSizeLookup;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingEventsRepository;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
+use SutoreMarketplace\Modules\Listings\Services\CampaignService;
 use SutoreMarketplace\Modules\Listings\Services\ListingActivityPresenter;
 use SutoreMarketplace\Modules\Listings\Services\ListingFormContext;
 use SutoreMarketplace\Modules\Listings\Services\ListingQueryPresenter;
@@ -81,6 +82,16 @@ final class ListingsController
             'callback' => [$this, 'removeFromSale'],
             'permission_callback' => [$this, 'canManage'],
         ]);
+        register_rest_route($ns, '/listings/(?P<id>\d+)/campaign', [
+            'methods' => 'POST',
+            'callback' => [$this, 'startCampaign'],
+            'permission_callback' => [$this, 'canManage'],
+        ]);
+        register_rest_route($ns, '/listings/bulk-actions', [
+            'methods' => 'POST',
+            'callback' => [$this, 'bulkActions'],
+            'permission_callback' => [$this, 'canManage'],
+        ]);
         register_rest_route($ns, '/listings/(?P<id>\d+)/activity', [
             'methods' => 'GET',
             'callback' => [$this, 'activity'],
@@ -106,28 +117,29 @@ final class ListingsController
         return RestResponse::success([
             'items' => $items,
             'message' => $items ? null : __('The product you searched for was not found', 'sutore-marketplace'),
+            'can_request_catalog_product' => ListingPolicy::canRequestCatalogProduct(),
         ]);
     }
 
     public function sizes(\WP_REST_Request $req): \WP_REST_Response
     {
         $parentId = (int) $req['parent_id'];
-        $sizes = ProductSizeLookup::termsForParent($parentId);
-        if ($sizes === []) {
+        $context = ProductSizeLookup::axisContextForParent($parentId);
+        if ($context['items'] === []) {
             $product = wc_get_product($parentId);
             if (!$product || !$product->is_type('variable')) {
                 return RestResponse::fail(__('Product is not variable.', 'sutore-marketplace'), 400);
             }
         }
 
-        return RestResponse::success(['items' => $sizes]);
+        return RestResponse::success($context);
     }
 
     public function formContext(\WP_REST_Request $req): \WP_REST_Response
     {
-        $listingId = (int) $req->get_param('listing_id') ?: null;
-        if ($listingId) {
-            $listing = (new ListingRepository())->find($listingId);
+        $variationId = (int) $req->get_param('variation_id') ?: null;
+        if ($variationId) {
+            $listing = (new ListingRepository())->find($variationId);
             if (!$listing) {
                 return RestResponse::fail(__('Listing not found.', 'sutore-marketplace'), 404, 'not_found');
             }
@@ -142,13 +154,22 @@ final class ListingsController
             'size_term_id' => (int) $req->get_param('size_term_id'),
             'conditions' => (array) $req->get_param('conditions'),
             'asking' => $req->get_param('asking'),
-            'listing_id' => $listingId,
+            'variation_id' => $variationId,
         ];
         if ($req->has_param('fast_shipment')) {
             $input['fast_shipment'] = !empty($req->get_param('fast_shipment'));
         }
         if ($req->has_param('has_invoice')) {
             $input['has_invoice'] = !empty($req->get_param('has_invoice'));
+        }
+        if ($req->has_param('is_imported')) {
+            $input['is_imported'] = !empty($req->get_param('is_imported'));
+        }
+        if ($req->has_param('merchant_id')) {
+            $input['merchant_id'] = (int) $req->get_param('merchant_id');
+        }
+        if ($req->has_param('staff_simple')) {
+            $input['staff_simple'] = !empty($req->get_param('staff_simple'));
         }
 
         $ctx = (new ListingFormContext())->build($input);
@@ -189,9 +210,8 @@ final class ListingsController
         }
 
         $item = (new ListingQueryPresenter())->enrich($listing);
-        $formContext = (new ListingFormContext())->build(['listing_id' => (int) $req['id']]);
+        $formContext = (new ListingFormContext())->build(['variation_id' => (int) $req['id']]);
         $activity = (new ListingActivityPresenter())->present(
-            (int) $listing->id,
             $listing->variationId,
             'merchant_visible'
         );
@@ -205,7 +225,13 @@ final class ListingsController
 
     public function create(\WP_REST_Request $req): \WP_REST_Response
     {
-        $result = (new ListingService())->create($req->get_json_params() ?: $req->get_params());
+        $params = $req->get_json_params() ?: $req->get_params();
+        $options = [];
+        if (!empty($params['merchant_id']) && current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
+            $options['merchant_id'] = (int) $params['merchant_id'];
+        }
+
+        $result = (new ListingService())->create(is_array($params) ? $params : [], null, $options);
         if (is_wp_error($result)) {
             return RestResponse::fromWpError($result);
         }
@@ -234,30 +260,27 @@ final class ListingsController
 
     public function activity(\WP_REST_Request $req): \WP_REST_Response|\WP_Error
     {
-        $listingId = (int) $req['id'];
-        $variationId = (int) ($req->get_param('variation_id') ?: 0);
+        $variationId = (int) $req['id'];
         $userId = get_current_user_id();
-        $listing = (new ListingRepository())->find($listingId);
+        $listing = (new ListingRepository())->find($variationId);
 
         if ($listing) {
             $owns = ListingPolicy::assertOwnsListing($listing);
             if (is_wp_error($owns)) {
                 return $owns;
             }
-            $variationId = $listing->variationId;
         } elseif (!user_can($userId, 'manage_woocommerce')
-            && !(new ListingEventsRepository())->merchantCanAccessListing($listingId, $userId)) {
+            && !(new ListingEventsRepository())->merchantCanAccessListing($variationId, $userId)) {
             return new \WP_Error('not_found', __('Listing not found.', 'sutore-marketplace'), ['status' => 404]);
         }
 
         $activity = (new ListingActivityPresenter())->present(
-            $listingId,
             $variationId,
             user_can($userId, 'manage_woocommerce') ? null : 'merchant_visible'
         );
 
         return RestResponse::success([
-            'listing_id' => $listingId,
+            'variation_id' => $variationId,
             'deleted' => $listing === null,
             'activity' => $activity,
         ]);
@@ -285,5 +308,50 @@ final class ListingsController
         }
 
         return RestResponse::success($result->toArray());
+    }
+
+    public function startCampaign(\WP_REST_Request $req): \WP_REST_Response
+    {
+        $params = $req->get_json_params() ?: $req->get_params();
+        $result = (new CampaignService())->startMerchantCampaign(
+            (int) $req['id'],
+            get_current_user_id(),
+            (float) ($params['percent'] ?? 0),
+            (int) ($params['duration_days'] ?? 0)
+        );
+        if (is_wp_error($result)) {
+            return RestResponse::fromWpError($result);
+        }
+
+        $listing = (new ListingRepository())->find((int) $req['id']);
+
+        return RestResponse::success([
+            ...$result,
+            'listing' => $listing ? (new ListingQueryPresenter())->enrich($listing) : null,
+            'message' => __('Campaign started. Customers will see a strikethrough price until it ends.', 'sutore-marketplace'),
+        ]);
+    }
+
+    public function bulkActions(\WP_REST_Request $req): \WP_REST_Response
+    {
+        $params = $req->get_json_params() ?: $req->get_params();
+        $action = sanitize_key((string) ($params['action'] ?? ''));
+        $ids = $params['ids'] ?? [];
+        if (!is_array($ids)) {
+            $ids = [];
+        }
+
+        $result = (new ListingService())->bulkMerchantAction($ids, $action);
+        if (is_wp_error($result)) {
+            return RestResponse::fromWpError($result);
+        }
+
+        return RestResponse::success(array_merge($result, [
+            'message' => sprintf(
+                /* translators: %d: number of products updated */
+                _n('%d product updated.', '%d products updated.', (int) $result['updated'], 'sutore-marketplace'),
+                (int) $result['updated']
+            ),
+        ]));
     }
 }

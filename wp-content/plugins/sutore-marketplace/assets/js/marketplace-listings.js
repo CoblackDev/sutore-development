@@ -25,6 +25,8 @@
       pending: t('statusPending', 'Awaiting approval'),
       expired: t('statusExpired', 'Expired'),
       not_sale: t('statusNotSale', 'Not for sale'),
+      order_detached: t('statusOrderDetached', 'Detached from order / Could not be sourced'),
+      sourcing: t('statusSourcing', 'Pre-order — awaiting order'),
       payment: t('statusPayment', 'Awaiting payment confirmation'),
       sold: t('statusSold', 'Awaiting merchant confirmation'),
       confirmed: t('statusConfirmed', 'Merchant confirmed'),
@@ -86,8 +88,7 @@
       no_box: t('condNoBox', 'No box'),
       box_damaged: t('condBoxDamaged', 'Box damaged'),
       missing_accessory: t('condMissingAccessory', 'Missing accessory'),
-      damaged: t('condDamaged', 'Damaged'),
-      used: t('condUsed', 'Used')
+      damaged: t('condDamaged', 'Damaged')
     };
     return map[key] || key;
   }
@@ -172,7 +173,149 @@
   }
 
   function $shell($from) {
+    var $create = $from.closest('.sutore-mp-staff-listing-create');
+    if ($create.length) {
+      return $create;
+    }
+    var $staff = $from.closest('.sutore-mp-staff-manage');
+    if ($staff.length) {
+      var $host = $staff.find('.sutore-mp-staff-listing-create').first();
+      if ($host.length) {
+        return $host;
+      }
+    }
     return $from.closest('.sutore-mp-listings');
+  }
+
+  function isStaffCreateMode($listings) {
+    return $listings && $listings.attr('data-staff-create') === '1';
+  }
+
+  function staffMerchantId($listings) {
+    if (!isStaffCreateMode($listings)) {
+      return 0;
+    }
+    var $picker = $listings.find('.sutore-mp-manage-overlay .sutore-mp-staff-merchant-picker').first();
+    if (!$picker.length) {
+      $picker = $listings.find('.sutore-mp-staff-merchant-picker').first();
+    }
+    return parseInt($picker.find('.sutore-mp-staff-merchant-id').val(), 10) || 0;
+  }
+
+  function staffMerchantLabel($listings) {
+    if (!isStaffCreateMode($listings)) {
+      return '';
+    }
+    var stored = $listings.data('staff-merchant-label');
+    if (stored) {
+      return String(stored);
+    }
+    var $picker = $listings.find('.sutore-mp-manage-overlay .sutore-mp-staff-merchant-picker').first();
+    var id = parseInt($picker.find('.sutore-mp-staff-merchant-id').val(), 10) || 0;
+    var name = String($picker.find('.sutore-mp-staff-merchant-search').val() || '').trim();
+    if (!id) {
+      return '';
+    }
+    return name ? name + ' (#' + id + ')' : '#' + id;
+  }
+
+  function staffBulkMerchantId($listings) {
+    var $picker = $listings.find('.sutore-mp-bulk-overlay .sutore-mp-staff-merchant-picker').first();
+    return parseInt($picker.find('.sutore-mp-staff-merchant-id').val(), 10) || 0;
+  }
+
+  function requireStaffMerchant($listings, forBulk) {
+    if (!isStaffCreateMode($listings)) {
+      return true;
+    }
+    var id = forBulk ? staffBulkMerchantId($listings) : staffMerchantId($listings);
+    if (id > 0) {
+      return true;
+    }
+    var msg = t('sellerRequired', 'Select a seller before continuing.');
+    if (!forBulk && isCreateManageMode($listings)) {
+      setCreateWizardError(
+        $listings.find('.sutore-mp-manage-panel[data-panel="details"] .sutore-mp-listing-form-wrap'),
+        msg
+      );
+    } else if (typeof SutoreMarketplace.showToast === 'function') {
+      SutoreMarketplace.showToast(msg, 'error');
+    }
+    return false;
+  }
+
+  function applyStaffSimpleUi($listings) {
+    if (!isStaffCreateMode($listings)) {
+      return;
+    }
+    $listings.addClass('is-staff-simple-create');
+    $listings.find('.sutore-mp-first-place').addClass('is-hidden').prop('hidden', true);
+    $listings.find('.sutore-mp-open-size-prices').prop('hidden', true);
+    $listings.find('.sutore-mp-form-context-meta .sutore-mp-queue').closest('div').prop('hidden', true);
+    $listings.find('.sutore-mp-form-section-competing').prop('hidden', true);
+  }
+
+  function resetStaffMerchantPicker($scope) {
+    $scope.find('.sutore-mp-staff-merchant-id').val('');
+    $scope.find('.sutore-mp-staff-merchant-search').val('');
+    $scope.find('.sutore-mp-staff-merchant-results').empty().prop('hidden', true);
+    $scope.find('.sutore-mp-staff-merchant-selected').text('').prop('hidden', true);
+    var $listings = $shell($scope);
+    if ($listings.length) {
+      $listings.removeData('staff-merchant-label');
+    }
+  }
+
+  function setStaffMerchant($picker, merchant) {
+    if (!$picker.length || !merchant) {
+      return;
+    }
+    var id = merchant.id || merchant.user_id || 0;
+    var name = merchant.display_name || merchant.name || ('#' + id);
+    var label = name + ' (#' + id + ')';
+    $picker.find('.sutore-mp-staff-merchant-id').val(String(id));
+    $picker.find('.sutore-mp-staff-merchant-search').val(name);
+    $picker.find('.sutore-mp-staff-merchant-results').empty().prop('hidden', true);
+    var $listings = $shell($picker);
+    if ($listings.length && !$picker.closest('.sutore-mp-bulk-overlay').length) {
+      $listings.data('staff-merchant-label', label);
+      updateWizardContext($listings);
+    }
+  }
+
+  var merchantSearchTimer = null;
+  function searchStaffMerchants($picker, query) {
+    query = String(query || '').trim();
+    var $results = $picker.find('.sutore-mp-staff-merchant-results');
+    if (query.length < 1) {
+      $results.empty().prop('hidden', true);
+      return;
+    }
+    var cfg = window.SutoreMarketplace || {};
+    $.ajax({
+      url: (cfg.restUrl || '') + 'admin/merchants',
+      method: 'GET',
+      dataType: 'json',
+      data: { search: query, per_page: 20, page: 1 },
+      headers: { 'X-WP-Nonce': cfg.restNonce || '' }
+    }).done(function (res) {
+      var items = (res && res.data && res.data.items) || (res && res.items) || [];
+      $results.empty();
+      if (!items.length) {
+        $results.append($('<p class="description"/>').text(t('noSellersFound', 'No sellers found.')));
+        $results.prop('hidden', false);
+        return;
+      }
+      items.forEach(function (item) {
+        var id = item.id || item.user_id || 0;
+        var name = item.display_name || item.name || ('#' + id);
+        var $btn = $('<button type="button" class="sutore-mp-staff-merchant-option"/>')
+          .text(name + ' (#' + id + ')')
+          .data('merchant', item);
+        $results.append($btn);
+      });
+      $results.prop('hidden', false);
+    });
   }
 
   function $formWrap($from) {
@@ -212,7 +355,7 @@
 
   function listingIdFromUrl() {
     try {
-      return parseInt(new URL(window.location.href).searchParams.get('listing_id') || '0', 10) || 0;
+      return parseInt(new URL(window.location.href).searchParams.get('variation_id') || '0', 10) || 0;
     } catch (err) {
       return 0;
     }
@@ -223,6 +366,14 @@
       return new URL(window.location.href).searchParams.get('action') === 'create';
     } catch (err) {
       return false;
+    }
+  }
+
+  function productCodeFromUrl() {
+    try {
+      return String(new URL(window.location.href).searchParams.get('product_code') || '').trim();
+    } catch (err) {
+      return '';
     }
   }
 
@@ -253,12 +404,12 @@
       u.searchParams.delete('mp_page');
       if (listingId) {
         u.searchParams.delete('action');
-        u.searchParams.set('listing_id', String(listingId));
+        u.searchParams.set('variation_id', String(listingId));
       } else if (mode === 'create' || mode === 'bulk') {
-        u.searchParams.delete('listing_id');
+        u.searchParams.delete('variation_id');
         u.searchParams.set('action', mode);
       } else {
-        u.searchParams.delete('listing_id');
+        u.searchParams.delete('variation_id');
         u.searchParams.delete('action');
       }
       var next = u.pathname + u.search + u.hash;
@@ -289,17 +440,17 @@
     try {
       var u = new URL(base, window.location.origin);
       u.searchParams.delete('action');
-      u.searchParams.delete('listing_id');
+      u.searchParams.delete('variation_id');
       u.searchParams.delete('mp_page');
       if (listingId) {
-        u.searchParams.set('listing_id', String(listingId));
+        u.searchParams.set('variation_id', String(listingId));
       } else {
         u.searchParams.set('action', 'create');
       }
       return u.toString();
     } catch (err) {
       if (listingId) {
-        return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'listing_id=' + encodeURIComponent(String(listingId));
+        return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'variation_id=' + encodeURIComponent(String(listingId));
       }
       return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'action=create';
     }
@@ -397,11 +548,6 @@
     }
 
     var queuePos = parseInt($root.data('queue-position'), 10);
-    var blockedByCondition = !!$root.data('blocked-by-condition');
-    if (blockedByCondition) {
-      setPriceAlert($root, 'warn', t('blockedByFlawlessWarn', 'Defective products cannot go for sale until undamaged products are sold — they wait in queue regardless of price.'));
-      return;
-    }
     if (queuePos === 1 || $root.data('can-win-sale')) {
       var alertKey = $root.data('merchant-auto-activates')
         ? 'firstPlaceAlertForSale'
@@ -460,6 +606,15 @@
     };
   }
 
+  /** Staff-only flag: omitted entirely when the checkbox is not rendered. */
+  function importedPayload($root) {
+    var $flag = $root.find('.sutore-mp-imported-flag');
+    if (!$flag.length) {
+      return {};
+    }
+    return { is_imported: $flag.is(':checked') ? 1 : 0 };
+  }
+
   function syncInternationalCommit($root) {
     var intlOn = $root.find('.sutore-mp-shipping-intl-flag').is(':checked');
     var $block = $root.find('.sutore-mp-international-commit');
@@ -477,6 +632,18 @@
       return;
     }
     $err.text(message).prop('hidden', false).removeClass('is-hidden');
+  }
+
+  function setCreateWizardError($root, message) {
+    var $alert = $root.find('.sutore-mp-create-wizard-alert');
+    if (!$alert.length) {
+      return;
+    }
+    if (!message) {
+      $alert.text('').prop('hidden', true);
+      return;
+    }
+    $alert.text(message).prop('hidden', false);
   }
 
   function applyShippingOptions($root, d) {
@@ -503,6 +670,16 @@
     $intlInput.prop('checked', intlOn);
     syncInternationalCommit($root);
     setShippingError($root, '');
+    applyImportedOption($root, d);
+  }
+
+  function applyImportedOption($root, d) {
+    var $flag = $root.find('.sutore-mp-imported-flag');
+    if (!$flag.length) {
+      return;
+    }
+    $root.find('.sutore-mp-form-section-imported').prop('hidden', !d.can_flag_imported);
+    $flag.prop('checked', !!d.is_imported);
   }
 
   function sizeTermId($root) {
@@ -511,6 +688,41 @@
       return String(locked);
     }
     return $root.find('.sutore-mp-size:checked').val() || '';
+  }
+
+  function axisLabel($root) {
+    return String($root.data('axis-label') || t('variation', 'Variation'));
+  }
+
+  function pickAxisMessage($root) {
+    var label = axisLabel($root).toLowerCase();
+    var template = t('pickAxis', 'Select a %s to continue.');
+    if (template.indexOf('%s') !== -1) {
+      return template.replace('%s', label);
+    }
+    return t('pickSize', 'Select a size to continue.');
+  }
+
+  function chooseAxisHint(label) {
+    var template = t('chooseAxisHint', 'Choose the %s for this listing.');
+    var lower = String(label || t('variation', 'Variation')).toLowerCase();
+    if (template.indexOf('%s') !== -1) {
+      return template.replace('%s', lower);
+    }
+    return template;
+  }
+
+  function applyAxisLabels($root, axisLabelText) {
+    axisLabelText = String(axisLabelText || t('variation', 'Variation'));
+    $root.data('axis-label', axisLabelText);
+    $root.find('.sutore-mp-axis-heading').text(axisLabelText);
+    $root.find('.sutore-mp-axis-hint').text(chooseAxisHint(axisLabelText));
+    $root.find('.sutore-mp-size-options').attr('aria-label', axisLabelText);
+    var $listings = $shell($root);
+    if ($listings.length) {
+      $listings.data('axis-label', axisLabelText);
+      $listings.find('.sutore-mp-wizard-axis-step-label').text(axisLabelText);
+    }
   }
 
   function setSizeLocked($root, locked, termId, label) {
@@ -646,6 +858,56 @@
     return $block.append($wrap.append($table));
   }
 
+  function durationDaysValue($root) {
+    var raw = parseInt($root.find('.sutore-mp-duration-days').val(), 10);
+    return Number.isFinite(raw) && raw > 0 ? raw : null;
+  }
+
+  function renderDurationOptions($root, d) {
+    var $select = $root.find('.sutore-mp-duration-days');
+    if (!$select.length) {
+      return;
+    }
+    d = d || {};
+    var options = d.duration_options || [];
+    var selected = d.duration_days != null ? parseInt(d.duration_days, 10) : null;
+    $select.empty();
+    options.forEach(function (opt) {
+      var days = parseInt(opt.days, 10);
+      if (!Number.isFinite(days)) {
+        return;
+      }
+      $select.append(
+        $('<option/>', { value: String(days), text: opt.label || String(days) })
+      );
+    });
+    if (selected && options.some(function (o) { return parseInt(o.days, 10) === selected; })) {
+      $select.val(String(selected));
+    } else if (options.length) {
+      $select.val(String(options[0].days));
+    }
+    updateDurationPreview($root, d);
+  }
+
+  function updateDurationPreview($root, d) {
+    var $preview = $root.find('.sutore-mp-duration-preview');
+    if (!$preview.length) {
+      return;
+    }
+    d = d || {};
+    var remaining = d.expire_days_remaining != null ? parseInt(d.expire_days_remaining, 10) : null;
+    if (!Number.isFinite(remaining)) {
+      remaining = durationDaysValue($root);
+    }
+    if (!Number.isFinite(remaining)) {
+      $preview.text('');
+      return;
+    }
+    $preview.text(
+      t('durationPreview', 'Expires in about %d days if saved now.').replace('%d', String(remaining))
+    );
+  }
+
   function applyContext($root, d, options) {
     options = options || {};
     $root.find('.sutore-mp-min-price').text(d.min_on_sale_display || d.no_active_sale_message || '—');
@@ -660,8 +922,12 @@
     $root.data('queue-position', d.queue_position);
     $root.data('can-win-sale', d.can_win_sale);
     $root.data('merchant-auto-activates', d.merchant_auto_activates !== false);
-    $root.data('blocked-by-condition', d.blocked_by_better_condition);
+    var $listingsFp = $shell($root);
     var showFirstPlace = !!(d.show_first_place_button && d.first_place_asking != null);
+    if (isStaffCreateMode($listingsFp) || d.staff_simple) {
+      showFirstPlace = false;
+      applyStaffSimpleUi($listingsFp);
+    }
     $root.find('.sutore-mp-first-place')
       .toggleClass('is-hidden', !showFirstPlace)
       .prop('hidden', !showFirstPlace);
@@ -683,6 +949,7 @@
       });
     }
     validateAsking($root);
+    renderDurationOptions($root, d);
     if (!options.skipCompetingPrices) {
       var $listings = $shell($root);
       if (isCreateManageMode($listings)) {
@@ -710,15 +977,25 @@
     if (!parentId || !sizeId) return;
 
     var ship = shippingPayload($root);
-    api('marketplace_listing_form_context', {
+    var $listingsCtx = $shell($root);
+    var ctxPayload = $.extend({
       parent_product_id: parentId,
       size_term_id: sizeId,
       conditions: conditions($root),
       asking: $root.find('.sutore-mp-asking').val(),
-      listing_id: $root.data('listing-id') || '',
+      variation_id: $root.data('variation-id') || '',
       fast_shipment: ship.fast_shipment,
-      has_invoice: ship.has_invoice
-    }).done(function (res) {
+      has_invoice: ship.has_invoice,
+      duration_days: durationDaysValue($root)
+    }, importedPayload($root));
+    if (isStaffCreateMode($listingsCtx)) {
+      ctxPayload.staff_simple = 1;
+      var mid = staffMerchantId($listingsCtx);
+      if (mid > 0) {
+        ctxPayload.merchant_id = mid;
+      }
+    }
+    api('marketplace_listing_form_context', ctxPayload).done(function (res) {
       if (!res.success) return;
       applyContext($root, res.data, options);
     });
@@ -726,7 +1003,9 @@
 
   function loadSizes($root, parentId, selectedSize, then) {
     api('marketplace_listing_sizes', { parent_product_id: parentId }).done(function (res) {
-      var items = res.data.items || [];
+      var data = res.data || {};
+      var items = data.items || [];
+      applyAxisLabels($root, data.axis_label || '');
       var $options = $root.find('.sutore-mp-size-options').empty();
       items.forEach(function (s) {
         var value = String(s.term_id);
@@ -752,7 +1031,7 @@
   }
 
   function initFlatForm($root) {
-    var listingId = parseInt($root.attr('data-listing-id') || $root.data('listing-id'), 10) || 0;
+    var listingId = parseInt($root.attr('data-variation-id') || $root.data('variation-id'), 10) || 0;
     $root.find('.sutore-mp-form-section').not('.sutore-mp-form-section-competing')
       .prop('hidden', false).removeClass('is-hidden');
     if (listingId > 0) {
@@ -788,49 +1067,57 @@
   function canLeaveStep($root, step) {
     if (step === 1) {
       if (!$root.find('.sutore-mp-parent-id').val()) {
-        $root.find('.sutore-mp-search-results').text(t('pickProduct', 'Select a product to continue.'));
+        setCreateWizardError($root, t('pickProduct', 'Select a product to continue.'));
         return false;
       }
+      setCreateWizardError($root, '');
       return true;
     }
     if (step === 2) {
       if (!sizeTermId($root)) {
-        var $sizes = $root.find('.sutore-mp-sizes');
-        if (!$sizes.find('.sutore-mp-step-error').length) {
-          $sizes.prepend($('<p class="sutore-mp-step-error"/>').text(t('pickSize', 'Select a size to continue.')));
-        }
+        setCreateWizardError($root, pickAxisMessage($root));
         return false;
       }
-      $root.find('.sutore-mp-step-error').remove();
+      setCreateWizardError($root, '');
       return true;
     }
     if (step === 3) {
+      var $listingsLeave = $shell($root);
+      if (isStaffCreateMode($listingsLeave) && !staffMerchantId($listingsLeave)) {
+        requireStaffMerchant($listingsLeave, false);
+        return false;
+      }
       setShippingError($root, '');
       var ship = shippingPayload($root);
       if (ship.fast_shipment && $root.find('.sutore-mp-shipping-express-flag').prop('disabled')) {
-        setShippingError($root, t('expressIneligible', 'You are not eligible for fast shipping.'));
+        var shippingMessage = t('expressIneligible', 'You are not eligible for fast shipping.');
+        setShippingError($root, shippingMessage);
+        setCreateWizardError($root, shippingMessage);
         return false;
       }
+      setCreateWizardError($root, '');
       return true;
     }
     return true;
   }
 
   function clearFormState($root) {
-    $root.data('listing-id', 0).attr('data-listing-id', '0');
+    $root.data('variation-id', 0).attr('data-variation-id', '0');
     $root.find('.sutore-mp-parent-id').val('');
     $root.find('.sutore-mp-product-code').val('').prop('disabled', false);
     $root.find('.sutore-mp-search-results').empty();
     $root.removeData('retail-tl').removeData('retail-usd').removeData('queue-position')
-      .removeData('can-win-sale').removeData('merchant-auto-activates').removeData('blocked-by-condition').removeData('first-place');
+      .removeData('can-win-sale').removeData('merchant-auto-activates').removeData('first-place');
     updateRetailPriceDisplay($root, { has_retail_price: false, clear_retail: true });
     setPriceAlert($root, null, '');
     setSizeLocked($root, false);
+    $root.removeData('axis-label');
     $root.find('.sutore-mp-size-options').empty();
     $root.find('.sutore-mp-conditions input[type=checkbox]').prop('checked', false);
     $root.find('.sutore-mp-asking').val('');
     $root.find('.sutore-mp-message').text('');
     $root.find('.sutore-mp-shipping-express-flag, .sutore-mp-shipping-intl-flag').prop('checked', false);
+    $root.find('.sutore-mp-imported-flag').prop('checked', false);
     $root.find('.sutore-mp-international-commit').prop('hidden', true);
     $root.find('.sutore-mp-express-ineligible').prop('hidden', true).addClass('is-hidden');
     $root.find('.sutore-mp-shipping-express').removeClass('is-disabled');
@@ -956,17 +1243,17 @@
 
     applyAskingCampaignLimits($root, item);
 
-    // List page owns delete / remove-from-sale; never show them in the manage modal.
+    // Manage modal footer owns delete / remove-from-sale (More actions).
     if (inManageModal || !(canDelete && listingId > 0)) {
       $delete.prop('hidden', true).addClass('is-hidden');
     } else {
-      $delete.attr('data-listing-id', String(listingId)).prop('hidden', false).removeClass('is-hidden');
+      $delete.attr('data-variation-id', String(listingId)).prop('hidden', false).removeClass('is-hidden');
     }
 
     if (inManageModal || !(canRemove && listingId > 0)) {
       $remove.prop('hidden', true).addClass('is-hidden');
     } else {
-      $remove.attr('data-listing-id', String(listingId)).prop('hidden', false).removeClass('is-hidden');
+      $remove.attr('data-variation-id', String(listingId)).prop('hidden', false).removeClass('is-hidden');
     }
 
     if (!canEdit && item && item.campaign_status === 'offer') {
@@ -995,6 +1282,21 @@
     } else {
       $asking.removeAttr('max');
       $root.removeData('max-asking');
+    }
+    var $hint = $root.find('.sutore-mp-campaign-asking-hint');
+    if (!$hint.length) {
+      $hint = $('<p class="description sutore-mp-campaign-asking-hint"/>');
+      $root.find('.sutore-mp-price').append($hint);
+    }
+    if (item && (item.can_start_campaign || item.campaign_status === 'none')) {
+      $hint.text(
+        t(
+          'putOnCampaignHint',
+          'Lowering asking is permanent and has no strikethrough. A campaign is timed and shows the previous asking crossed out.'
+        )
+      ).prop('hidden', false);
+    } else {
+      $hint.text('').prop('hidden', true);
     }
   }
 
@@ -1037,31 +1339,159 @@
     return statusLabel(item || {});
   }
 
-  function renderManageActions(item, scope) {
-    scope = scope || 'all';
+  /**
+   * Next lifecycle action (primary) + other applicable actions for the manage modal footer.
+   * @returns {{primary: object|null, secondary: Array<object>}}
+   */
+  function manageModalActionDefs(item) {
     var listingId = parseInt(item.id, 10) || 0;
     var fulfillment = item.fulfillment || null;
     var fulfillmentId = fulfillment ? parseInt(fulfillment.id, 10) || 0 : 0;
-    var includeSale = scope === 'all' || scope === 'sale';
-    var html = '';
+    var page = parseInt(String(item._list_page || '1'), 10) || 1;
+    var primary = null;
+    var secondary = [];
 
-    if (includeSale && fulfillment && fulfillment.can_confirm && fulfillmentId > 0) {
-      html +=
-        '<button type="button" class="wp-element-button is-style-outline sutore-mp-ful-confirm" data-listing-id="' +
-        fulfillmentId +
-        '">' +
-        escHtml(t('confirmSale', 'Confirm Sale')) +
-        '</button>';
+    function push(def, asPrimary) {
+      if (!def) {
+        return;
+      }
+      if (asPrimary && !primary) {
+        primary = def;
+        return;
+      }
+      secondary.push(def);
     }
-    if (includeSale && fulfillment && fulfillment.can_ship && fulfillmentId > 0) {
-      html +=
-        '<button type="button" class="wp-element-button is-style-outline sutore-mp-ful-ship" data-listing-id="' +
-        fulfillmentId +
-        '">' +
-        escHtml(t('ship', 'Ship to Sutore')) +
-        '</button>';
+
+    if (fulfillment && fulfillment.can_confirm && fulfillmentId > 0) {
+      push(
+        {
+          key: 'confirm_sale',
+          label: t('confirmSale', 'Confirm Sale'),
+          className: 'sutore-mp-ful-confirm',
+          attrs: { 'data-variation-id': String(fulfillmentId) }
+        },
+        true
+      );
     }
-    return html;
+    if (fulfillment && fulfillment.can_ship && fulfillmentId > 0) {
+      push(
+        {
+          key: 'ship',
+          label: t('ship', 'Ship to Sutore'),
+          className: 'sutore-mp-ful-ship',
+          attrs: { 'data-variation-id': String(fulfillmentId) }
+        },
+        true
+      );
+    }
+    if (item.can_put_on_sale && listingId > 0) {
+      push(
+        {
+          key: 'put_on_sale',
+          label: t('putOnSale', 'Put on sale'),
+          className: 'sutore-mp-put-on-sale',
+          attrs: {
+            'data-variation-id': String(listingId),
+            'data-page': String(page)
+          }
+        },
+        true
+      );
+    }
+    if (item.can_start_campaign && listingId > 0) {
+      push(
+        {
+          key: 'put_on_campaign',
+          label: t('putOnCampaign', 'Put on campaign'),
+          className: 'sutore-mp-put-on-campaign',
+          attrs: {
+            'data-variation-id': String(listingId),
+            'data-page': String(page)
+          }
+        },
+        true
+      );
+    }
+    if (item.can_remove_from_sale && listingId > 0) {
+      push(
+        {
+          key: 'remove_from_sale',
+          label: t('removeFromSale', 'Remove from sale'),
+          className: 'sutore-mp-remove-from-sale',
+          attrs: {
+            'data-variation-id': String(listingId),
+            'data-page': String(page)
+          }
+        },
+        false
+      );
+    }
+    if (item.can_delete && listingId > 0) {
+      push(
+        {
+          key: 'delete',
+          label: t('delete', 'Delete'),
+          className: 'sutore-mp-delete',
+          attrs: {
+            'data-variation-id': String(listingId),
+            'data-page': String(page)
+          }
+        },
+        false
+      );
+    }
+    if (item.campaign_status === 'offer') {
+      var offersUrl = (window.SutoreMarketplace && SutoreMarketplace.campaignOffersUrl) || '';
+      var offerId = item.campaign && item.campaign.offer_id ? parseInt(item.campaign.offer_id, 10) : 0;
+      if (offersUrl) {
+        var href = offersUrl;
+        if (offerId > 0) {
+          href += (offersUrl.indexOf('?') >= 0 ? '&' : '?') + 'offer=' + offerId;
+        }
+        push(
+          {
+            key: 'campaign_offer',
+            label: t('reviewCampaignOffer', 'Review offer'),
+            tag: 'a',
+            className: 'sutore-mp-open-campaign-offer',
+            attrs: { href: href }
+          },
+          false
+        );
+      }
+    }
+
+    return { primary: primary, secondary: secondary };
+  }
+
+  function manageActionButtonHtml(def, isPrimary) {
+    if (!def) {
+      return '';
+    }
+    var tag = def.tag === 'a' ? 'a' : 'button';
+    var cls = isPrimary
+      ? ('wp-element-button ' + (def.className || '')).trim()
+      : ('sutore-mp-manage-more-item ' + (def.className || '')).trim();
+    var attrHtml = tag === 'button' ? ' type="button"' : '';
+    Object.keys(def.attrs || {}).forEach(function (key) {
+      attrHtml += ' ' + key + '="' + escHtml(String(def.attrs[key])) + '"';
+    });
+    if (!isPrimary) {
+      attrHtml += ' role="menuitem"';
+    }
+    return (
+      '<' +
+      tag +
+      ' class="' +
+      escHtml(cls) +
+      '"' +
+      attrHtml +
+      '>' +
+      escHtml(def.label) +
+      '</' +
+      tag +
+      '>'
+    );
   }
 
   function renderActivityTimeline(activity) {
@@ -1194,6 +1624,13 @@
       )
     );
 
+    if (item.created_at_label || item.created_at) {
+      cells += manageMetaCell(
+        t('createdAt', 'Created at'),
+        escHtml(item.created_at_label || item.created_at)
+      );
+    }
+
     if (includeEditableFacts) {
       var conditionLabels = conditionTags(overviewItem).map(function (tag) { return tag.label; });
       cells += manageMetaCell(
@@ -1233,6 +1670,9 @@
         }
       }
       cells += manageMetaCell(t('campaign', 'Campaign'), campaignHtml);
+      if (camp.source_label) {
+        cells += manageMetaCell(t('campaignSource', 'Source'), escHtml(camp.source_label));
+      }
       if (camp.ends_at_label || camp.ends_at) {
         cells += manageMetaCell(
           t('campaignEndsAt', 'Campaign ends'),
@@ -1257,6 +1697,13 @@
           escHtml(camp.platform_discount_label || String(camp.platform_discount) + ' TL')
         );
       }
+    }
+
+    if (item.campaign_cooling && item.campaign_cooled_until_label) {
+      cells += manageMetaCell(
+        t('campaignCooldownUntil', 'Campaign cooldown until'),
+        escHtml(item.campaign_cooled_until_label)
+      );
     }
 
     if (inMarket) {
@@ -1288,6 +1735,12 @@
         t('payoutStatus', 'Payout status'),
         escHtml(payout.payout_status_label || payout.payout_status || '—')
       );
+      if (payout.scheduled_message) {
+        cells += manageMetaCell(
+          t('scheduledPayoutDate', 'Scheduled payout date'),
+          escHtml(payout.scheduled_message)
+        );
+      }
       if (payout.paid_at) {
         cells += manageMetaCell(t('payoutPaidAt', 'Paid at'), escHtml(payout.paid_at));
       }
@@ -1393,11 +1846,14 @@
         '</dl>'
       : '<p class="sutore-mp-empty">' + escHtml(t('noDetails', 'No details available.')) + '</p>';
 
-    var actions = renderManageActions(item, 'sale');
-    if (actions) {
-      html += '<div class="sutore-mp-manage-panel-actions">' + actions + '</div>';
-    }
     return html;
+  }
+
+  function closeManageMoreMenu($listings) {
+    var $more = $listings.find('.sutore-mp-manage-more');
+    $more.removeClass('is-open');
+    $more.find('.sutore-mp-manage-more-toggle').attr('aria-expanded', 'false');
+    $more.find('.sutore-mp-manage-more-menu').prop('hidden', true);
   }
 
   function updateManageFoot($listings, tab) {
@@ -1414,16 +1870,48 @@
     }
 
     var canUpdate = tab === 'details' && $listings.data('manage-can-edit') !== false;
+    var defs = manageModalActionDefs(item);
     var html =
+      '<div class="sutore-mp-manage-foot-bar">' +
+      '<div class="sutore-mp-manage-foot-secondary">' +
       '<button type="button" class="wp-element-button is-style-outline sutore-mp-manage-close">' +
       escHtml(t('close', 'Close')) +
       '</button>';
-    if (canUpdate) {
+    if (canUpdate && defs.primary) {
       html +=
-        '<button type="button" class="wp-element-button sutore-mp-manage-update">' +
+        '<button type="button" class="wp-element-button is-style-outline sutore-mp-manage-update">' +
         escHtml(t('update', 'Update')) +
         '</button>';
     }
+    html += '</div><div class="sutore-mp-manage-foot-actions">';
+
+    if (defs.secondary.length) {
+      html +=
+        '<div class="sutore-mp-manage-more">' +
+        '<button type="button" class="wp-element-button is-style-outline sutore-mp-manage-more-toggle" aria-expanded="false" aria-haspopup="true">' +
+        escHtml(t('moreActions', 'More actions')) +
+        '</button>' +
+        '<div class="sutore-mp-manage-more-menu" role="menu" hidden>';
+      defs.secondary.forEach(function (def) {
+        html += manageActionButtonHtml(def, false);
+      });
+      html += '</div></div>';
+    }
+
+    if (defs.primary) {
+      html +=
+        '<div class="sutore-mp-manage-foot-primary">' +
+        manageActionButtonHtml(defs.primary, true) +
+        '</div>';
+    } else if (canUpdate) {
+      html +=
+        '<div class="sutore-mp-manage-foot-primary">' +
+        '<button type="button" class="wp-element-button sutore-mp-manage-update">' +
+        escHtml(t('update', 'Update')) +
+        '</button></div>';
+    }
+
+    html += '</div></div>';
     $foot.html(html).prop('hidden', false);
   }
 
@@ -1431,8 +1919,8 @@
   var CREATE_WIZARD_SECTIONS = {
     1: ['product'],
     2: ['size'],
-    3: ['condition', 'shipping'],
-    4: ['price']
+    3: ['seller', 'condition', 'shipping', 'imported'],
+    4: ['duration', 'price']
   };
 
   function createWizardStep($listings) {
@@ -1442,12 +1930,13 @@
     );
   }
 
-  function createWizardStepTitle(step) {
+  function createWizardStepTitle(step, $listings) {
     if (step === 1) {
       return t('wizardStepProduct', 'Product');
     }
     if (step === 2) {
-      return t('wizardStepSize', 'Size');
+      var axis = ($listings && $listings.data('axis-label')) || t('wizardStepVariation', 'Variation');
+      return axis;
     }
     if (step === 3) {
       return t('wizardStepDetails', 'Details');
@@ -1471,7 +1960,7 @@
         .replace('%1$d', String(step))
         .replace('%2$d', String(CREATE_WIZARD_TOTAL)) +
         ' · ' +
-        createWizardStepTitle(step)
+        createWizardStepTitle(step, $listings)
     );
   }
 
@@ -1572,6 +2061,7 @@
     $listings.find('.sutore-mp-manage-modal').attr('data-create-wizard-step', String(step));
 
     var $formRoot = $listings.find('.sutore-mp-manage-panel[data-panel="details"] .sutore-mp-listing-form-wrap');
+    setCreateWizardError($formRoot, '');
     updateCreateWizardChrome($listings, step);
     showCreateWizardSections($formRoot, step);
     updateCreateWizardFoot($listings);
@@ -1705,7 +2195,8 @@
       return;
     }
     var product = $listings.data('wizard-product') || {};
-    if (!product.title && !product.product_code) {
+    var sellerLabel = staffMerchantLabel($listings);
+    if (!product.title && !product.product_code && !sellerLabel) {
       $ctx.prop('hidden', true);
       return;
     }
@@ -1717,11 +2208,24 @@
     }
     var sizeLabel = wizardSelectedSizeLabel($listings);
     if (sizeLabel) {
-      metaParts.push(t('size', 'Size') + ': ' + sizeLabel);
+      var axis = String($listings.data('axis-label') || t('size', 'Size'));
+      metaParts.push(axis + ': ' + sizeLabel);
     }
 
     $ctx.find('.sutore-mp-wizard-context__title').text(title);
     $ctx.find('.sutore-mp-wizard-context__meta').text(metaParts.join(' · '));
+
+    var $seller = $ctx.find('.sutore-mp-wizard-context__seller');
+    if ($seller.length) {
+      if (sellerLabel) {
+        $seller
+          .text(t('seller', 'Seller') + ': ' + sellerLabel)
+          .prop('hidden', false)
+          .removeAttr('hidden');
+      } else {
+        $seller.text('').prop('hidden', true);
+      }
+    }
 
     var pricePreview = wizardAskingPreview($listings);
     var $price = $ctx.find('.sutore-mp-wizard-context__price');
@@ -1832,6 +2336,10 @@
     if (!hasBulkModal($listings)) {
       return;
     }
+    if (isStaffCreateMode($listings)) {
+      resetStaffMerchantPicker($listings.find('.sutore-mp-bulk-overlay'));
+      $listings.addClass('is-staff-simple-create');
+    }
     revealBulkOverlay($listings);
     if (!options.skipUrl) {
       syncManageUrl(0, !!options.replaceUrl, 'bulk');
@@ -1912,7 +2420,7 @@
 
     $listings
       .data('manage-mode', 'create')
-      .data('manage-listing-id', 0)
+      .data('manage-variation-id', 0)
       .data('manage-can-edit', true)
       .data('manage-can-view-prices', false)
       .data('manage-has-sale', false)
@@ -1920,6 +2428,10 @@
       .removeData('manage-item');
     clearWizardProduct($listings);
     resetCreateSuccess($listings);
+    if (isStaffCreateMode($listings)) {
+      resetStaffMerchantPicker($listings.find('.sutore-mp-manage-overlay'));
+      applyStaffSimpleUi($listings);
+    }
 
     var $body = $listings.find('.sutore-mp-manage-modal__body');
     var $loading = $listings.find('.sutore-mp-manage-modal__loading');
@@ -1952,6 +2464,12 @@
     $listings.find('.sutore-mp-manage-panel[data-panel="details"]').prop('hidden', false);
     $listings.find('.sutore-mp-manage-edit').prop('hidden', false);
     setCreateWizardStep($listings, 1);
+
+    var prefill = productCodeFromUrl();
+    if (prefill && $formRoot.length) {
+      $formRoot.find('.sutore-mp-product-code').val(prefill);
+      liveSearch($formRoot, prefill);
+    }
   }
 
   function openSizePricesModal($listings) {
@@ -2021,7 +2539,7 @@
     ) {
       $('body').removeClass('sutore-mp-modal-open');
     }
-    $listings.removeData('manage-listing-id').removeData('manage-can-edit')
+    $listings.removeData('manage-variation-id').removeData('manage-can-edit')
       .removeData('manage-has-sale').removeData('manage-can-view-prices').removeData('manage-item')
       .removeData('manage-mode').removeData('create-wizard-step').removeData('create-wizard-done')
       .removeData('wizard-product').removeData('wizard-form-context');
@@ -2103,7 +2621,7 @@
       return;
     }
 
-    $listings.data('manage-listing-id', listingId);
+    $listings.data('manage-variation-id', listingId);
     $body.attr('aria-busy', 'true');
     $loading.prop('hidden', false);
     $tabs.prop('hidden', true);
@@ -2111,8 +2629,8 @@
     $listings.find('.sutore-mp-manage-panel').prop('hidden', true);
     $edit.prop('hidden', true);
 
-    api('marketplace_listing_get', { listing_id: listingId }).done(function (res) {
-      if (parseInt($listings.data('manage-listing-id'), 10) !== listingId) {
+    api('marketplace_listing_get', { variation_id: listingId }).done(function (res) {
+      if (parseInt($listings.data('manage-variation-id'), 10) !== listingId) {
         return;
       }
       if (!res || !res.success || !res.data || !res.data.item) {
@@ -2152,6 +2670,7 @@
       var canViewPrices = !!(formContext && formContext.can_view_competing_prices)
         && phase === 'on_sale';
       $listings.data('manage-item', item);
+      item._list_page = parseInt(String($listings.data('page') || '1'), 10) || 1;
       $listings.data('manage-has-sale', hasSale);
       $listings.data('manage-can-edit', canEdit);
       $listings.data('manage-can-view-prices', canViewPrices);
@@ -2173,7 +2692,7 @@
 
       if (canEdit && $formRoot.length) {
         clearFormState($formRoot);
-        $formRoot.data('listing-id', listingId).attr('data-listing-id', String(listingId));
+        $formRoot.data('variation-id', listingId).attr('data-variation-id', String(listingId));
         $formRoot.find('.sutore-mp-submit').text(t('update', 'Update'));
         applyFormCapabilities($formRoot, item);
         if (formContext) {
@@ -2191,7 +2710,7 @@
       $body.attr('aria-busy', 'false');
       setManageTab($listings, 'details');
     }).fail(function (xhr) {
-      if (parseInt($listings.data('manage-listing-id'), 10) !== listingId) {
+      if (parseInt($listings.data('manage-variation-id'), 10) !== listingId) {
         return;
       }
       var msg = t('listingNotFound', 'Listing not found.');
@@ -2238,14 +2757,15 @@
     );
     applyShippingOptions($root, d);
     applyContext($root, d);
+    renderDurationOptions($root, d);
     initFlatForm($root);
   }
 
   function hydrateEditForm($root, listingId) {
-    editReq = api('marketplace_listing_get', { listing_id: listingId });
+    editReq = api('marketplace_listing_get', { variation_id: listingId });
     editReq.done(function (res) {
       editReq = null;
-      if (parseInt($root.data('listing-id'), 10) !== listingId) {
+      if (parseInt($root.data('variation-id'), 10) !== listingId) {
         return;
       }
       if (!res || !res.success) {
@@ -2266,7 +2786,7 @@
         return;
       }
       editReq = null;
-      if (parseInt($root.data('listing-id'), 10) !== listingId) {
+      if (parseInt($root.data('variation-id'), 10) !== listingId) {
         return;
       }
       $root.find('.sutore-mp-message').text(t('error', 'Error'));
@@ -2274,10 +2794,63 @@
     });
   }
 
+  function renderCatalogRequestBox($root) {
+    var code = $.trim($root.find('.sutore-mp-product-code').val() || '');
+    var $form = $('<form class="sutore-mp-catalog-request" novalidate/>');
+    $form.append($('<h4 class="sutore-mp-catalog-request__title"/>').text(t('catalogRequestTitle', 'Request this product')));
+    $form.append(
+      $('<p class="description"/>').text(
+        t(
+          'catalogRequestLead',
+          'Leave the SKU or a product link, the size, and a short note. We will notify you when it is added to the catalog.'
+        )
+      )
+    );
+    $form.append(
+      $('<label class="sutore-mp-field-label" for="sutore-mp-catalog-request-sku"/>').text(
+        t('catalogRequestSku', 'SKU or product link')
+      )
+    );
+    $form.append(
+      $('<input type="text" id="sutore-mp-catalog-request-sku" class="sutore-mp-input sutore-mp-catalog-request-sku" required/>')
+        .val(code)
+        .attr('maxlength', 500)
+    );
+    $form.append(
+      $('<label class="sutore-mp-field-label" for="sutore-mp-catalog-request-size"/>').text(
+        t('catalogRequestSize', 'Size')
+      )
+    );
+    $form.append(
+      $('<input type="text" id="sutore-mp-catalog-request-size" class="sutore-mp-input sutore-mp-catalog-request-size" required/>')
+        .attr('maxlength', 80)
+    );
+    $form.append(
+      $('<label class="sutore-mp-field-label" for="sutore-mp-catalog-request-note"/>').text(
+        t('catalogRequestNote', 'Short note')
+      )
+    );
+    $form.append(
+      $('<textarea id="sutore-mp-catalog-request-note" class="sutore-mp-input sutore-mp-catalog-request-note" rows="2"/>')
+        .attr('maxlength', 500)
+    );
+    $form.append($('<p class="sutore-mp-catalog-request-error" role="alert" hidden/>'));
+    $form.append(
+      $('<button type="submit" class="wp-element-button sutore-mp-catalog-request-submit"/>').text(
+        t('catalogRequestSubmit', 'Send request')
+      )
+    );
+    return $form;
+  }
+
   function renderSearchResults($root, res) {
     var $box = $root.find('.sutore-mp-search-results').empty();
     if (!res.success || !res.data.items || !res.data.items.length) {
-      $box.text((res.data && res.data.message) || t('notFound', 'The product you searched for was not found'));
+      var message = (res.data && res.data.message) || t('notFound', 'The product you searched for was not found');
+      $box.append($('<p class="sutore-mp-search-empty"/>').text(message));
+      if (!isStaffCreateMode($shell($root)) && res.data && res.data.can_request_catalog_product) {
+        $box.append(renderCatalogRequestBox($root));
+      }
       return;
     }
     res.data.items.forEach(function (item) {
@@ -2320,21 +2893,28 @@
   }
 
   function submitListing($root) {
-    var listingId = parseInt($root.data('listing-id'), 10) || 0;
+    var listingId = parseInt($root.data('variation-id'), 10) || 0;
     var ship = shippingPayload($root);
-    var payload = {
+    var payload = $.extend({
       parent_product_id: $root.find('.sutore-mp-parent-id').val(),
       asking: $root.find('.sutore-mp-asking').val(),
       conditions: conditions($root),
       fast_shipment: ship.fast_shipment,
       has_invoice: ship.has_invoice,
-      listing_id: listingId
-    };
+      duration_days: durationDaysValue($root),
+      variation_id: listingId
+    }, importedPayload($root));
     if (!listingId) {
       payload.size_term_id = sizeTermId($root);
     }
     var action = listingId ? 'marketplace_listing_update' : 'marketplace_listing_create';
     var $listings = $shell($root);
+    if (!listingId && isStaffCreateMode($listings)) {
+      if (!requireStaffMerchant($listings, false)) {
+        return;
+      }
+      payload.merchant_id = staffMerchantId($listings);
+    }
     var $submitBtns = $formWrap($root).find('.sutore-mp-submit').add(
       $listings.find('.sutore-mp-manage-update')
     );
@@ -2347,7 +2927,9 @@
           setPriceAlert($root, 'error', msg);
           $root.find('.sutore-mp-asking').addClass('is-invalid');
         }
-        if (isManageModalOpen($listings) && typeof SutoreMarketplace.showToast === 'function') {
+        if (isCreateManageMode($listings)) {
+          setCreateWizardError($root, msg);
+        } else if (isManageModalOpen($listings) && typeof SutoreMarketplace.showToast === 'function') {
           SutoreMarketplace.showToast(msg, 'error');
         } else {
           $root.find('.sutore-mp-message').text(msg);
@@ -2359,7 +2941,11 @@
         $root.find('.sutore-mp-message').text('');
         if (isCreateManageMode($listings) && !listingId) {
           showCreateSuccess($listings, res.data || {});
-          loadListings($listings, $listings.data('page') || 1);
+          if (isStaffCreateMode($listings)) {
+            $(document).trigger('sutore-mp:staff-listing-created', [res.data || {}]);
+          } else {
+            loadListings($listings, $listings.data('page') || 1);
+          }
           return;
         }
         var savedMsg = t('savedTitle', 'Listing updated');
@@ -2384,7 +2970,9 @@
       }, 500);
     }).fail(function () {
       $submitBtns.prop('disabled', false);
-      if (isManageModalOpen($listings) && typeof SutoreMarketplace.showToast === 'function') {
+      if (isCreateManageMode($listings)) {
+        setCreateWizardError($root, t('error', 'Error'));
+      } else if (isManageModalOpen($listings) && typeof SutoreMarketplace.showToast === 'function') {
         SutoreMarketplace.showToast(t('error', 'Error'), 'error');
       }
     });
@@ -2420,7 +3008,390 @@
     updateSortBadge($root);
   }
 
+  var MERCHANT_BULK_ACTIONS = [
+    { key: 'put_on_sale', labelKey: 'putOnSale', fallback: 'Put on sale' },
+    { key: 'remove_from_sale', labelKey: 'removeFromSale', fallback: 'Remove from sale' },
+    { key: 'delete', labelKey: 'delete', fallback: 'Delete' },
+    { key: 'confirm_sale', labelKey: 'confirmSale', fallback: 'Confirm Sale' }
+  ];
+
+  function listingBulkFlags(item) {
+    return {
+      put_on_sale: !!item.can_put_on_sale,
+      remove_from_sale: !!item.can_remove_from_sale,
+      delete: !!item.can_delete,
+      confirm_sale: !!(item.fulfillment && item.fulfillment.can_confirm)
+    };
+  }
+
+  function selectedListingCards($root) {
+    var rows = [];
+    $root.find('.sutore-mp-list-row-select:checked').each(function () {
+      var $row = $(this).closest('.sutore-mp-list-row');
+      var id = parseInt($(this).val(), 10) || 0;
+      var actions = {};
+      try {
+        actions = JSON.parse(decodeURIComponent($row.attr('data-actions') || '%7B%7D'));
+      } catch (e) {
+        actions = {};
+      }
+      if (id > 0) {
+        rows.push({ id: id, actions: actions });
+      }
+    });
+    return rows;
+  }
+
+  function intersectMerchantBulkActions(rows) {
+    if (!rows.length) {
+      return [];
+    }
+    return MERCHANT_BULK_ACTIONS.filter(function (def) {
+      for (var i = 0; i < rows.length; i++) {
+        if (!rows[i].actions || !rows[i].actions[def.key]) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  function listingStatusBadgeHtml(item) {
+    var status = String((item && item.listing_status) || '').trim();
+    var label = statusLabel(item || {});
+    if (!status && !label) {
+      return '—';
+    }
+    var modifier = status ? 'is-status-' + status.replace(/_/g, '-') : 'is-status-unknown';
+    return (
+      '<span class="sutore-mp-tag ' +
+      modifier +
+      '">' +
+      escHtml(label || status) +
+      '</span>'
+    );
+  }
+
+  function remainingPrefix(item) {
+    if (item.fulfillment && item.fulfillment.can_confirm) {
+      return t('confirmTimeLeft', 'Confirmation time remaining');
+    }
+    if (item.fulfillment && item.fulfillment.can_ship) {
+      return t('shipTimeLeft', 'Shipping time remaining');
+    }
+    return t('timeLeft', 'Time remaining');
+  }
+
+  function renderListingRowActions(item, page) {
+    var listingId = parseInt(item.id, 10) || 0;
+    var $actions = $('<div class="sutore-mp-list-row-actions"/>');
+    // List rows only open detail — workflow actions live in the manage modal footer.
+    $actions.append(
+      $('<a class="wp-element-button sutore-mp-open-manage"/>')
+        .attr('href', manageUrl(listingId))
+        .attr('data-variation-id', String(listingId))
+        .text(t('manage', 'Detail'))
+    );
+    var invoices = Array.isArray(item.invoices) ? item.invoices : [];
+    invoices.forEach(function (invoice) {
+      if (!invoice || !invoice.has_pdf || !invoice.pdf_url) {
+        return;
+      }
+      var label =
+        invoice.kind === 'seller_commission'
+          ? t('viewSellerInvoice', 'View seller invoice')
+          : t('viewCustomerInvoice', 'View customer invoice');
+      $actions.append(
+        $('<a class="sutore-mp-invoice-link"/>')
+          .attr('href', invoice.pdf_url)
+          .attr('target', '_blank')
+          .attr('rel', 'noopener')
+          .text(label)
+      );
+    });
+    return $actions;
+  }
+
+  function renderListingTableRow(item, page) {
+    var listingId = parseInt(item.id, 10) || 0;
+    var flags = listingBulkFlags(item);
+    var $row = $('<tr class="sutore-mp-list-row"/>')
+      .attr('data-variation-id', String(listingId))
+      .attr('data-actions', encodeURIComponent(JSON.stringify(flags)));
+    if (item.listing_status === 'expired') {
+      $row.addClass('is-expired');
+    }
+    if (item.campaign_status === 'offer') {
+      $row.addClass('is-campaign-offer');
+    } else if (item.campaign_status === 'active') {
+      $row.addClass('is-campaign-active');
+    }
+
+    $row.append(
+      $('<td class="sutore-mp-list-col-select"/>').append(
+        $('<label class="sutore-mp-list-select-wrap"/>').append(
+          $('<input type="checkbox" class="sutore-mp-list-row-select"/>')
+            .attr('value', String(listingId))
+            .attr('aria-label', t('selectListing', 'Select listing')),
+          $('<span class="screen-reader-text"/>').text(t('selectListing', 'Select listing'))
+        )
+      )
+    );
+
+    var $product = $('<div class="sutore-mp-list-product-cell"/>');
+    if (item.thumbnail) {
+      $product.append(thumbBox('sutore-mp-list-product-thumb', 'sutore-mp-list-product-thumb-img', item.thumbnail, item.parent_title || ''));
+    } else {
+      $product.append(thumbBox('sutore-mp-list-product-thumb', 'sutore-mp-list-product-thumb-img', '', ''));
+    }
+    var $info = $('<div class="sutore-mp-list-product-info"/>');
+    if (item.permalink) {
+      $info.append(
+        $('<a class="sutore-mp-list-product-title"/>')
+          .attr('href', item.permalink)
+          .attr('target', '_blank')
+          .attr('rel', 'noopener noreferrer')
+          .text(item.parent_title || '')
+      );
+    } else {
+      $info.append($('<strong class="sutore-mp-list-product-title"/>').text(item.parent_title || ''));
+    }
+    var subParts = [];
+    if (item.product_code) {
+      subParts.push(item.product_code);
+    }
+    if (item.variation_id) {
+      subParts.push('#' + item.variation_id);
+    }
+    if (subParts.length) {
+      $info.append($('<span class="sutore-mp-list-sub"/>').text(subParts.join(' · ')));
+    }
+    var tags = listingTags(item);
+    if (tags.length) {
+      var $tags = $('<div class="sutore-mp-list-row-tags"/>');
+      tags.forEach(function (tag) {
+        $tags.append($('<span class="sutore-mp-tag"/>').addClass(tag.cls || '').text(tag.label));
+      });
+      $info.append($tags);
+    }
+    if (item.campaign && (item.campaign.ends_at_label || item.campaign.ends_at)) {
+      $info.append(
+        $('<span class="sutore-mp-list-sub"/>').text(
+          t('campaignEndsAt', 'Campaign ends') +
+            ': ' +
+            (item.campaign.ends_at_label || item.campaign.ends_at)
+        )
+      );
+    }
+    $product.append($info);
+    $row.append($('<td/>').append($product));
+    $row.append($('<td/>').html(formatListingPriceHtml(item)));
+    $row.append($('<td/>').html(listingStatusBadgeHtml(item)));
+
+    var remaining = formatRemaining(item);
+    if (remaining) {
+      $row.append(
+        $('<td/>').append(
+          $('<span class="sutore-mp-list-remaining"/>').text(remainingPrefix(item) + ': ' + remaining)
+        )
+      );
+    } else {
+      $row.append($('<td/>').text('—'));
+    }
+
+    $row.append($('<td class="sutore-mp-list-row-actions-cell"/>').append(renderListingRowActions(item, page)));
+    return $row;
+  }
+
+  function renderListingsTable(items, page) {
+    var $wrap = $('<div class="sutore-mp-list-table-wrap"/>');
+    var $table = $('<table class="sutore-mp-list-table"/>');
+    var $thead = $('<thead/>').append(
+      $('<tr/>').append(
+        $('<th class="sutore-mp-list-col-select"/>').append(
+          $('<label class="sutore-mp-list-select-all-wrap"/>').append(
+            $('<input type="checkbox" class="sutore-mp-list-select-all" />'),
+            $('<span class="screen-reader-text"/>').text(t('selectAll', 'Select all'))
+          )
+        ),
+        $('<th/>').text(t('product', 'Product')),
+        $('<th/>').text(t('price', 'Price')),
+        $('<th/>').text(t('status', 'Status')),
+        $('<th/>').text(t('timeLeft', 'Time remaining')),
+        $('<th/>')
+      )
+    );
+    var $tbody = $('<tbody/>');
+    items.forEach(function (item) {
+      $tbody.append(renderListingTableRow(item, page));
+    });
+    $table.append($thead, $tbody);
+    $wrap.append($table);
+    return $wrap;
+  }
+
+  function refreshListingBulkBar($root) {
+    var $chrome = $root.find('.sutore-mp-list-bulk-chrome');
+    var $bar = $root.find('.sutore-mp-list-bulk-bar');
+    if (!$chrome.length || !$bar.length) {
+      return;
+    }
+    var rows = selectedListingCards($root);
+    var count = rows.length;
+    var $selectAll = $root.find('.sutore-mp-list-select-all');
+    var totalBoxes = $root.find('.sutore-mp-list-row-select').length;
+    var $action = $bar.find('.sutore-mp-list-bulk-action');
+    var $apply = $bar.find('.sutore-mp-list-bulk-apply');
+    var actions = count ? intersectMerchantBulkActions(rows) : [];
+
+    if (totalBoxes) {
+      $selectAll.prop('checked', count > 0 && count === totalBoxes);
+      $selectAll.prop('indeterminate', count > 0 && count < totalBoxes);
+    } else {
+      $selectAll.prop('checked', false).prop('indeterminate', false);
+    }
+
+    if (!count) {
+      $bar.prop('hidden', true);
+      $action.prop('disabled', true).html(
+        '<option value="">' + escHtml(t('bulkActions', 'Bulk actions')) + '</option>'
+      );
+      $apply.prop('disabled', true);
+      return;
+    }
+
+    $bar.prop('hidden', false);
+    $bar.find('.sutore-mp-list-bulk-count').text(
+      t('selectedCount', '%d selected').replace('%d', String(count))
+    );
+
+    if (!actions.length) {
+      $action
+        .prop('disabled', true)
+        .html('<option value="">' + escHtml(t('noCommonBulkActions', 'No common actions for this selection')) + '</option>');
+      $apply.prop('disabled', true);
+      return;
+    }
+
+    var options = '<option value="">' + escHtml(t('bulkActions', 'Bulk actions')) + '</option>';
+    actions.forEach(function (def) {
+      options +=
+        '<option value="' +
+        escHtml(def.key) +
+        '">' +
+        escHtml(t(def.labelKey, def.fallback)) +
+        '</option>';
+    });
+    $action.html(options).prop('disabled', false);
+    $apply.prop('disabled', true);
+  }
+
+  function merchantBulkConfirmCopy(action) {
+    if (action === 'put_on_sale') {
+      return {
+        title: t('bulkPutOnSaleTitle', 'Put selected listings on sale?'),
+        body: t(
+          'bulkPutOnSaleConfirm',
+          'Selected listings will re-enter the sale queue with a fresh expiry window.'
+        ),
+        confirm: t('putOnSale', 'Put on sale')
+      };
+    }
+    if (action === 'remove_from_sale') {
+      return {
+        title: t('bulkRemoveFromSaleTitle', 'Remove selected listings from sale?'),
+        body: t(
+          'bulkRemoveFromSaleConfirm',
+          'Selected listings will leave the sale queue without being deleted.'
+        ),
+        confirm: t('removeFromSale', 'Remove from sale')
+      };
+    }
+    if (action === 'delete') {
+      return {
+        title: t('bulkDeleteTitle', 'Delete selected listings?'),
+        body: t('bulkDeleteConfirm', 'This cannot be undone for the selected listings.'),
+        confirm: t('delete', 'Delete')
+      };
+    }
+    return {
+      title: t('bulkConfirmSaleTitle', 'Confirm selected sales?'),
+      body: t(
+        'bulkConfirmSaleConfirm',
+        'Selected sales will be confirmed and shipping deadlines will start.'
+      ),
+      confirm: t('confirmSale', 'Confirm Sale')
+    };
+  }
+
+  function runMerchantBulkAction($root, action) {
+    var rows = selectedListingCards($root);
+    var ids = rows.map(function (r) {
+      return r.id;
+    });
+    if (!ids.length || !action) {
+      return;
+    }
+    if (
+      !intersectMerchantBulkActions(rows).some(function (def) {
+        return def.key === action;
+      })
+    ) {
+      if (typeof SutoreMarketplace.showToast === 'function') {
+        SutoreMarketplace.showToast(
+          t('noCommonBulkActions', 'No common actions for this selection'),
+          'error'
+        );
+      }
+      refreshListingBulkBar($root);
+      return;
+    }
+
+    var copy = merchantBulkConfirmCopy(action);
+    var $apply = $root.find('.sutore-mp-list-bulk-apply');
+    showConfirm(copy.title, copy.body, copy.confirm, function () {
+      $apply.prop('disabled', true);
+      api('marketplace_listing_bulk_actions', { ids: ids, action: action })
+        .done(function (res) {
+          if (!res || !res.success) {
+            var failMsg =
+              (res && res.data && res.data.message) ||
+              (res && res.message) ||
+              t('error', 'Error');
+            if (typeof SutoreMarketplace.showToast === 'function') {
+              SutoreMarketplace.showToast(failMsg, 'error');
+            }
+            refreshListingBulkBar($root);
+            return;
+          }
+          var okMsg =
+            (res.data && res.data.message) ||
+            t('bulkUpdated', '%d products updated.').replace(
+              '%d',
+              String((res.data && res.data.updated) || ids.length)
+            );
+          if (typeof SutoreMarketplace.showToast === 'function') {
+            SutoreMarketplace.showToast(okMsg, 'success');
+          }
+          loadListings($root, $root.data('page') || 1);
+        })
+        .fail(function (xhr) {
+          var msg = t('error', 'Error');
+          if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+            msg = xhr.responseJSON.message;
+          }
+          if (typeof SutoreMarketplace.showToast === 'function') {
+            SutoreMarketplace.showToast(msg, 'error');
+          }
+          refreshListingBulkBar($root);
+        });
+    });
+  }
+
   function loadListings($root, page) {
+    if ($root.hasClass('sutore-mp-staff-listing-create') || $root.attr('data-staff-create') === '1') {
+      return;
+    }
     page = page || 1;
     $root.data('page', page);
     updateListBadges($root);
@@ -2439,6 +3410,7 @@
       per_page: 20
     }).done(function (res) {
       if (!res.success) {
+        $root.find('.sutore-mp-list-bulk-chrome').prop('hidden', true);
         $box.attr('aria-busy', 'false').html(
           '<p class="sutore-mp-error">' +
             $('<div/>').text((res.data && res.data.message) || t('error', 'Error')).html() +
@@ -2452,137 +3424,17 @@
       if (!items.length) {
         var hasFilters =
           activeFilterCount($root) > 0 || $.trim($root.find('.sutore-mp-list-search').val() || '') !== '';
+        $root.find('.sutore-mp-list-bulk-chrome').prop('hidden', true);
         $box.append(
           $('<p class="sutore-mp-empty"/>').text(
             hasFilters ? t('noResults', 'No results found.') : t('emptyListings', 'You have not added a product yet.')
           )
         );
       } else {
-        items.forEach(function (item) {
-          var $card = $('<div class="sutore-mp-card"/>');
-          if (item.listing_status === 'expired') {
-            $card.addClass('is-expired');
-          }
-          if (item.campaign_status === 'offer') {
-            $card.addClass('is-campaign-offer');
-          } else if (item.campaign_status === 'active') {
-            $card.addClass('is-campaign-active');
-          }
-          var $main = $('<div class="sutore-mp-card-main"/>');
-          if (item.thumbnail) {
-            $main.append(thumbBox('sutore-mp-card-thumb-box', 'sutore-mp-card-thumb', item.thumbnail, item.parent_title || ''));
-          } else {
-            $main.append(thumbBox('sutore-mp-card-thumb-box', 'sutore-mp-card-thumb', '', ''));
-          }
-          var $info = $('<div class="sutore-mp-card-info"/>');
-          if (item.permalink) {
-            $info.append(
-              $('<a class="sutore-mp-card-title"/>')
-                .attr('href', item.permalink)
-                .attr('target', '_blank')
-                .attr('rel', 'noopener noreferrer')
-                .text(item.parent_title || '')
-            );
-          } else {
-            $info.append($('<div class="sutore-mp-card-title"/>').text(item.parent_title || ''));
-          }
-          var codeLine = item.product_code || '';
-          if (codeLine) {
-            $info.append($('<div class="sutore-mp-card-code"/>').text(codeLine));
-          }
-          var metaParts = [];
-          if (item.variation_id) {
-            metaParts.push('#' + item.variation_id);
-          }
-          metaParts.push(statusLabel(item));
-          $info.append($('<div class="sutore-mp-card-meta"/>').html(
-            metaParts.map(function (part) { return escHtml(part); }).join(' · ') +
-            ' · ' + formatListingPriceHtml(item)
-          ));
-
-          var remaining = formatRemaining(item);
-          if (remaining) {
-            var remainingPrefix = t('timeLeft', 'Time remaining');
-            if (item.fulfillment && item.fulfillment.can_confirm) {
-              remainingPrefix = t('confirmTimeLeft', 'Confirmation time remaining');
-            } else if (item.fulfillment && item.fulfillment.can_ship) {
-              remainingPrefix = t('shipTimeLeft', 'Shipping time remaining');
-            }
-            $info.append(
-              $('<div class="sutore-mp-card-remaining"/>').text(remainingPrefix + ': ' + remaining)
-            );
-          }
-
-          if (item.campaign && (item.campaign.ends_at_label || item.campaign.ends_at)) {
-            $info.append(
-              $('<div class="sutore-mp-card-campaign-end"/>').text(
-                t('campaignEndsAt', 'Campaign ends') +
-                  ': ' +
-                  (item.campaign.ends_at_label || item.campaign.ends_at)
-              )
-            );
-          }
-
-          var tags = listingTags(item);
-          if (tags.length) {
-            var $tags = $('<div class="sutore-mp-card-tags"/>');
-            tags.forEach(function (tag) {
-              $tags.append($('<span class="sutore-mp-tag"/>').addClass(tag.cls || '').text(tag.label));
-            });
-            $info.append($tags);
-          }
-          var $actions = $('<div class="sutore-mp-card-actions"/>');
-          var listingId = parseInt(item.id, 10) || 0;
-          $actions.append(
-            $('<a class="wp-element-button sutore-mp-open-manage"/>')
-              .attr('href', manageUrl(listingId))
-              .attr('data-listing-id', String(listingId))
-              .text(t('manage', 'Manage'))
-          );
-          if (item.can_put_on_sale && listingId > 0) {
-            $actions.append(
-              $('<button type="button" class="wp-element-button sutore-mp-put-on-sale"/>')
-                .attr('data-listing-id', String(listingId))
-                .attr('data-page', String(page))
-                .text(t('putOnSale', 'Put on sale'))
-            );
-          }
-          if (item.can_remove_from_sale && listingId > 0) {
-            $actions.append(
-              $('<button type="button" class="wp-element-button is-style-outline sutore-mp-remove-from-sale"/>')
-                .attr('data-listing-id', String(listingId))
-                .attr('data-page', String(page))
-                .text(t('removeFromSale', 'Remove from sale'))
-            );
-          }
-          if (item.can_delete && listingId > 0) {
-            $actions.append(
-              $('<button type="button" class="wp-element-button is-style-outline sutore-mp-delete"/>')
-                .attr('data-listing-id', String(listingId))
-                .attr('data-page', String(page))
-                .text(t('delete', 'Delete'))
-            );
-          }
-          if (item.campaign_status === 'offer') {
-            var offersUrl = (window.SutoreMarketplace && SutoreMarketplace.campaignOffersUrl) || '';
-            var offerId = item.campaign && item.campaign.offer_id ? parseInt(item.campaign.offer_id, 10) : 0;
-            if (offersUrl) {
-              var href = offersUrl;
-              if (offerId > 0) {
-                href += (offersUrl.indexOf('?') >= 0 ? '&' : '?') + 'offer=' + offerId;
-              }
-              $actions.append(
-                $('<a class="wp-element-button is-style-outline sutore-mp-open-campaign-offer"/>')
-                  .attr('href', href)
-                  .text(t('reviewCampaignOffer', 'Review offer'))
-              );
-            }
-          }
-          $info.append($actions);
-          $main.append($info);
-          $card.append($main);
-          $box.append($card);
-        });
+        $root.find('.sutore-mp-list-bulk-chrome').prop('hidden', false);
+        $root.find('.sutore-mp-list-bulk-bar').prop('hidden', true);
+        $box.append(renderListingsTable(items, page));
+        refreshListingBulkBar($root);
       }
 
       var total = res.data.total || 0;
@@ -2628,7 +3480,40 @@
     loadListings($listings, $listings.data('page') || 1);
   });
 
-  $(document).on('click', '.sutore-mp-open-create', function (e) {
+  
+  $(document).on('input', '.sutore-mp-staff-listing-create .sutore-mp-staff-merchant-search', function () {
+    var $input = $(this);
+    var $picker = $input.closest('.sutore-mp-staff-merchant-picker');
+    $picker.find('.sutore-mp-staff-merchant-id').val('');
+    $picker.find('.sutore-mp-staff-merchant-selected').text('').prop('hidden', true);
+    var $listings = $shell($picker);
+    if ($listings.length && !$picker.closest('.sutore-mp-bulk-overlay').length) {
+      $listings.removeData('staff-merchant-label');
+      updateWizardContext($listings);
+    }
+    window.clearTimeout(merchantSearchTimer);
+    merchantSearchTimer = window.setTimeout(function () {
+      searchStaffMerchants($picker, $input.val());
+    }, 280);
+  });
+
+  $(document).on('click', '.sutore-mp-staff-listing-create .sutore-mp-staff-merchant-option', function (e) {
+    e.preventDefault();
+    var $btn = $(this);
+    var $picker = $btn.closest('.sutore-mp-staff-merchant-picker');
+    setStaffMerchant($picker, $btn.data('merchant'));
+    var $listings = $shell($btn);
+    if ($picker.closest('.sutore-mp-bulk-overlay').length) {
+      $listings.trigger('sutore-mp-bulk:merchant-changed');
+      return;
+    }
+    var $form = $listings.find('.sutore-mp-manage-panel[data-panel="details"] .sutore-mp-listing-form-wrap');
+    if ($form.length && $form.find('.sutore-mp-parent-id').val()) {
+      refreshContext($form);
+    }
+  });
+
+$(document).on('click', '.sutore-mp-open-create', function (e) {
     e.preventDefault();
     openWizard($shell($(this)), 0);
   });
@@ -2659,10 +3544,10 @@
     }
     e.preventDefault();
     var id =
-      parseInt(String($(this).attr('data-listing-id') || $(this).data('listing-id') || '0'), 10) || 0;
+      parseInt(String($(this).attr('data-variation-id') || $(this).data('variation-id') || '0'), 10) || 0;
     if (!id) {
       try {
-        id = parseInt(new URL($(this).attr('href'), window.location.origin).searchParams.get('listing_id') || '0', 10) || 0;
+        id = parseInt(new URL($(this).attr('href'), window.location.origin).searchParams.get('variation_id') || '0', 10) || 0;
       } catch (err) {
         id = 0;
       }
@@ -2678,6 +3563,39 @@
 
   $(document).on('click', '.sutore-mp-manage-close', function () {
     closeManageModal($shell($(this)));
+  });
+
+  $(document).on('click', '.sutore-mp-manage-more-toggle', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var $toggle = $(this);
+    var $more = $toggle.closest('.sutore-mp-manage-more');
+    var $menu = $more.find('.sutore-mp-manage-more-menu');
+    var open = !$more.hasClass('is-open');
+    $('.sutore-mp-manage-more.is-open').not($more).each(function () {
+      $(this).removeClass('is-open');
+      $(this).find('.sutore-mp-manage-more-toggle').attr('aria-expanded', 'false');
+      $(this).find('.sutore-mp-manage-more-menu').prop('hidden', true);
+    });
+    $more.toggleClass('is-open', open);
+    $toggle.attr('aria-expanded', open ? 'true' : 'false');
+    $menu.prop('hidden', !open);
+  });
+
+  $(document).on('click', '.sutore-mp-manage-more-item', function () {
+    var $listings = $shell($(this));
+    closeManageMoreMenu($listings);
+  });
+
+  $(document).on('click', function (e) {
+    if ($(e.target).closest('.sutore-mp-manage-more').length) {
+      return;
+    }
+    $('.sutore-mp-manage-more.is-open').each(function () {
+      $(this).removeClass('is-open');
+      $(this).find('.sutore-mp-manage-more-toggle').attr('aria-expanded', 'false');
+      $(this).find('.sutore-mp-manage-more-menu').prop('hidden', true);
+    });
   });
 
   $(document).on('click', '.sutore-mp-create-wizard-next', function () {
@@ -2791,21 +3709,59 @@
 
   $(document).on('click', '.sutore-mp-open-edit', function (e) {
     e.preventDefault();
-    openWizard($shell($(this)), parseInt($(this).data('listing-id'), 10) || 0);
+    openWizard($shell($(this)), parseInt($(this).data('variation-id'), 10) || 0);
   });
 
   $(document).on('input', '.sutore-mp-product-code', function () {
     var $root = $form($(this));
-    if ($root.data('listing-id')) return;
+    if ($root.data('variation-id')) return;
     clearTimeout(searchTimer);
     var code = $(this).val();
     searchTimer = setTimeout(function () { liveSearch($root, code); }, 280);
   });
 
+  $(document).on('submit', '.sutore-mp-catalog-request', function (e) {
+    e.preventDefault();
+    var $formBox = $(this);
+    var $root = $form($formBox);
+    var sku = $.trim($formBox.find('.sutore-mp-catalog-request-sku').val() || '');
+    var size = $.trim($formBox.find('.sutore-mp-catalog-request-size').val() || '');
+    var $error = $formBox.find('.sutore-mp-catalog-request-error');
+    var $btn = $formBox.find('.sutore-mp-catalog-request-submit');
+    if (!sku) {
+      $error.text(t('catalogRequestSkuRequired', 'Enter a product SKU or link.')).prop('hidden', false);
+      return;
+    }
+    if (!size) {
+      $error.text(t('catalogRequestSizeRequired', 'Enter a size.')).prop('hidden', false);
+      return;
+    }
+    $error.text('').prop('hidden', true);
+    $btn.prop('disabled', true).text(t('catalogRequestSending', 'Sending…'));
+    api('marketplace_catalog_request_create', {
+      sku_or_link: sku,
+      size_note: size,
+      note: $.trim($formBox.find('.sutore-mp-catalog-request-note').val() || '')
+    }).done(function (res) {
+      $btn.prop('disabled', false).text(t('catalogRequestSubmit', 'Send request'));
+      if (!res || !res.success) {
+        $error.text((res && res.data && res.data.message) || t('error', 'Error')).prop('hidden', false);
+        return;
+      }
+      var msg = (res.data && res.data.message) || t('catalogRequestSubmit', 'Send request');
+      $root.find('.sutore-mp-search-results').empty().append(
+        $('<p class="sutore-mp-catalog-request-success"/>').text(msg)
+      );
+      if (typeof SutoreMarketplace.showToast === 'function') {
+        SutoreMarketplace.showToast(msg, 'success');
+      }
+    });
+  });
+
   $(document).on('click', '.sutore-mp-pick-parent', function () {
     var $btn = $(this);
     var $root = $form($btn);
-    if (parseInt($root.attr('data-listing-id') || $root.data('listing-id'), 10)) return;
+    if (parseInt($root.attr('data-variation-id') || $root.data('variation-id'), 10)) return;
     var id = $btn.attr('data-id');
     $root.find('.sutore-mp-parent-id').val(id);
     $root.find('.sutore-mp-search-results').empty();
@@ -2829,7 +3785,7 @@
     });
   });
 
-  $(document).on('change', '.sutore-mp-size, .sutore-mp-conditions input, .sutore-mp-shipping-express-flag, .sutore-mp-shipping-intl-flag', function () {
+  $(document).on('change', '.sutore-mp-size, .sutore-mp-conditions input, .sutore-mp-shipping-express-flag, .sutore-mp-shipping-intl-flag, .sutore-mp-imported-flag', function () {
     var $root = $form($(this));
     if ($(this).hasClass('sutore-mp-size')) {
       if ($root.data('locked-size-id')) {
@@ -2845,6 +3801,11 @@
       setShippingError($root, '');
     }
     refreshContext($root);
+  });
+
+  $(document).on('change', '.sutore-mp-duration-days', function () {
+    var $root = $form($(this));
+    refreshContext($root, { skipCompetingPrices: true });
   });
 
   $(document).on('input', '.sutore-mp-asking', function () {
@@ -2877,13 +3838,13 @@
     e.stopPropagation();
     var $btn = $(this);
     var $listings = $shell($btn);
-    var id = parseInt(String($btn.attr('data-listing-id') || $btn.data('listing-id') || '0'), 10) || 0;
+    var id = parseInt(String($btn.attr('data-variation-id') || $btn.data('variation-id') || '0'), 10) || 0;
     var page = parseInt(String($btn.attr('data-page') || $btn.data('page') || $listings.data('page') || '1'), 10) || 1;
     if (!id) {
       return;
     }
     showConfirm(t('deleteTitle', 'Delete this Listing?'), t('confirmDelete', ''), t('delete', 'Delete'), function () {
-      api('marketplace_listing_delete', { listing_id: id }).done(function (r) {
+      api('marketplace_listing_delete', { variation_id: id }).done(function (r) {
         if (!r.success) {
           showConfirm(t('deleteTitle', 'Delete this Listing?'), (r.data && r.data.message) || t('cannotDelete', ''), t('cancel', 'Cancel'), function () {});
           return;
@@ -2903,12 +3864,129 @@
     });
   });
 
+  $(document).on('click', '.sutore-mp-put-on-campaign', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var $btn = $(this);
+    var $listings = $shell($btn);
+    var id = parseInt(String($btn.attr('data-variation-id') || $btn.data('variation-id') || '0'), 10) || 0;
+    var page = parseInt(String($btn.attr('data-page') || $btn.data('page') || $listings.data('page') || '1'), 10) || 1;
+    var item = $listings.data('manage-item') || {};
+    if (!id) {
+      return;
+    }
+    var cfg = window.SutoreMarketplace || {};
+    var guard = cfg.campaignStart || {};
+    var percents = Array.isArray(guard.percent_options) && guard.percent_options.length
+      ? guard.percent_options
+      : [10, 15, 20, 25, 30, 40];
+    var durations = Array.isArray(guard.duration_options) && guard.duration_options.length
+      ? guard.duration_options
+      : [3, 7, 14];
+    var asking = Number(item.asking != null ? item.asking : 0);
+    var step = Number(cfg.priceStep || $listings.data('price-step') || 25) || 25;
+    var showForm = cfg.showFormConfirm;
+    if (typeof showForm !== 'function') {
+      return;
+    }
+
+    function askingAfter(percent) {
+      var raw = asking * (1 - Number(percent) / 100);
+      if (!Number.isFinite(raw) || raw <= 0) {
+        return 0;
+      }
+      return Math.floor(raw / step) * step;
+    }
+
+    showForm({
+      title: t('putOnCampaignTitle', 'Put this listing on campaign'),
+      text: t(
+        'putOnCampaignHint',
+        'Lowering asking is permanent and has no strikethrough. A campaign is timed and shows the previous asking crossed out.'
+      ),
+      confirmLabel: t('putOnCampaign', 'Put on campaign'),
+      fields: [
+        {
+          name: 'percent',
+          type: 'select',
+          required: true,
+          label: t('putOnCampaignPercent', 'Discount'),
+          value: String(percents[0]),
+          options: percents.map(function (p) {
+            return { value: String(p), label: p + '%' };
+          })
+        },
+        {
+          name: 'duration_days',
+          type: 'select',
+          required: true,
+          label: t('putOnCampaignDuration', 'Duration'),
+          value: String(durations[durations.length - 1]),
+          options: durations.map(function (d) {
+            return { value: String(d), label: String(d) };
+          })
+        }
+      ],
+      onReady: function ($modal, $inputs) {
+        var $preview = $('<p class="sutore-mp-campaign-start-preview" aria-live="polite"/>');
+        $modal.find('.sutore-mp-confirm-fields').after($preview);
+        function refresh() {
+          var percent = Number($inputs.percent.val() || percents[0]);
+          var days = Number($inputs.duration_days.val() || durations[0]);
+          var after = askingAfter(percent);
+          $preview.text(
+            t(
+              'putOnCampaignPreview',
+              'Asking %1$s TL → %2$s TL for %3$s days. Customers see a strikethrough until it ends.'
+            )
+              .replace('%1$s', String(Math.round(asking)))
+              .replace('%2$s', String(Math.round(after)))
+              .replace('%3$s', String(days))
+          );
+        }
+        $inputs.percent.on('change', refresh);
+        $inputs.duration_days.on('change', refresh);
+        refresh();
+      },
+      onConfirm: function (values, ui) {
+        ui.setBusy(true);
+        api('marketplace_listing_start_campaign', {
+          variation_id: id,
+          percent: values.percent,
+          duration_days: values.duration_days
+        }).done(function (r) {
+          ui.setBusy(false);
+          if (!r.success) {
+            ui.setError((r.data && r.data.message) || t('error', 'Error'));
+            return;
+          }
+          ui.close();
+          if (window.SutoreMarketplace && SutoreMarketplace.showToast) {
+            SutoreMarketplace.showToast(
+              (r.data && r.data.message) || t('putOnCampaignSuccess', 'Campaign started. Customers will see a strikethrough price until it ends.')
+            );
+          }
+          if (isManageModalOpen($listings)) {
+            loadManageModal($listings, id);
+            loadListings($listings, page);
+            return;
+          }
+          loadListings($listings, page);
+        }).fail(function () {
+          ui.setBusy(false);
+          ui.setError(t('error', 'Error'));
+        });
+        return false;
+      }
+    });
+  });
+
   $(document).on('click', '.sutore-mp-put-on-sale', function (e) {
     e.preventDefault();
     e.stopPropagation();
     var $btn = $(this);
     var $listings = $shell($btn);
-    var id = parseInt(String($btn.attr('data-listing-id') || $btn.data('listing-id') || '0'), 10) || 0;
+    var id = parseInt(String($btn.attr('data-variation-id') || $btn.data('variation-id') || '0'), 10) || 0;
     var page = parseInt(String($btn.attr('data-page') || $btn.data('page') || $listings.data('page') || '1'), 10) || 1;
     if (!id) {
       return;
@@ -2916,7 +3994,7 @@
 
     var confirmFn = (window.SutoreMarketplace && SutoreMarketplace.showConfirm) || showConfirm;
     var runPutOnSale = function () {
-      api('marketplace_listing_put_on_sale', { listing_id: id }).done(function (r) {
+      api('marketplace_listing_put_on_sale', { variation_id: id }).done(function (r) {
         if (!r.success) {
           if (confirmFn) {
             confirmFn(
@@ -2959,7 +4037,7 @@
     e.stopPropagation();
     var $btn = $(this);
     var $listings = $shell($btn);
-    var id = parseInt(String($btn.attr('data-listing-id') || $btn.data('listing-id') || '0'), 10) || 0;
+    var id = parseInt(String($btn.attr('data-variation-id') || $btn.data('variation-id') || '0'), 10) || 0;
     var page = parseInt(String($btn.attr('data-page') || $btn.data('page') || $listings.data('page') || '1'), 10) || 1;
     if (!id) {
       return;
@@ -2967,7 +4045,7 @@
 
     var confirmFn = (window.SutoreMarketplace && SutoreMarketplace.showConfirm) || showConfirm;
     var runRemove = function () {
-      api('marketplace_listing_remove_from_sale', { listing_id: id, staff_note: '' }).done(function (r) {
+      api('marketplace_listing_remove_from_sale', { variation_id: id, staff_note: '' }).done(function (r) {
         if (!r.success) {
           if (confirmFn) {
             confirmFn(
@@ -3003,6 +4081,31 @@
     }
 
     runRemove();
+  });
+
+  $(document).on('change', '.sutore-mp-listings .sutore-mp-list-row-select', function () {
+    refreshListingBulkBar($shell($(this)));
+  });
+
+  $(document).on('change', '.sutore-mp-listings .sutore-mp-list-select-all', function () {
+    var $root = $shell($(this));
+    var checked = $(this).prop('checked');
+    $root.find('.sutore-mp-list-row-select').prop('checked', checked);
+    refreshListingBulkBar($root);
+  });
+
+  $(document).on('change', '.sutore-mp-listings .sutore-mp-list-bulk-action', function () {
+    var $root = $shell($(this));
+    $root.find('.sutore-mp-list-bulk-apply').prop('disabled', !$(this).val());
+  });
+
+  $(document).on('click', '.sutore-mp-listings .sutore-mp-list-bulk-apply', function () {
+    var $root = $shell($(this));
+    var action = String($root.find('.sutore-mp-list-bulk-action').val() || '');
+    if (!action) {
+      return;
+    }
+    runMerchantBulkAction($root, action);
   });
 
   $(document).on('click', '.sutore-mp-pager-btn', function () {

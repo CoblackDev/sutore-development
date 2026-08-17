@@ -45,22 +45,19 @@ final class SourcingController
 
     public function canManage(): bool
     {
-        return is_user_logged_in() && !is_wp_error(ListingPolicy::assertCanManage());
+        return is_user_logged_in() && !is_wp_error(ListingPolicy::assertCanAccessSourcingBoard());
     }
 
     public function query(\WP_REST_Request $req): \WP_REST_Response
     {
         $page = max(1, (int) ($req->get_param('page') ?: 1));
         $perPage = max(1, (int) ($req->get_param('per_page') ?: 20));
-        $status = sanitize_key((string) ($req->get_param('status') ?: ''));
-        $status = $status !== '' ? $status : null;
         $search = sanitize_text_field((string) ($req->get_param('search') ?: ''));
         $orderby = sanitize_key((string) ($req->get_param('orderby') ?: 'default'));
         $data = (new SourcingFeedPresenter())->presentForMerchant(
             get_current_user_id(),
             $page,
             $perPage,
-            $status,
             $search,
             $orderby
         );
@@ -73,9 +70,9 @@ final class SourcingController
         $item = (new SourcingFeedPresenter())->presentOneForMerchant((int) $req['id'], get_current_user_id());
         if ($item === null) {
             return RestResponse::fail(
-                __('Sourcing request not found.', 'sutore-marketplace'),
+                __('Pre-order not found.', 'sutore-marketplace'),
                 404,
-                'sutore_sourcing_missing'
+                'sutore_pre_order_missing'
             );
         }
 
@@ -85,13 +82,17 @@ final class SourcingController
     public function accept(\WP_REST_Request $req): \WP_REST_Response
     {
         $params = $req->get_json_params() ?: $req->get_params();
-        $requestId = (int) $req['id'];
-        $listingId = (int) ($params['listing_id'] ?? 0) ?: null;
+        $preOrderVariationId = (int) $req['id'];
+        $variationId = (int) ($params['variation_id'] ?? 0) ?: null;
         $createNewListing = rest_sanitize_boolean($params['create_new_listing'] ?? false);
         $merchantId = get_current_user_id();
 
-        // Ownership / mismatch checks live in SourcingService::accept().
-        $result = (new SourcingService())->accept($requestId, $merchantId, $listingId, $createNewListing);
+        $result = (new SourcingService())->accept(
+            $preOrderVariationId,
+            $merchantId,
+            $variationId,
+            $createNewListing
+        );
         if (is_wp_error($result)) {
             return RestResponse::fromWpError($result);
         }

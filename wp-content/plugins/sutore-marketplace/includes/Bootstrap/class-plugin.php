@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Bootstrap;
 
 use SutoreMarketplace\Admin\AdminMenu;
-use SutoreMarketplace\Admin\ImportedProductsPage;
 use SutoreMarketplace\Admin\ProductMetaFields;
+use SutoreMarketplace\Frontend\CustomerAccount;
 use SutoreMarketplace\Frontend\MerchantAccount;
 use SutoreMarketplace\Frontend\StaffAccount;
 use SutoreMarketplace\Modules\Contracts\Module as ContractsModule;
 use SutoreMarketplace\Modules\Coupons\Module as CouponsModule;
+use SutoreMarketplace\Modules\Invoices\Module as InvoicesModule;
 use SutoreMarketplace\Modules\Listings\Module as ListingsModule;
 use SutoreMarketplace\Modules\Merchants\Module as MerchantsModule;
 use SutoreMarketplace\Modules\Orders\Module as OrdersModule;
@@ -22,6 +23,8 @@ use SutoreMarketplace\Shared\Database\Schema;
 use SutoreMarketplace\Shared\Hooks\CartPricingHooks;
 use SutoreMarketplace\Shared\Hooks\CartQuantityHooks;
 use SutoreMarketplace\Shared\Hooks\CheckoutIdentityHooks;
+use SutoreMarketplace\Shared\Hooks\YouthDiscountHooks;
+use SutoreMarketplace\Shared\Hooks\CloudflareTunnelHooks;
 use SutoreMarketplace\Shared\Hooks\Cron;
 use SutoreMarketplace\Shared\Hooks\PdpIntegration;
 use SutoreMarketplace\Shared\Settings\Settings;
@@ -52,6 +55,7 @@ final class Plugin
 
         Settings::ensureDefaults();
         SmsQueue::register();
+        (new CloudflareTunnelHooks())->register();
 
         ListingsModule::boot();
         TasksModule::boot();
@@ -62,19 +66,21 @@ final class Plugin
         ShippingModule::boot();
         CouponsModule::boot();
         ContractsModule::boot();
+        InvoicesModule::boot();
 
         (new MerchantAccount())->register();
+        (new CustomerAccount())->register();
         (new StaffAccount())->register();
         (new CartPricingHooks())->register();
         (new CartQuantityHooks())->register();
         (new CheckoutIdentityHooks())->register();
+        (new YouthDiscountHooks())->register();
         (new Cron())->register();
         (new PdpIntegration())->register();
 
         if (is_admin()) {
             (new AdminMenu())->register();
             (new ProductMetaFields())->register();
-            (new ImportedProductsPage())->register();
         }
     }
 }

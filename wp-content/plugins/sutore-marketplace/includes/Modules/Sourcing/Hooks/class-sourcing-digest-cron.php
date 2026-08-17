@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Modules\Sourcing\Hooks;
 
+use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
+use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 use SutoreMarketplace\Modules\Orders\Services\Notifications;
 use SutoreMarketplace\Modules\Orders\Settings\Settings as OrderSettings;
-use SutoreMarketplace\Modules\Sourcing\Repositories\SourcingRepository;
 use SutoreMarketplace\Shared\Database\Schema;
 use SutoreMarketplace\Shared\Domain\MerchantLevels;
 
 final class SourcingDigestCron
 {
     public const HOOK = 'sutore_marketplace_sourcing_digest';
-    private const SENT_OPTION = 'sutore_marketplace_sourcing_digest_sent_ids';
+    private const SENT_OPTION = 'sutore_marketplace_pre_order_digest_sent_ids';
     private const SENT_MAX = 500;
     private const MERCHANT_SCAN_LIMIT = 500;
 
@@ -45,8 +46,13 @@ final class SourcingDigestCron
             return;
         }
 
-        $repo = new SourcingRepository();
-        $result = $repo->query(['status' => 'open', 'page' => 1, 'per_page' => 200]);
+        $result = (new ListingRepository())->query([
+            'status' => ListingStatus::PRE_ORDER,
+            'page' => 1,
+            'per_page' => 200,
+            'orderby' => 'created_at',
+            'order' => 'DESC',
+        ]);
         $items = $result['items'] ?? [];
         if ($items === []) {
             return;
@@ -58,13 +64,16 @@ final class SourcingDigestCron
         }
 
         $newTitles = [];
-        foreach ($items as $row) {
-            $id = (int) ($row->id ?? 0);
+        foreach ($items as $listing) {
+            if (!$listing->orderId) {
+                continue;
+            }
+            $id = (int) $listing->variationId;
             if ($id <= 0 || !empty($sent[$id])) {
                 continue;
             }
 
-            $parentId = (int) ($row->parent_product_id ?? 0);
+            $parentId = (int) $listing->parentProductId;
             $title = $parentId > 0 ? (string) get_the_title($parentId) : ('#' . $id);
             $title = trim(str_replace(['&#8211;', '–'], '', $title));
             if ($title !== '') {
@@ -93,11 +102,7 @@ final class SourcingDigestCron
         update_option(self::SENT_OPTION, $this->pruneSentIds($sent), false);
     }
 
-    /**
-     * Same recipient set as before: first N merchants by login, then verified/premium with phone.
-     *
-     * @return list<string>
-     */
+    /** @return list<string> */
     private function merchantPhonesForDigest(): array
     {
         global $wpdb;

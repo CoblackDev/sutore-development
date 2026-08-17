@@ -26,8 +26,7 @@ final class ListingSelector
 
     /**
      * Re-rank all competing listings for a parent+size.
-     * Flawless listings outrank defective ones; among defects, lower severity wins;
-     * then asking and created_at. Index 0 becomes active/winner.
+     * Lowest asking wins; older listing wins a tie. Index 0 becomes active/winner.
      */
     public function rerunSize(int $parentId, int $sizeTermId): ?Listing
     {
@@ -44,7 +43,7 @@ final class ListingSelector
         $winner = $candidates[0];
 
         foreach ($candidates as $index => $listing) {
-            if (!$listing->id) {
+            if (!$listing->variationId) {
                 continue;
             }
             $isWinner = $index === 0;
@@ -53,7 +52,7 @@ final class ListingSelector
                 ? 'publish'
                 : ($isWinner ? 'pending' : 'queued');
             $newStatus = $isWinner ? $winnerStatus : 'queued';
-            $this->listings->update($listing->id, [
+            $this->listings->update($listing->variationId, [
                 'is_winner' => $isWinner ? 1 : 0,
                 'listing_status' => $newStatus,
                 'expire_at' => $this->resolveExpireAt($listing),
@@ -65,11 +64,11 @@ final class ListingSelector
                     'approval_mode' => Settings::merchantAutoActivates((int) $listing->merchantId) ? 'auto' : 'manual',
                     'previous_status' => $previousStatus,
                     'listing_status' => $newStatus,
-                ], $listing->id, $listing->variationId, $listing->merchantId, 'merchant_visible');
+                ], $listing->variationId, $listing->merchantId, 'merchant_visible');
             }
         }
 
-        $fresh = $this->listings->find((int) $winner->id);
+        $fresh = $this->listings->find((int) $winner->variationId);
         if ($fresh) {
             $this->sync->syncFromWinner($fresh);
         }
@@ -107,7 +106,7 @@ final class ListingSelector
             'approval_mode' => 'manual',
             'previous_status' => 'pending',
             'listing_status' => 'publish',
-        ], $listingId, $listing->variationId, $listing->merchantId, 'merchant_visible');
+        ], $listing->variationId, $listing->merchantId, 'merchant_visible');
 
         $fresh = $this->listings->find($listingId);
         if ($fresh) {
@@ -128,7 +127,7 @@ final class ListingSelector
 
         $position = 1;
         foreach ($candidates as $i => $candidate) {
-            if ($candidate->id === $listing->id) {
+            if ($candidate->variationId === $listing->variationId) {
                 $position = $i + 1;
                 break;
             }
@@ -147,11 +146,13 @@ final class ListingSelector
             return $listing->expireAt;
         }
 
-        $days = \SutoreMarketplace\Shared\Settings\Settings::expireDays();
+        $days = $listing->durationDays > 0
+            ? $listing->durationDays
+            : \SutoreMarketplace\Shared\Settings\Settings::defaultListingDurationDays();
         $created = $listing->createdAt ? strtotime((string) $listing->createdAt) : false;
         $base = $created !== false ? $created : current_time('timestamp');
 
-        return date('Y-m-d H:i:s', $base + ($days * DAY_IN_SECONDS));
+        return wp_date('Y-m-d H:i:s', $base + ($days * DAY_IN_SECONDS));
     }
 
     private function applyWcStatus(int $variationId, bool $isWinner): void
@@ -183,8 +184,8 @@ final class ListingSelector
     {
         $positions = [];
         foreach ($candidates as $i => $listing) {
-            if ($listing->id) {
-                $positions[(int) $listing->id] = $i + 1;
+            if ($listing->variationId) {
+                $positions[(int) $listing->variationId] = $i + 1;
             }
         }
 
@@ -217,18 +218,18 @@ final class ListingSelector
         $shouldNotify = Settings::notifyQueuePositionChange();
 
         foreach ($candidates as $i => $listing) {
-            if (!$listing->id) {
+            if (!$listing->variationId) {
                 continue;
             }
             $newPos = $i + 1;
-            $oldPos = $oldPositions[(int) $listing->id] ?? null;
+            $oldPos = $oldPositions[(int) $listing->variationId] ?? null;
             if ($oldPos === null || $oldPos === $newPos) {
                 continue;
             }
             $this->events->log('queue_position_changed', [
                 'old_position' => $oldPos,
                 'new_position' => $newPos,
-            ], $listing->id, $listing->variationId, $listing->merchantId, 'merchant_visible');
+            ], $listing->variationId, $listing->merchantId, 'merchant_visible');
 
             if (!$shouldNotify || BulkImportContext::shouldSuppressQueueNotification((int) $listing->merchantId)) {
                 continue;
@@ -243,8 +244,8 @@ final class ListingSelector
     {
         $states = [];
         foreach ($candidates as $listing) {
-            if ($listing->id) {
-                $states[(int) $listing->id] = (bool) $listing->isWinner;
+            if ($listing->variationId) {
+                $states[(int) $listing->variationId] = (bool) $listing->isWinner;
             }
         }
 
@@ -257,11 +258,11 @@ final class ListingSelector
         $notifications = new NotificationService();
 
         foreach ($candidates as $i => $listing) {
-            if (!$listing->id) {
+            if (!$listing->variationId) {
                 continue;
             }
 
-            $listingId = (int) $listing->id;
+            $listingId = (int) $listing->variationId;
             $wasWinner = $oldWinners[$listingId] ?? false;
             $isWinner = $i === 0;
             if ($wasWinner === $isWinner) {
@@ -275,13 +276,13 @@ final class ListingSelector
                 $this->events->log('listing_went_on_sale', [
                     'listing_status' => $winnerStatus,
                     'new_position' => 1,
-                ], $listingId, $listing->variationId, $listing->merchantId, 'merchant_visible');
+                ], $listing->variationId, $listing->merchantId, 'merchant_visible');
             } elseif ($wasWinner && !$isWinner) {
                 $this->events->log('listing_left_sale', [
                     'listing_status' => 'queued',
                     'new_position' => $i + 1,
                     'old_position' => 1,
-                ], $listingId, $listing->variationId, $listing->merchantId, 'merchant_visible');
+                ], $listing->variationId, $listing->merchantId, 'merchant_visible');
             }
 
             if (BulkImportContext::shouldSuppressNotification((int) $listing->merchantId, NotificationType::LISTING_WINNER_GAINED)
@@ -292,7 +293,7 @@ final class ListingSelector
             $title = Notifications::productTitle($listingId, $listing->variationId, $listing->parentProductId);
             $context = [
                 'product' => $title,
-                'listing_id' => $listingId,
+                'variation_id' => $listingId,
                 'new_position' => $i + 1,
             ];
 

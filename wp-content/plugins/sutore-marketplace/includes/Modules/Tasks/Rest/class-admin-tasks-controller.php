@@ -43,13 +43,16 @@ final class AdminTasksController
         }
         $params = is_array($params) ? $params : [];
 
-        (new TaskProgressService())->saveDefinition($params);
+        (new TaskProgressService())->saveTemplateDefinition($params);
 
-        return RestResponse::success(['message' => __('Task saved.', 'sutore-marketplace')]);
+        return RestResponse::success(['message' => __('Template saved.', 'sutore-marketplace')]);
     }
 
     public function bumpProgress(\WP_REST_Request $req): \WP_REST_Response
     {
+        if (!defined('WP_DEBUG') || !WP_DEBUG) {
+            return RestResponse::fail(__('Not available.', 'sutore-marketplace'), 403);
+        }
         $params = $req->get_json_params();
         if (!is_array($params)) {
             $params = $req->get_params();

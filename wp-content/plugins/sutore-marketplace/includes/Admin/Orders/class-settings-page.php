@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Admin\Orders;
 
+use SutoreMarketplace\Modules\Merchants\Domain\NotificationChannel;
 use SutoreMarketplace\Modules\Merchants\Domain\NotificationType;
 use SutoreMarketplace\Modules\Orders\Hooks\CronHooks;
 use SutoreMarketplace\Modules\Orders\Settings\Settings;
@@ -19,6 +20,7 @@ final class SettingsPage
             'notifications' => __('Notifications', 'sutore-marketplace'),
             'cargo' => __('Shipping', 'sutore-marketplace'),
             'operations' => __('Operations', 'sutore-marketplace'),
+            'payout' => __('Payout', 'sutore-marketplace'),
             'templates' => __('SMS templates', 'sutore-marketplace'),
             'advanced' => __('Advanced', 'sutore-marketplace'),
         ];
@@ -48,6 +50,7 @@ final class SettingsPage
             'notifications' => $this->tabNotifications($s),
             'cargo' => $this->tabCargo($s),
             'operations' => $this->tabOperations($s),
+            'payout' => $this->tabPayout($s),
             'templates' => $this->tabTemplates($s),
             'advanced' => $this->tabAdvanced($s),
             default => $this->tabDeadlines($s),
@@ -80,11 +83,13 @@ final class SettingsPage
             }
             $patch['sms_events'] = $events;
             $patch['merchant_notifications_enabled'] = !empty($_POST['merchant_notifications_enabled']);
-            $merchantEvents = [];
-            foreach (array_keys(NotificationType::defaultEventFlags()) as $key) {
-                $merchantEvents[$key] = !empty($_POST['merchant_notification_events'][$key]);
+            $channels = NotificationType::defaultChannels();
+            foreach (array_keys($channels) as $key) {
+                $channels[$key][NotificationChannel::PANEL] = !empty($_POST['merchant_notification_channels'][$key]['panel']);
+                $channels[$key][NotificationChannel::SMS] = !empty($_POST['merchant_notification_channels'][$key]['sms']);
+                $channels[$key][NotificationChannel::PUSH] = false;
             }
-            $patch['merchant_notification_events'] = $merchantEvents;
+            $patch['merchant_notification_channels'] = $channels;
         } elseif ($subTab === 'cargo') {
             $patch['yurtici_customer_code'] = sanitize_text_field((string) ($_POST['yurtici_customer_code'] ?? ''));
             $patch['shipment_code_pattern'] = sanitize_text_field((string) ($_POST['shipment_code_pattern'] ?? ''));
@@ -92,12 +97,17 @@ final class SettingsPage
             $patch['international_invoice_required'] = !empty($_POST['international_invoice_required']);
         } elseif ($subTab === 'operations') {
             $patch['require_admin_payment_confirm'] = !empty($_POST['require_admin_payment_confirm']);
-            $patch['auto_sourcing_on_suspend'] = !empty($_POST['auto_sourcing_on_suspend']);
-            $patch['auto_sourcing_on_split'] = !empty($_POST['auto_sourcing_on_split']);
             $patch['sourcing_price_tolerance_percent'] = max(0, (float) ($_POST['sourcing_price_tolerance_percent'] ?? 10));
             $patch['default_fulfillment_filter'] = sanitize_key((string) ($_POST['default_fulfillment_filter'] ?? 'payment'));
             $patch['swap_allowed_statuses'] = sanitize_text_field((string) ($_POST['swap_allowed_statuses'] ?? ''));
             $patch['allow_manual_order_link'] = !empty($_POST['allow_manual_order_link']);
+        } elseif ($subTab === 'payout') {
+            $patch['payout_min_hold_days'] = max(0, (int) ($_POST['payout_min_hold_days'] ?? 7));
+            $days = [];
+            if (!empty($_POST['payout_weekdays']) && is_array($_POST['payout_weekdays'])) {
+                $days = $_POST['payout_weekdays'];
+            }
+            $patch['payout_weekdays'] = \SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule::normalizeWeekdays($days);
         } elseif ($subTab === 'templates' && !empty($_POST['sms_templates']) && is_array($_POST['sms_templates'])) {
             $tpl = [];
             foreach (SmsTemplates::defaultTemplates() as $key => $default) {
@@ -154,7 +164,12 @@ final class SettingsPage
             'Netgsm credentials and OTP settings are under Marketplace Settings → SMS.',
             'sutore-marketplace'
         ) . '</p>';
-        echo '<h2>' . esc_html__('SMS events', 'sutore-marketplace') . '</h2><table class="form-table"><tbody>';
+        echo '<h2>' . esc_html__('SMS events', 'sutore-marketplace') . '</h2>';
+        echo '<p class="description">' . esc_html__(
+            'Customer, admin, and operational SMS. Seller SMS for merchant events is controlled under Merchant notifications.',
+            'sutore-marketplace'
+        ) . '</p>';
+        echo '<table class="form-table"><tbody>';
         $events = (array) ($s['sms_events'] ?? []);
         foreach (SmsTemplates::defaultEventFlags() as $key => $default) {
             $label = SmsTemplates::eventLabel($key);
@@ -168,9 +183,9 @@ final class SettingsPage
 
     private function renderMerchantNotificationSettings(array $s): void
     {
-        echo '<h2>' . esc_html__('Merchant panel notifications', 'sutore-marketplace') . '</h2>';
+        echo '<h2>' . esc_html__('Merchant notifications', 'sutore-marketplace') . '</h2>';
         echo '<p class="description">' . esc_html__(
-            'In-app notifications merchants see on My Account → Notifications. Disabled events are not recorded.',
+            'Each merchant event is sent from one dispatcher. Choose Panel and/or SMS per event. Push will use this same matrix when the mobile app is added.',
             'sutore-marketplace'
         ) . '</p>';
         echo '<table class="form-table"><tbody>';
@@ -180,17 +195,24 @@ final class SettingsPage
             . esc_html__('Active', 'sutore-marketplace') . '</label></td></tr>';
         echo '</tbody></table>';
 
-        $events = (array) ($s['merchant_notification_events'] ?? NotificationType::defaultEventFlags());
+        $channels = (array) ($s['merchant_notification_channels'] ?? NotificationType::defaultChannels());
         foreach (NotificationType::typesByCategory() as $category => $types) {
             $categoryLabel = NotificationType::categoryLabels()[$category] ?? $category;
             echo '<h3>' . esc_html($categoryLabel) . '</h3>';
             echo '<table class="form-table"><tbody>';
             foreach ($types as $type) {
                 $label = NotificationType::eventLabel($type);
-                $checked = !empty($events[$type]);
+                $row = is_array($channels[$type] ?? null) ? $channels[$type] : [];
+                $panelOn = !empty($row[NotificationChannel::PANEL]);
+                $smsOn = !empty($row[NotificationChannel::SMS]);
                 echo '<tr><th>' . esc_html($label) . '</th><td>';
-                echo '<input type="checkbox" name="merchant_notification_events[' . esc_attr($type) . ']" value="1" '
-                    . checked($checked, true, false) . ' /></td></tr>';
+                echo '<label><input type="checkbox" name="merchant_notification_channels[' . esc_attr($type) . '][panel]" value="1" '
+                    . checked($panelOn, true, false) . ' /> '
+                    . esc_html__('Panel', 'sutore-marketplace') . '</label> &nbsp; ';
+                echo '<label><input type="checkbox" name="merchant_notification_channels[' . esc_attr($type) . '][sms]" value="1" '
+                    . checked($smsOn, true, false) . ' /> '
+                    . esc_html__('SMS', 'sutore-marketplace') . '</label>';
+                echo '</td></tr>';
             }
             echo '</tbody></table>';
         }
@@ -210,8 +232,6 @@ final class SettingsPage
     {
         echo '<table class="form-table"><tbody>';
         $this->checkboxRow('require_admin_payment_confirm', __('Admin approval required after payment', 'sutore-marketplace'), $s);
-            $this->checkboxRow('auto_sourcing_on_suspend', __('Automatically open pre-order when taken off sale', 'sutore-marketplace'), $s);
-        $this->checkboxRow('auto_sourcing_on_split', __('Open automatic pre-order when unlinked from order', 'sutore-marketplace'), $s);
         $this->numberRow('sourcing_price_tolerance_percent', __('Alternative seller price tolerance (%)', 'sutore-marketplace'), $s);
         $this->textRow('default_fulfillment_filter', __('Staff list default filter', 'sutore-marketplace'), $s);
         $this->textRow('swap_allowed_statuses', __('Swap-allowed statuses (comma-separated)', 'sutore-marketplace'), $s);
@@ -219,10 +239,43 @@ final class SettingsPage
         echo '</tbody></table>';
     }
 
+    private function tabPayout(array $s): void
+    {
+        $hold = max(0, (int) ($s['payout_min_hold_days'] ?? 7));
+        $selected = \SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule::normalizeWeekdays(
+            is_array($s['payout_weekdays'] ?? null) ? $s['payout_weekdays'] : [3]
+        );
+
+        echo '<table class="form-table"><tbody>';
+        echo '<tr><th><label for="payout_min_hold_days">' . esc_html__('Minimum hold (days)', 'sutore-marketplace') . '</label></th>';
+        echo '<td><input type="number" min="0" name="payout_min_hold_days" id="payout_min_hold_days" value="'
+            . esc_attr((string) $hold) . '" class="small-text" />';
+        echo '<p class="description">' . esc_html__(
+            'After the product is verified, wait this many days, then pick the next payout weekday.',
+            'sutore-marketplace'
+        ) . '</p></td></tr>';
+
+        echo '<tr><th>' . esc_html__('Payout weekdays', 'sutore-marketplace') . '</th><td>';
+        foreach (\SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule::weekdayLabels() as $day => $label) {
+            echo '<label style="display:block;margin:0.15rem 0"><input type="checkbox" name="payout_weekdays[]" value="'
+                . esc_attr((string) $day) . '" ' . checked(in_array($day, $selected, true), true, false) . ' /> '
+                . esc_html($label) . '</label>';
+        }
+        echo '<p class="description">' . esc_html__(
+            'At least one day is required. Default is Wednesday. A second day can be added later.',
+            'sutore-marketplace'
+        ) . '</p></td></tr>';
+        echo '</tbody></table>';
+    }
+
     private function tabTemplates(array $s): void
     {
         echo '<p class="description">' . esc_html__('Placeholder:', 'sutore-marketplace') . ' '
             . esc_html(implode(', ', SmsTemplates::placeholders())) . '</p>';
+        echo '<p class="description">' . esc_html__(
+            'Seller SMS copy for merchant events is edited here. Which merchant events send SMS is under Notifications → Merchant notifications.',
+            'sutore-marketplace'
+        ) . '</p>';
         echo '<table class="form-table"><tbody>';
         foreach (SmsTemplates::templateKeys() as $key) {
             $val = SmsTemplates::effectiveTemplate($key);

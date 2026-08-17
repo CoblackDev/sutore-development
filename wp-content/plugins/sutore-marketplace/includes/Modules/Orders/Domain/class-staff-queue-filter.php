@@ -59,9 +59,7 @@ final class StaffQueueFilter
      */
     public static function inPipelineStatuses(): array
     {
-        return array_merge(ListingStatus::saleActive(), [
-            ListingStatus::NOT_SALE,
-        ]);
+        return ListingStatus::saleActive();
     }
 
     /**

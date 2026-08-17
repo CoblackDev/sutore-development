@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Shared\Hooks;
 
 use SutoreMarketplace\Shared\Domain\MarketplacePricing;
+use SutoreMarketplace\Modules\Listings\Domain\ListingConditionRank;
+use SutoreMarketplace\Modules\Listings\Domain\ListingExpireDisplay;
+use SutoreMarketplace\Modules\Listings\Repositories\CampaignRepository;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 use SutoreMarketplace\Shared\Settings\Settings;
 
@@ -22,6 +25,9 @@ use SutoreMarketplace\Shared\Settings\Settings;
 final class PdpIntegration
 {
     private ListingRepository $listings;
+
+    /** @var array<int, ?object> */
+    private array $campaignCache = [];
 
     public function __construct(?ListingRepository $listings = null)
     {
@@ -45,6 +51,19 @@ final class PdpIntegration
         add_filter('woocommerce_product_is_on_sale', [$this, 'filterIsOnSale'], 99, 2);
         add_filter('woocommerce_available_variation', [$this, 'filterAvailableVariation'], 99, 3);
         add_filter('woocommerce_get_price_html', [$this, 'filterPriceHtml'], 99, 2);
+        add_filter('woocommerce_sale_flash', [$this, 'filterSaleFlash'], 99, 3);
+    }
+
+    /**
+     * @param string $html
+     * @param \WP_Post $post
+     * @param \WC_Product $product
+     */
+    public function filterSaleFlash($html, $post, $product): string
+    {
+        unset($html, $post, $product);
+
+        return '';
     }
 
     public function filterProductPrice($price, $product)
@@ -180,7 +199,12 @@ final class PdpIntegration
 
         $data['display_price'] = $customer;
         $data['display_regular_price'] = $compare;
-        $data['price_html'] = $this->formatPriceHtml($customer, $compare);
+        $data['price_html'] = $this->formatPriceHtml($customer, $compare, false, $listing);
+        $data['sutore_condition_labels'] = ListingConditionRank::activeLabels($listing);
+        $badges = ListingConditionRank::customerBadgesHtml($listing);
+        if ($badges !== '') {
+            $data['variation_description'] = $badges . (string) ($data['variation_description'] ?? '');
+        }
 
         return $data;
     }
@@ -201,7 +225,8 @@ final class PdpIntegration
             return $this->formatPriceHtml(
                 MarketplacePricing::customerPrice($listing),
                 MarketplacePricing::compareAtPrice($listing),
-                true
+                true,
+                $listing
             );
         }
 
@@ -213,7 +238,9 @@ final class PdpIntegration
 
             return $this->formatPriceHtml(
                 MarketplacePricing::customerPrice($listing),
-                MarketplacePricing::compareAtPrice($listing)
+                MarketplacePricing::compareAtPrice($listing),
+                false,
+                $listing
             );
         }
 
@@ -224,7 +251,9 @@ final class PdpIntegration
 
         return $this->formatPriceHtml(
             MarketplacePricing::customerPrice($listing),
-            MarketplacePricing::compareAtPrice($listing)
+            MarketplacePricing::compareAtPrice($listing),
+            false,
+            $listing
         );
     }
 
@@ -257,11 +286,20 @@ final class PdpIntegration
         return $this->listings->getCheapestWinnerForParent((int) $product->get_id());
     }
 
-    private function formatPriceHtml(float $customer, float $compare, bool $fromPrice = false): string
-    {
+    private function formatPriceHtml(
+        float $customer,
+        float $compare,
+        bool $fromPrice = false,
+        ?\SutoreMarketplace\Modules\Listings\Domain\Listing $listing = null
+    ): string {
         $html = $compare > $customer
             ? wc_format_sale_price($compare, $customer)
             : wc_price($customer);
+
+        $remaining = $this->campaignRemainingLabel($listing);
+        if ($remaining !== null && $remaining !== '') {
+            $html .= ' <span class="sutore-mp-sale-remaining">' . esc_html($remaining) . '</span>';
+        }
 
         if (!$fromPrice) {
             return $html;
@@ -271,6 +309,24 @@ final class PdpIntegration
             ' <span class="sutore-mp-price-from" aria-label="%s">+</span>',
             esc_attr__('Starting from this price', 'sutore-marketplace')
         );
+    }
+
+    private function campaignRemainingLabel(?\SutoreMarketplace\Modules\Listings\Domain\Listing $listing): ?string
+    {
+        if (!$listing || $listing->campaignStatus !== 'active' || !$listing->campaignId) {
+            return null;
+        }
+
+        $campaignId = (int) $listing->campaignId;
+        if (!array_key_exists($campaignId, $this->campaignCache)) {
+            $this->campaignCache[$campaignId] = (new CampaignRepository())->find($campaignId);
+        }
+        $campaign = $this->campaignCache[$campaignId];
+        if (!$campaign || empty($campaign->ends_at)) {
+            return null;
+        }
+
+        return ListingExpireDisplay::remainingFromDatetime((string) $campaign->ends_at);
     }
 
     private function isProductObject($product): bool

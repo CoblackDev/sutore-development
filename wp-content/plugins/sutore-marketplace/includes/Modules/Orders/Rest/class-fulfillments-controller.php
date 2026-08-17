@@ -6,6 +6,8 @@ namespace SutoreMarketplace\Modules\Orders\Rest;
 
 use SutoreMarketplace\Admin\AdminMenu;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutStatus;
+use SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule;
+use SutoreMarketplace\Modules\Merchants\Services\PayoutExportService;
 use SutoreMarketplace\Modules\Orders\Domain\StaffQueueFilter;
 use SutoreMarketplace\Modules\Orders\Services\FulfillmentService;
 use SutoreMarketplace\Modules\Orders\Services\StaffFulfillmentPresenter;
@@ -28,6 +30,14 @@ final class FulfillmentsController
                 'methods' => 'GET',
                 'callback' => [$this, 'query'],
                 'permission_callback' => [$this, 'canAccessMerchantOrStaff'],
+            ],
+        ]);
+
+        register_rest_route($ns, '/fulfillments/bulk-actions', [
+            [
+                'methods' => 'POST',
+                'callback' => [$this, 'bulkAdminAction'],
+                'permission_callback' => [$this, 'canAccessStaff'],
             ],
         ]);
 
@@ -55,10 +65,26 @@ final class FulfillmentsController
             ],
         ]);
 
+        register_rest_route($ns, '/fulfillments/(?P<id>\d+)/cancel', [
+            [
+                'methods' => 'POST',
+                'callback' => [$this, 'cancel'],
+                'permission_callback' => [$this, 'canAccessMerchant'],
+            ],
+        ]);
+
         register_rest_route($ns, '/fulfillments/(?P<id>\d+)/actions', [
             [
                 'methods' => 'POST',
                 'callback' => [$this, 'adminAction'],
+                'permission_callback' => [$this, 'canAccessStaff'],
+            ],
+        ]);
+
+        register_rest_route($ns, '/fulfillments/(?P<id>\d+)/swap-candidates', [
+            [
+                'methods' => 'GET',
+                'callback' => [$this, 'swapCandidates'],
                 'permission_callback' => [$this, 'canAccessStaff'],
             ],
         ]);
@@ -93,6 +119,8 @@ final class FulfillmentsController
         $allowedOrderby = [
             'id_desc',
             'id_asc',
+            'asking_asc',
+            'asking_desc',
             'deadline_asc',
             'deadline_desc',
             'sold_at_desc',
@@ -132,6 +160,9 @@ final class FulfillmentsController
             'orderby' => $orderby,
             'page' => max(1, (int) ($req->get_param('page') ?: 1)),
             'per_page' => min(100, max(1, (int) ($req->get_param('per_page') ?: 20))),
+            'sold_from' => PayoutSchedule::normalizeDate($req->get_param('sold_from')),
+            'sold_to' => PayoutSchedule::normalizeDate($req->get_param('sold_to')),
+            'payout_due' => $req->get_param('payout_due') === '1' || $req->get_param('payout_due') === 1 || $req->get_param('payout_due') === true,
         ];
         if ($args['status'] === '') {
             unset($args['status']);
@@ -158,6 +189,17 @@ final class FulfillmentsController
         if ($args['search'] === '') {
             unset($args['search']);
         }
+        if ($args['sold_from'] === '') {
+            unset($args['sold_from']);
+        }
+        if ($args['sold_to'] === '') {
+            unset($args['sold_to']);
+        }
+        if (empty($args['payout_due'])) {
+            unset($args['payout_due']);
+        } else {
+            $args['payout_status'] = PayoutStatus::PENDING;
+        }
         // Queue filters take precedence over a single status.
         if (!empty($args['queue'])) {
             unset($args['status']);
@@ -172,6 +214,12 @@ final class FulfillmentsController
         }
 
         $presenter = new StaffFulfillmentPresenter();
+        if ($isStaff && sanitize_key((string) $req->get_param('export')) === 'csv') {
+            $export = (new PayoutExportService())->csv($args);
+
+            return RestResponse::success($export);
+        }
+
         $payload = $isStaff
             ? $presenter->presentStaffQuery($args)
             : $presenter->presentMerchantQuery($args);
@@ -222,45 +270,24 @@ final class FulfillmentsController
         return RestResponse::success(['message' => __('You have sent your product to our center.', 'sutore-marketplace')]);
     }
 
+    public function cancel(\WP_REST_Request $req): \WP_REST_Response
+    {
+        $result = (new FulfillmentService())->merchantCancelSale((int) $req['id'], get_current_user_id());
+        if (is_wp_error($result)) {
+            return RestResponse::fromWpError($result);
+        }
+
+        return RestResponse::success(['message' => __('Sale cancelled. The order was moved back to the pre-order board.', 'sutore-marketplace')]);
+    }
+
     public function adminAction(\WP_REST_Request $req): \WP_REST_Response
     {
         $params = $req->get_json_params() ?: $req->get_params();
         $id = (int) $req['id'];
         $action = sanitize_key((string) ($params['workflow_action'] ?? ''));
         $service = new FulfillmentService();
-        $noteArgs = [
-            'staff_note' => sanitize_textarea_field((string) ($params['staff_note'] ?? '')),
-            'sutore_shipment_code' => sanitize_text_field((string) ($params['sutore_shipment_code'] ?? '')),
-        ];
 
-        $result = match ($action) {
-            'confirm_payment' => $service->adminConfirmPayment($id),
-            'swap' => $service->swapMerchant(
-                $id,
-                (int) ($params['new_listing_id'] ?? 0),
-                (string) ($noteArgs['staff_note'] ?? '')
-            ),
-            'attach_to_order' => $service->attachToOrder(
-                $id,
-                (int) ($params['order_id'] ?? 0),
-                $noteArgs
-            ),
-            'split' => $service->splitFromOrder($id, true, 'split', (string) ($noteArgs['staff_note'] ?? '')),
-            'mark_arrived' => $service->markArrivedAtSutore($id, $noteArgs),
-            'mark_verified' => $service->markVerified($id, $noteArgs),
-            'mark_ready_to_ship' => $service->markReadyToShip($id, $noteArgs),
-            'mark_shipped_to_customer' => $service->markShippedToCustomer($id, $noteArgs),
-            'mark_delivered' => $service->markDeliveredToCustomer($id, $noteArgs),
-            'mark_not_for_sale' => $service->markNotForSale($id, $noteArgs),
-            'chargeback' => $service->chargebackFulfillment($id, $noteArgs),
-            'mark_payout_paid' => $service->markMerchantPayout(
-                $id,
-                sanitize_text_field((string) ($params['payment_ref'] ?? ''))
-            ),
-            'put_on_sale' => $service->putListingOnSale($id),
-            'delete_listing' => $service->deleteListing($id),
-            default => new \WP_Error('invalid', __('Invalid action.', 'sutore-marketplace')),
-        };
+        $result = $service->runStaffWorkflowAction($id, $action, is_array($params) ? $params : []);
 
         if (is_wp_error($result)) {
             return RestResponse::fromWpError($result);
@@ -269,14 +296,57 @@ final class FulfillmentsController
         return RestResponse::success(['message' => __('Updated.', 'sutore-marketplace')]);
     }
 
+    public function bulkAdminAction(\WP_REST_Request $req): \WP_REST_Response
+    {
+        $params = $req->get_json_params() ?: $req->get_params();
+        $action = sanitize_key((string) ($params['workflow_action'] ?? ''));
+        $ids = $params['ids'] ?? [];
+        if (!is_array($ids)) {
+            $ids = [];
+        }
+
+        $extra = [];
+        if (isset($params['payment_ref'])) {
+            $extra['payment_ref'] = sanitize_text_field((string) $params['payment_ref']);
+        }
+        $result = (new FulfillmentService())->bulkStaffWorkflowAction($ids, $action, $extra);
+        if (is_wp_error($result)) {
+            return RestResponse::fromWpError($result);
+        }
+
+        return RestResponse::success(array_merge($result, [
+            'message' => sprintf(
+                /* translators: %d: number of products updated */
+                _n('%d product updated.', '%d products updated.', (int) $result['updated'], 'sutore-marketplace'),
+                (int) $result['updated']
+            ),
+        ]));
+    }
+
     public function processingOrders(\WP_REST_Request $req): \WP_REST_Response
     {
         $limit = min(100, max(1, (int) ($req->get_param('per_page') ?: 50)));
-        $items = (new FulfillmentService())->listProcessingOrdersForAttach($limit);
+        $items = (new FulfillmentService())->listProcessingOrdersForAttach($limit, [
+            'variation_id' => (int) ($req->get_param('variation_id') ?: 0),
+            'search' => sanitize_text_field((string) ($req->get_param('search') ?: '')),
+        ]);
 
         return RestResponse::success([
             'items' => $items,
             'total' => count($items),
         ]);
+    }
+
+    public function swapCandidates(\WP_REST_Request $req): \WP_REST_Response
+    {
+        $result = (new FulfillmentService())->listSwapCandidates((int) $req['id'], [
+            'search' => sanitize_text_field((string) ($req->get_param('search') ?: '')),
+            'per_page' => (int) ($req->get_param('per_page') ?: 30),
+        ]);
+        if (is_wp_error($result)) {
+            return RestResponse::fromWpError($result);
+        }
+
+        return RestResponse::success($result);
     }
 }

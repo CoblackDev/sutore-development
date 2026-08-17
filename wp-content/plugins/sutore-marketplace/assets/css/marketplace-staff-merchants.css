@@ -30,7 +30,7 @@
 }
 
 .sutore-mp-staff-merchants .sutore-mp-staff-filter .sutore-mp-input {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   line-height: 1.4;
 }
 
@@ -57,48 +57,58 @@
 
 .sutore-mp-staff-merchants .sutore-mp-staff-shipping-details .description {
   margin: 0 0 1rem;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   line-height: 1.45;
   color: #555;
 }
 
 .sutore-mp-staff-merchants .sutore-mp-staff-subheading {
   margin: 1.25rem 0 0.75rem;
-  font-size: inherit;
+  font-size: 0.95rem;
   font-weight: 600;
   line-height: 1.3;
 }
 
 .sutore-mp-staff-merchants .sutore-mp-staff-form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 0.85rem 1.25rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
   margin: 0 0 1rem;
   max-width: none;
+  width: 100%;
+}
+
+@media (max-width: 720px) {
+  .sutore-mp-staff-merchants .sutore-mp-staff-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .sutore-mp-staff-merchants .sutore-mp-staff-form-grid label {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   opacity: 0.85;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
 }
 
 .sutore-mp-staff-merchants .sutore-mp-staff-form-grid .sutore-mp-input,
 .sutore-mp-staff-merchants .sutore-mp-staff-actions .sutore-mp-input,
 .sutore-mp-staff-merchants .sutore-mp-staff-form .sutore-mp-input {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   line-height: 1.4;
   opacity: 1;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-.sutore-mp-staff-merchants .sutore-mp-staff-form-grid .description {
-  margin: 0.25rem 0 0;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  color: #555;
-  opacity: 1;
+.sutore-mp-staff-merchants .sutore-mp-staff-form-grid input[type="datetime-local"] {
+  min-width: 0;
 }
 
 .sutore-mp-staff-merchants .sutore-mp-staff-merchant-profile {
@@ -107,7 +117,7 @@
 
 .sutore-mp-staff-merchants .sutore-mp-staff-merchant-profile-fields {
   margin: 0 0 1rem;
-  max-width: 40rem;
+  max-width: none;
 }
 
 .sutore-mp-staff-merchants .sutore-mp-staff-merchant-profile-fields::after {
@@ -243,4 +253,294 @@
 .sutore-mp-staff-merchants .sutore-mp-staff-actions-panel .sutore-mp-staff-form {
   margin-top: 0.25rem;
   margin-bottom: 0;
+}
+
+/* Seller detail — above product (100055) and order (100065); below nested order overlays / confirm. */
+.sutore-mp-staff-merchant-detail-overlay {
+  z-index: 100070;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-manage-modal {
+  width: min(960px, 100%);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-manage-modal__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-manage-modal__sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  opacity: 0.72;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-manage-modal__body {
+  font-size: 0.9rem;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-manage-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.75rem;
+  margin-bottom: -1px;
+  font: inherit;
+  font-size: 0.92rem;
+  opacity: 0.65;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  outline: none;
+  box-shadow: none;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-manage-tab:focus,
+.sutore-mp-staff-merchant-detail-host .sutore-mp-manage-tab:focus-visible,
+.sutore-mp-staff-merchant-detail-host .sutore-mp-manage-tab:active {
+  outline: none;
+  box-shadow: none;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-manage-tab[aria-selected="true"] {
+  opacity: 1;
+  border-bottom-color: currentColor;
+  font-weight: 600;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-manage-panel[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
+  margin-left: 0.15rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  background: color-mix(in srgb, #b45309 18%, transparent);
+  color: #92400e;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-tab-badge[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-summary {
+  margin: 0 0 1.15rem;
+  padding: 0 0 1.15rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-profile-panel {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-manage-modal .sutore-mp-staff-shipping-details {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-merchant-product-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  text-decoration-thickness: 1px;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-merchant-product-link:hover,
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-merchant-product-link:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+  margin: 0 0 0.65rem;
+  max-width: none;
+  align-items: start;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-form-grid > label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-form-grid .sutore-mp-input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-form-grid input[type="datetime-local"] {
+  min-width: 0;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-form-grid--level {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-form-grid--level > label {
+  grid-column: 1 / 2;
+}
+
+@media (max-width: 720px) {
+  .sutore-mp-staff-merchant-detail-host .sutore-mp-staff-form-grid,
+  .sutore-mp-staff-merchant-detail-host .sutore-mp-staff-form-grid--level {
+    grid-template-columns: 1fr;
+  }
+
+  .sutore-mp-staff-merchant-detail-host .sutore-mp-staff-form-grid--level > label {
+    grid-column: auto;
+  }
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-panel-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-panel-title.sutore-mp-staff-subheading {
+  margin-top: 1.35rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-actions-panel,
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-payout-details,
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-activity,
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-profile-panel {
+  margin: 0;
+  padding: 0;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-empty {
+  margin: 0 0 0.25rem;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+  opacity: 0.85;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-form-hint,
+.sutore-mp-staff-merchant-detail-host .description.sutore-mp-staff-form-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  opacity: 0.72;
+}
+
+.sutore-mp-staff-merchant-detail-host .description,
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-sub,
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-msg {
+  font-size: 0.85rem;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-table-wrap {
+  overflow-x: auto;
+  margin: 0 0 0.25rem;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-input,
+.sutore-mp-staff-merchant-detail-host .input-text,
+.sutore-mp-staff-merchant-detail-host .select,
+.sutore-mp-staff-merchant-detail-host .wp-element-button,
+.sutore-mp-staff-merchant-detail-host .button {
+  font-size: 0.9rem;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-merchant-profile-fields .form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  opacity: 0.85;
+  min-width: 0;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-form-grid .sutore-mp-input,
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-actions .sutore-mp-input {
+  font-size: 0.9rem;
+  opacity: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-actions-panel .sutore-mp-staff-form {
+  margin: 0;
+}
+
+.sutore-mp-staff-merchant-detail-host .sutore-mp-staff-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.35rem 0 0.85rem;
+  font-size: 0.9rem;
+}
+
+/* Confirm / alert dialogs raised from this page. */
+.sutore-mp-confirm-card {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.sutore-mp-confirm-head strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.sutore-mp-staff-merchants .sutore-mp-staff-platform-commission {
+  margin: 0 0 1.5rem;
+  padding: 0 0 1.25rem;
+  border-bottom: 1px solid #dcdcde;
+}
+
+.sutore-mp-staff-merchants .sutore-mp-staff-platform-commission .sutore-mp-staff-panel-title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.sutore-mp-staff-merchants .sutore-mp-staff-commission-raise-warn {
+  margin: 0.5rem 0 0;
 }

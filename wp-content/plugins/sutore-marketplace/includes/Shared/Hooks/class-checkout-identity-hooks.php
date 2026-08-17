@@ -5,14 +5,20 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Shared\Hooks;
 
 use SutoreMarketplace\Modules\Merchants\Services\TcValidator;
-use SutoreMarketplace\Shared\Settings\Settings;
 use SutoreMarketplace\Modules\Listings\Services\ImportedProductService;
+use SutoreMarketplace\Shared\Services\YouthDiscount;
+use SutoreMarketplace\Shared\Settings\Settings;
 
 final class CheckoutIdentityHooks
 {
-    private const CLASSIC_FIELD = 'billing_sutore_marketplace_tckno';
-    private const USER_META = '_sutore_marketplace_checkout_tckno';
-    private const ORDER_META = '_sutore_marketplace_checkout_tckno';
+    public const CLASSIC_TCKNO_FIELD = 'billing_sutore_marketplace_tckno';
+    public const CLASSIC_BIRTH_YEAR_FIELD = 'billing_sutore_marketplace_birth_year';
+    public const BLOCKS_TCKNO_ID = 'sutore-marketplace/billing-tckno';
+    public const BLOCKS_BIRTH_YEAR_ID = 'sutore-marketplace/billing-birth-year';
+    public const USER_META_TCKNO = '_sutore_marketplace_checkout_tckno';
+    public const USER_META_BIRTH_YEAR = '_sutore_marketplace_checkout_birth_year';
+    public const ORDER_META_TCKNO = '_sutore_marketplace_checkout_tckno';
+    public const ORDER_META_BIRTH_YEAR = '_sutore_marketplace_checkout_birth_year';
 
     public function register(): void
     {
@@ -32,8 +38,9 @@ final class CheckoutIdentityHooks
     public function checkoutFields(array $fields): array
     {
         $required = $this->tcknoRequired();
+        $yearMax = YouthDiscount::currentYear();
 
-        $fields['billing'][self::CLASSIC_FIELD] = [
+        $fields['billing'][self::CLASSIC_TCKNO_FIELD] = [
             'label' => $required
                 ? __('National ID (required)', 'sutore-marketplace')
                 : __('National ID (optional)', 'sutore-marketplace'),
@@ -49,11 +56,35 @@ final class CheckoutIdentityHooks
             ],
         ];
 
+        if (Settings::youthDiscountEnabled()) {
+            $fields['billing'][self::CLASSIC_BIRTH_YEAR_FIELD] = [
+                'label' => __('Year of birth', 'sutore-marketplace'),
+                'placeholder' => __('YYYY', 'sutore-marketplace'),
+                'required' => false,
+                'priority' => 26,
+                'class' => ['form-row-wide'],
+                'type' => 'number',
+                'description' => __('Used with your national ID to apply the youth discount.', 'sutore-marketplace'),
+                'custom_attributes' => [
+                    'inputmode' => 'numeric',
+                    'min' => '1900',
+                    'max' => (string) $yearMax,
+                    'step' => '1',
+                ],
+            ];
+        }
+
         if (is_user_logged_in()) {
             $userId = get_current_user_id();
-            $saved = (string) get_user_meta($userId, self::USER_META, true);
-            if ($saved !== '') {
-                $fields['billing'][self::CLASSIC_FIELD]['default'] = $saved;
+            $savedTckno = (string) get_user_meta($userId, self::USER_META_TCKNO, true);
+            if ($savedTckno !== '') {
+                $fields['billing'][self::CLASSIC_TCKNO_FIELD]['default'] = $savedTckno;
+            }
+            if (isset($fields['billing'][self::CLASSIC_BIRTH_YEAR_FIELD])) {
+                $savedYear = (string) get_user_meta($userId, self::USER_META_BIRTH_YEAR, true);
+                if ($savedYear !== '') {
+                    $fields['billing'][self::CLASSIC_BIRTH_YEAR_FIELD]['default'] = $savedYear;
+                }
             }
         }
 
@@ -62,9 +93,12 @@ final class CheckoutIdentityHooks
 
     public function validateCheckout(): void
     {
-        $tckno = isset($_POST[self::CLASSIC_FIELD])
-            ? preg_replace('/\D/', '', (string) wp_unslash($_POST[self::CLASSIC_FIELD]))
+        $tckno = isset($_POST[self::CLASSIC_TCKNO_FIELD])
+            ? preg_replace('/\D/', '', (string) wp_unslash($_POST[self::CLASSIC_TCKNO_FIELD]))
             : '';
+        $birthYear = isset($_POST[self::CLASSIC_BIRTH_YEAR_FIELD])
+            ? YouthDiscount::normalizeBirthYear((string) wp_unslash($_POST[self::CLASSIC_BIRTH_YEAR_FIELD]))
+            : 0;
 
         if ($tckno === '' && $this->tcknoRequired()) {
             wc_add_notice(__('National ID is required for this order.', 'sutore-marketplace'), 'error');
@@ -74,65 +108,97 @@ final class CheckoutIdentityHooks
         if ($tckno !== '' && !TcValidator::isValid($tckno)) {
             wc_add_notice(__('Please enter a valid national ID number.', 'sutore-marketplace'), 'error');
         }
+
+        $rawYear = isset($_POST[self::CLASSIC_BIRTH_YEAR_FIELD])
+            ? trim((string) wp_unslash($_POST[self::CLASSIC_BIRTH_YEAR_FIELD]))
+            : '';
+        if ($rawYear !== '' && ($birthYear < 1900 || $birthYear > YouthDiscount::currentYear())) {
+            wc_add_notice(__('Enter a valid year of birth.', 'sutore-marketplace'), 'error');
+        }
     }
 
     public function saveOrderMeta(int $orderId): void
     {
-        if (!isset($_POST[self::CLASSIC_FIELD])) {
-            return;
-        }
-
-        $tckno = preg_replace('/\D/', '', (string) wp_unslash($_POST[self::CLASSIC_FIELD])) ?? '';
-        if ($tckno === '') {
-            return;
-        }
-
         $order = wc_get_order($orderId);
         if (!$order) {
             return;
         }
 
-        $order->update_meta_data(self::ORDER_META, sanitize_text_field($tckno));
-        $order->save();
+        $dirty = false;
+        if (isset($_POST[self::CLASSIC_TCKNO_FIELD])) {
+            $tckno = preg_replace('/\D/', '', (string) wp_unslash($_POST[self::CLASSIC_TCKNO_FIELD])) ?? '';
+            if ($tckno !== '') {
+                $order->update_meta_data(self::ORDER_META_TCKNO, sanitize_text_field($tckno));
+                $dirty = true;
+            }
+        }
+
+        if (isset($_POST[self::CLASSIC_BIRTH_YEAR_FIELD])) {
+            $birthYear = YouthDiscount::normalizeBirthYear((string) wp_unslash($_POST[self::CLASSIC_BIRTH_YEAR_FIELD]));
+            if ($birthYear >= 1900) {
+                $order->update_meta_data(self::ORDER_META_BIRTH_YEAR, (string) $birthYear);
+                $dirty = true;
+            }
+        }
+
+        if ($dirty) {
+            $order->save();
+        }
     }
 
     /** @param array<string, mixed> $posted */
     public function saveUserMeta(int $customerId, array $posted): void
     {
-        if (!isset($posted[self::CLASSIC_FIELD])) {
-            return;
+        if (isset($posted[self::CLASSIC_TCKNO_FIELD])) {
+            $tckno = preg_replace('/\D/', '', (string) $posted[self::CLASSIC_TCKNO_FIELD]) ?? '';
+            if ($tckno !== '') {
+                update_user_meta($customerId, self::USER_META_TCKNO, sanitize_text_field($tckno));
+            }
         }
 
-        $tckno = preg_replace('/\D/', '', (string) $posted[self::CLASSIC_FIELD]) ?? '';
-        if ($tckno !== '') {
-            update_user_meta($customerId, self::USER_META, sanitize_text_field($tckno));
+        if (isset($posted[self::CLASSIC_BIRTH_YEAR_FIELD])) {
+            $birthYear = YouthDiscount::normalizeBirthYear((string) $posted[self::CLASSIC_BIRTH_YEAR_FIELD]);
+            if ($birthYear >= 1900) {
+                update_user_meta($customerId, self::USER_META_BIRTH_YEAR, (string) $birthYear);
+            }
         }
     }
 
     public function renderAdminOrderTckno(\WC_Order $order): void
     {
-        $tckno = (string) $order->get_meta(self::ORDER_META);
+        $tckno = (string) $order->get_meta(self::ORDER_META_TCKNO);
         if ($tckno === '') {
-            $tckno = (string) get_user_meta((int) $order->get_customer_id(), self::USER_META, true);
+            $tckno = (string) get_user_meta((int) $order->get_customer_id(), self::USER_META_TCKNO, true);
+        }
+        $birthYear = (string) $order->get_meta(self::ORDER_META_BIRTH_YEAR);
+        if ($birthYear === '') {
+            $birthYear = (string) get_user_meta((int) $order->get_customer_id(), self::USER_META_BIRTH_YEAR, true);
         }
 
-        if ($tckno === '') {
-            return;
+        if ($tckno !== '') {
+            echo '<p><strong>' . esc_html__('National ID', 'sutore-marketplace') . ':</strong> '
+                . esc_html($tckno) . '</p>';
         }
-
-        echo '<p><strong>' . esc_html__('National ID', 'sutore-marketplace') . ':</strong> '
-            . esc_html($tckno) . '</p>';
+        if ($birthYear !== '') {
+            echo '<p><strong>' . esc_html__('Year of birth', 'sutore-marketplace') . ':</strong> '
+                . esc_html($birthYear) . '</p>';
+        }
     }
 
     /** @param array<string, mixed> $data */
     public function orderPreviewData(array $data, \WC_Order $order): array
     {
-        $tckno = (string) $order->get_meta(self::ORDER_META);
+        $tckno = (string) $order->get_meta(self::ORDER_META_TCKNO);
         if ($tckno === '') {
-            $tckno = (string) get_user_meta((int) $order->get_customer_id(), self::USER_META, true);
+            $tckno = (string) get_user_meta((int) $order->get_customer_id(), self::USER_META_TCKNO, true);
+        }
+        $birthYear = (string) $order->get_meta(self::ORDER_META_BIRTH_YEAR);
+        if ($birthYear === '') {
+            $birthYear = (string) get_user_meta((int) $order->get_customer_id(), self::USER_META_BIRTH_YEAR, true);
         }
 
         $data['sutore_marketplace_tckno'] = $tckno;
+        $data['sutore_marketplace_birth_year'] = $birthYear;
 
         return $data;
     }
@@ -140,6 +206,7 @@ final class CheckoutIdentityHooks
     public function renderOrderPreviewTckno(): void
     {
         echo '<div><strong>' . esc_html__('National ID', 'sutore-marketplace') . ':</strong> {{data.sutore_marketplace_tckno}}</div>';
+        echo '<div><strong>' . esc_html__('Year of birth', 'sutore-marketplace') . ':</strong> {{data.sutore_marketplace_birth_year}}</div>';
     }
 
     public function registerBlocksField(): void
@@ -149,7 +216,7 @@ final class CheckoutIdentityHooks
         }
 
         woocommerce_register_additional_checkout_field([
-            'id' => 'sutore-marketplace/billing-tckno',
+            'id' => self::BLOCKS_TCKNO_ID,
             'label' => __('National ID', 'sutore-marketplace'),
             'location' => 'address',
             'type' => 'text',
@@ -174,11 +241,43 @@ final class CheckoutIdentityHooks
                 return true;
             },
         ]);
+
+        if (!Settings::youthDiscountEnabled()) {
+            return;
+        }
+
+        woocommerce_register_additional_checkout_field([
+            'id' => self::BLOCKS_BIRTH_YEAR_ID,
+            'label' => __('Year of birth', 'sutore-marketplace'),
+            'location' => 'address',
+            'type' => 'text',
+            'required' => false,
+            'attributes' => [
+                'inputmode' => 'numeric',
+                'maxlength' => 4,
+            ],
+            'validate_callback' => static function ($value): bool|\WP_Error {
+                if ($value === null || $value === '') {
+                    return true;
+                }
+
+                $year = YouthDiscount::normalizeBirthYear((string) $value);
+                if ($year < 1900 || $year > YouthDiscount::currentYear()) {
+                    return new \WP_Error(
+                        'sutore_marketplace_invalid_birth_year',
+                        __('Enter a valid year of birth.', 'sutore-marketplace')
+                    );
+                }
+
+                return true;
+            },
+        ]);
     }
 
     public function validateBlocksCheckout(\WC_Order $order, \WP_REST_Request $request): void
     {
         $tckno = $this->extractBlocksTckno($request);
+        $birthYear = $this->extractBlocksBirthYear($request);
 
         if ($tckno === '' && $this->tcknoRequired()) {
             $this->throwBlocksCheckoutError(
@@ -193,20 +292,33 @@ final class CheckoutIdentityHooks
                 __('Please enter a valid national ID number.', 'sutore-marketplace')
             );
         }
+
+        if ($birthYear > 0 && ($birthYear < 1900 || $birthYear > YouthDiscount::currentYear())) {
+            $this->throwBlocksCheckoutError(
+                'sutore_marketplace_invalid_birth_year',
+                __('Enter a valid year of birth.', 'sutore-marketplace')
+            );
+        }
     }
 
     public function saveBlocksOrderMeta(\WC_Order $order, \WP_REST_Request $request): void
     {
         $tckno = $this->extractBlocksTckno($request);
-        if ($tckno === '') {
-            return;
+        $birthYear = $this->extractBlocksBirthYear($request);
+        $customerId = (int) $order->get_customer_id();
+
+        if ($tckno !== '') {
+            $order->update_meta_data(self::ORDER_META_TCKNO, sanitize_text_field($tckno));
+            if ($customerId > 0) {
+                update_user_meta($customerId, self::USER_META_TCKNO, sanitize_text_field($tckno));
+            }
         }
 
-        $order->update_meta_data(self::ORDER_META, sanitize_text_field($tckno));
-
-        $customerId = (int) $order->get_customer_id();
-        if ($customerId > 0) {
-            update_user_meta($customerId, self::USER_META, sanitize_text_field($tckno));
+        if ($birthYear >= 1900) {
+            $order->update_meta_data(self::ORDER_META_BIRTH_YEAR, (string) $birthYear);
+            if ($customerId > 0) {
+                update_user_meta($customerId, self::USER_META_BIRTH_YEAR, (string) $birthYear);
+            }
         }
     }
 
@@ -217,9 +329,17 @@ final class CheckoutIdentityHooks
             return '';
         }
 
-        $raw = $fields['sutore-marketplace/billing-tckno'] ?? '';
+        return preg_replace('/\D/', '', (string) ($fields[self::BLOCKS_TCKNO_ID] ?? '')) ?? '';
+    }
 
-        return preg_replace('/\D/', '', (string) $raw) ?? '';
+    private function extractBlocksBirthYear(\WP_REST_Request $request): int
+    {
+        $fields = $request->get_param('additional_fields');
+        if (!is_array($fields)) {
+            return 0;
+        }
+
+        return YouthDiscount::normalizeBirthYear((string) ($fields[self::BLOCKS_BIRTH_YEAR_ID] ?? ''));
     }
 
     private function throwBlocksCheckoutError(string $code, string $message): void

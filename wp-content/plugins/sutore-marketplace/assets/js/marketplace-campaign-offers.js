@@ -91,10 +91,17 @@
     if (row.campaign_name) {
       metaParts.push(row.campaign_name);
     }
+    if (row.source_label) {
+      metaParts.push(row.source_label);
+    }
     metaParts.push(row.status_label || row.status || '');
     $info.append(
       $('<div class="sutore-mp-card-meta"/>').html(metaParts.map(esc).join(' · '))
     );
+
+    if (row.headline) {
+      $info.append($('<div class="sutore-mp-card-offer-headline"/>').text(row.headline));
+    }
 
     var discountLine =
       t('campaignAskingBefore', 'Current asking') +
@@ -168,8 +175,23 @@
     var $summary = $ov.find('.sutore-mp-offer-modal-summary');
     var $foot = $ov.find('.sutore-mp-offer-modal-foot');
 
-    $title.text(row.product_title || t('campaignOfferTitle', 'Campaign offer'));
+    var title = row.product_title || t('campaignOfferTitle', 'Campaign offer');
+    if (row.permalink) {
+      $title.empty().append(
+        $('<a class="sutore-mp-manage-modal__title-link"/>')
+          .attr('href', row.permalink)
+          .attr('target', '_blank')
+          .attr('rel', 'noopener noreferrer')
+          .text(title)
+      );
+    } else {
+      $title.text(title);
+    }
+
     var subParts = [];
+    if (row.product_code) {
+      subParts.push(row.product_code);
+    }
     if (row.variation_id) {
       subParts.push('#' + row.variation_id);
     }
@@ -189,7 +211,7 @@
         'sutore-mp-manage-modal__thumb-box',
         'sutore-mp-manage-modal__thumb',
         row.thumbnail,
-        row.product_title || ''
+        title
       );
       if (row.permalink) {
         $media.append(
@@ -197,6 +219,7 @@
             .attr('href', row.permalink)
             .attr('target', '_blank')
             .attr('rel', 'noopener noreferrer')
+            .attr('aria-label', title)
             .append($thumb)
         );
       } else {
@@ -208,11 +231,11 @@
     }
 
     var html = '<dl class="sutore-mp-form-context-meta sutore-mp-manage-summary-meta sutore-mp-offer-meta">';
-    if (row.variation_id) {
-      html += metaRow(t('variationId', 'Variation ID'), esc('#' + row.variation_id));
+    if (row.headline) {
+      html += metaRow(t('campaignHeadline', 'Suggestion'), esc(row.headline));
     }
-    if (row.product_code) {
-      html += metaRow(t('productCode', 'Product code'), esc(row.product_code));
+    if (row.source_label) {
+      html += metaRow(t('campaignSource', 'Source'), esc(row.source_label));
     }
     if (row.size_label) {
       html += metaRow(t('size', 'Size'), esc(row.size_label));
@@ -238,6 +261,12 @@
 
     if (row.status === 'pending') {
       $foot.prop('hidden', false);
+      var $decline = $foot.find('.sutore-mp-campaign-decline');
+      $decline.text(
+        row.source === 'system'
+          ? t('campaignNotNow', 'Not now')
+          : t('campaignOfferDecline', 'Decline')
+      );
     } else {
       $foot.prop('hidden', true);
     }

@@ -81,7 +81,12 @@ final class ListingsBulkController
             return RestResponse::fail(__('Upload a CSV file.', 'sutore-marketplace'), 400);
         }
 
-        $result = (new ListingBulkImportService())->validate($csv, get_current_user_id());
+        $forMerchant = isset($params['merchant_id']) ? (int) $params['merchant_id'] : null;
+        $result = (new ListingBulkImportService())->validate(
+            $csv,
+            get_current_user_id(),
+            $forMerchant && $forMerchant > 0 ? $forMerchant : null
+        );
         if (is_wp_error($result)) {
             return RestResponse::fromWpError($result);
         }

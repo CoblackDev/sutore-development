@@ -29,8 +29,14 @@ final class NotificationType
     public const LISTING_BULK_IMPORT_COMPLETED = 'listing.bulk_import_completed';
 
     public const TASK_COMPLETED = 'task.completed';
+    public const LEVEL_CHANGED = 'level.changed';
 
     public const CAMPAIGN_OFFER = 'campaign.offer';
+    public const CUSTOMER_OFFER = 'customer.offer';
+    public const REFERRAL_REWARDED = 'referral.rewarded';
+    public const CATALOG_REQUEST_FULFILLED = 'catalog_request.fulfilled';
+    public const CATALOG_REQUEST_REJECTED = 'catalog_request.rejected';
+    public const OUTLET_LISTING_LIVE = 'outlet.listing_live';
 
     /** @return array<string, string> */
     public static function categories(): array
@@ -54,7 +60,13 @@ final class NotificationType
             self::LISTING_EXPIRED => 'listing',
             self::LISTING_BULK_IMPORT_COMPLETED => 'listing',
             self::TASK_COMPLETED => 'system',
+            self::LEVEL_CHANGED => 'system',
             self::CAMPAIGN_OFFER => 'listing',
+            self::CUSTOMER_OFFER => 'listing',
+            self::REFERRAL_REWARDED => 'system',
+            self::CATALOG_REQUEST_FULFILLED => 'listing',
+            self::CATALOG_REQUEST_REJECTED => 'listing',
+            self::OUTLET_LISTING_LIVE => 'listing',
         ];
     }
 
@@ -63,15 +75,61 @@ final class NotificationType
         return self::categories()[$type] ?? 'system';
     }
 
-    /** @return array<string, bool> */
-    public static function defaultEventFlags(): array
+    /**
+     * Existing seller SMS templates keyed by notification type.
+     * Types without a mapping can still SMS via panel title + body if the channel is on.
+     *
+     * @return array<string, string>
+     */
+    public static function smsTemplateMap(): array
     {
-        $flags = [];
+        return [
+            self::SALE_RECEIVED => 'seller_confirm_request',
+            self::SALE_CONFIRM_REMINDER => 'seller_confirm_reminder',
+            self::SALE_CONFIRMED => 'seller_confirmed_seller',
+            self::SALE_SUSPENDED => 'suspended_seller',
+            self::SALE_CARGO_REMINDER => 'seller_cargo_reminder',
+            self::SALE_CARGO_EXPIRED => 'seller_cargo_expired',
+            self::FULFILLMENT_SHIPPED_TO_SUTORE => 'shipped_to_sutore_seller',
+            self::FULFILLMENT_ARRIVED_AT_SUTORE => 'arrived_seller',
+            self::FULFILLMENT_VERIFIED => 'verified_seller',
+            self::PAYOUT_PAID => 'paid_seller',
+        ];
+    }
+
+    public static function smsTemplateKey(string $type): ?string
+    {
+        $map = self::smsTemplateMap();
+
+        return $map[$type] ?? null;
+    }
+
+    public static function queuesSms(string $type): bool
+    {
+        return in_array($type, [
+            self::SALE_CONFIRM_REMINDER,
+            self::SALE_SUSPENDED,
+            self::SALE_CARGO_REMINDER,
+            self::SALE_CARGO_EXPIRED,
+        ], true);
+    }
+
+    /**
+     * @return array<string, array{panel: bool, sms: bool, push: bool}>
+     */
+    public static function defaultChannels(): array
+    {
+        $smsTypes = array_keys(self::smsTemplateMap());
+        $channels = [];
         foreach (array_keys(self::categories()) as $type) {
-            $flags[$type] = true;
+            $channels[$type] = [
+                NotificationChannel::PANEL => true,
+                NotificationChannel::SMS => in_array($type, $smsTypes, true),
+                NotificationChannel::PUSH => false,
+            ];
         }
 
-        return $flags;
+        return $channels;
     }
 
     /** @return array<string, string> */
@@ -96,7 +154,13 @@ final class NotificationType
             self::LISTING_EXPIRED => __('Listing expired', 'sutore-marketplace'),
             self::LISTING_BULK_IMPORT_COMPLETED => __('Bulk import completed', 'sutore-marketplace'),
             self::TASK_COMPLETED => __('Task completed', 'sutore-marketplace'),
+            self::LEVEL_CHANGED => __('Seller level changed', 'sutore-marketplace'),
             self::CAMPAIGN_OFFER => __('Campaign offer', 'sutore-marketplace'),
+            self::CUSTOMER_OFFER => __('Customer offer', 'sutore-marketplace'),
+            self::REFERRAL_REWARDED => __('Referral reward', 'sutore-marketplace'),
+            self::CATALOG_REQUEST_FULFILLED => __('Catalog product added', 'sutore-marketplace'),
+            self::CATALOG_REQUEST_REJECTED => __('Catalog request declined', 'sutore-marketplace'),
+            self::OUTLET_LISTING_LIVE => __('Outlet listing is live', 'sutore-marketplace'),
         ];
     }
 

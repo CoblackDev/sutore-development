@@ -34,20 +34,7 @@ final class TasksController
     public function dashboard(\WP_REST_Request $req): \WP_REST_Response
     {
         $dash = (new TaskProgressService())->dashboardForMerchant(get_current_user_id());
-        $rewards = array_map(static function ($row): array {
-            return [
-                'id' => (int) $row->id,
-                'task_id' => (int) $row->task_id,
-                'reward_type' => (string) $row->reward_type,
-                'reward_value' => (float) $row->reward_value,
-                'note' => (string) ($row->note ?? ''),
-                'created_at' => (string) ($row->created_at ?? ''),
-            ];
-        }, $dash['rewards']);
 
-        return RestResponse::success([
-            'tasks' => $dash['tasks'],
-            'rewards' => $rewards,
-        ]);
+        return RestResponse::success($dash);
     }
 }

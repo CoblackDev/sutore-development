@@ -6,6 +6,7 @@ namespace SutoreMarketplace\Modules\Tasks;
 
 use SutoreMarketplace\Modules\Tasks\Rest\AdminTasksController;
 use SutoreMarketplace\Modules\Tasks\Rest\TasksController;
+use SutoreMarketplace\Modules\Tasks\Services\OpportunityCardService;
 
 final class Module
 {
@@ -13,5 +14,8 @@ final class Module
     {
         (new TasksController())->register();
         (new AdminTasksController())->register();
+        add_action('init', static function (): void {
+            (new OpportunityCardService())->ensureSystemTemplates();
+        }, 20);
     }
 }

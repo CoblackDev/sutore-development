@@ -6,8 +6,10 @@ namespace SutoreMarketplace\Modules\Listings\Services;
 
 use SutoreMarketplace\Modules\Listings\Domain\Listing;
 use SutoreMarketplace\Modules\Listings\Domain\ListingConditionRank;
+use SutoreMarketplace\Modules\Listings\Domain\ListingDuration;
 use SutoreMarketplace\Modules\Listings\Domain\ListingExpireDisplay;
 use SutoreMarketplace\Modules\Listings\Domain\ListingPolicy;
+use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
 use SutoreMarketplace\Shared\Domain\MarketplacePricing;
 use SutoreMarketplace\Shared\Domain\MerchantLevels;
 use SutoreMarketplace\Modules\Listings\Domain\ProductCodeLookup;
@@ -26,8 +28,8 @@ final class ListingFormContext
 
     public function build(array $input): array
     {
-        $listingId = isset($input['listing_id']) ? (int) $input['listing_id'] : null;
-        $existing = $listingId ? $this->listings->find($listingId) : null;
+        $variationId = isset($input['variation_id']) ? (int) $input['variation_id'] : null;
+        $existing = $variationId ? $this->listings->find($variationId) : null;
 
         $parentId = (int) ($input['parent_product_id'] ?? ($existing?->parentProductId ?? 0));
         $sizeTermId = (int) ($input['size_term_id'] ?? ($existing?->sizeTermId ?? 0));
@@ -50,6 +52,11 @@ final class ListingFormContext
                 : $existing?->hasInvoice,
         );
 
+        $canFlagImported = ListingPolicy::canFlagImported();
+        $isImported = ($canFlagImported && array_key_exists('is_imported', $input))
+            ? !empty($input['is_imported'])
+            : (bool) ($existing?->isImported ?? false);
+
         $fingerprint = ListingRepository::fingerprint($defectConditions, $fastShipment, $hasInvoice);
         $asking = $this->resolveAsking($input, $existing);
 
@@ -71,42 +78,79 @@ final class ListingFormContext
         $minAsking = $priceLeader ? MarketplacePricing::activeAsking($priceLeader) : null;
 
         $viewerId = get_current_user_id();
-        $merchantId = $existing?->merchantId ?: $viewerId;
+        $requestedMerchant = isset($input['merchant_id']) ? (int) $input['merchant_id'] : 0;
+        if ($existing) {
+            $merchantId = (int) $existing->merchantId;
+        } elseif ($requestedMerchant > 0 && user_can($viewerId, 'manage_woocommerce')) {
+            $resolved = ListingPolicy::assertValidMerchantTarget($requestedMerchant);
+            $merchantId = is_wp_error($resolved) ? $viewerId : $resolved;
+        } else {
+            $merchantId = $viewerId;
+        }
 
         $ranked = ($parentId && $sizeTermId)
             ? $this->rankedWithDraft($parentId, $sizeTermId, $existing, $asking, $defectConditions, $fastShipment, $hasInvoice, $merchantId, $fingerprint)
             : [];
-        $draftId = $existing?->id ?? -1;
+        $draftId = $existing?->variationId ?? -1;
         $queuePosition = 1;
         $queueTotal = count($ranked);
         foreach ($ranked as $index => $listing) {
-            if ((int) $listing->id === (int) $draftId) {
+            if ((int) $listing->variationId === (int) $draftId) {
                 $queuePosition = $index + 1;
                 break;
             }
         }
 
         $firstPlace = ListingConditionRank::firstPlaceAskingForDraft($ranked, $draftId);
-        $blockedByBetterCondition = ListingConditionRank::isBlockedByBetterCondition($ranked, $draftId);
-        $canWinSale = $queuePosition === 1 && !$blockedByBetterCondition;
+        $canWinSale = $queuePosition === 1;
         $showFirstPlaceButton = $firstPlace !== null;
+        $staffSimple = !empty($input['staff_simple']) && user_can($viewerId, 'manage_woocommerce');
+        if ($staffSimple) {
+            $showFirstPlaceButton = false;
+        }
 
-        $commission = MerchantLevels::commissionPercentForUser($merchantId);
+        $commission = $existing
+            ? (new \SutoreMarketplace\Modules\Merchants\Services\CommissionResolver())->forListing($existing)['percent']
+            : MerchantLevels::commissionPercentForUser($merchantId);
         $merchantStatus = MerchantLevels::statusForUser($merchantId);
-        $canViewCompetingPrices = ListingPolicy::canViewCompetingPrices($viewerId);
+        $canViewCompetingPrices = !$staffSimple && ListingPolicy::canViewCompetingPrices($viewerId);
         $estimatedPayout = null;
         if ($asking !== null) {
             $fake = new \SutoreMarketplace\Modules\Listings\Domain\Listing(
-                null, 0, $parentId, $sizeTermId, $merchantId, 'pending', (float) $asking, $fingerprint
+                0, $parentId, $sizeTermId, $merchantId, 'pending', (float) $asking, $fingerprint
             );
             $estimatedPayout = MarketplacePricing::merchantPayout($fake, $commission);
         }
 
-        $expireDays = Settings::expireDays();
-        $expireAt = $existing?->expireAt;
+        $allowedDurations = ListingPolicy::allowedListingDurations($merchantId);
+        $defaultDuration = Settings::defaultListingDurationDays();
+        $selectedDuration = $existing?->durationDays ?? $defaultDuration;
+        if (array_key_exists('duration_days', $input)) {
+            $draftDuration = (int) $input['duration_days'];
+            if (in_array($draftDuration, $allowedDurations, true)) {
+                $selectedDuration = $draftDuration;
+            }
+        }
+        if (!in_array($selectedDuration, $allowedDurations, true)) {
+            $selectedDuration = ListingDuration::clampToAllowed($selectedDuration, $allowedDurations);
+        }
+
+        $previewExpireAt = $existing?->expireAt;
+        $durationChangedInDraft = $existing
+            && array_key_exists('duration_days', $input)
+            && (int) $input['duration_days'] !== $existing->durationDays;
+        if (
+            !$previewExpireAt
+            || $existing?->listingStatus === ListingStatus::EXPIRED
+            || $durationChangedInDraft
+            || !$existing
+        ) {
+            $previewExpireAt = ListingDuration::computeExpireAt($selectedDuration);
+        }
+
         $expireRemaining = null;
-        if ($expireAt) {
-            $expireRemaining = max(0, (int) ceil((strtotime($expireAt) - current_time('timestamp')) / DAY_IN_SECONDS));
+        if ($previewExpireAt) {
+            $expireRemaining = max(0, (int) ceil((strtotime((string) $previewExpireAt) - current_time('timestamp')) / DAY_IN_SECONDS));
         }
 
         $parentThumbnail = $parentId ? ProductThumbnail::url($parentId) : '';
@@ -116,7 +160,7 @@ final class ListingFormContext
 
         return array_merge([
             'mode' => $existing ? 'edit' : 'create',
-            'listing_id' => $existing?->id,
+            'variation_id' => $existing?->variationId,
             'listing' => $existing ? array_merge($existing->toArray(), [
                 'parent_title' => get_the_title($existing->parentProductId),
                 'product_code' => ProductCodeLookup::codeForProduct($existing->parentProductId),
@@ -131,6 +175,8 @@ final class ListingFormContext
             'asking' => $asking,
             'fast_shipment' => $fastShipment,
             'has_invoice' => $hasInvoice,
+            'is_imported' => $isImported,
+            'can_flag_imported' => $canFlagImported,
             'min_on_sale_asking' => $minAsking,
             'min_on_sale_display' => $minAsking !== null
                 ? MarketplacePricing::formatTl((float) $minAsking)
@@ -139,10 +185,9 @@ final class ListingFormContext
             'show_first_place_button' => $showFirstPlaceButton,
             'can_win_sale' => $canWinSale,
             'merchant_auto_activates' => Settings::merchantAutoActivates($merchantId),
-            'blocked_by_better_condition' => $blockedByBetterCondition,
             'listing_price_step' => $step,
             'has_winner' => (bool) $priceLeader,
-            'winner_listing_id' => $priceLeader?->id,
+            'winner_variation_id' => $priceLeader?->variationId,
             'queue_position' => $queuePosition,
             'queue_total' => $queueTotal,
             'estimated_net_payout' => $estimatedPayout,
@@ -152,13 +197,26 @@ final class ListingFormContext
             'listing_compare_display' => $asking !== null
                 ? MarketplacePricing::formatTl(MarketplacePricing::listingComparePrice((float) $asking))
                 : null,
-            'fast_shipment_eligible' => ListingPolicy::canUseFastShipment(get_current_user_id()),
-            'expire_days_remaining' => $expireRemaining ?? $expireDays,
-            'expire_at' => $expireAt ?: gmdate('c', time() + ($expireDays * DAY_IN_SECONDS)),
+            'fast_shipment_eligible' => $staffSimple || ListingPolicy::canUseFastShipment($merchantId),
+            'duration_days' => $selectedDuration,
+            'default_duration_days' => $defaultDuration,
+            'allowed_duration_days' => $allowedDurations,
+            'duration_options' => array_map(
+                static fn (int $days): array => [
+                    'days' => $days,
+                    'label' => ListingDuration::optionLabel($days),
+                ],
+                $allowedDurations
+            ),
+            'expire_days_remaining' => $expireRemaining ?? $selectedDuration,
+            'expire_at' => wp_date('c', strtotime((string) $previewExpireAt)),
             'no_active_sale_message' => $priceLeader ? null : __('No active sale for this size', 'sutore-marketplace'),
             'can_view_competing_prices' => $canViewCompetingPrices,
+            'can_request_catalog_product' => ListingPolicy::canRequestCatalogProduct($merchantId),
+            'staff_simple' => $staffSimple,
+            'merchant_id' => $merchantId,
             'competing_prices' => ($parentId && $sizeTermId && $canViewCompetingPrices)
-                ? $this->competingPricesForSize($parentId, $sizeTermId, $existing?->id, $viewerId)
+                ? $this->competingPricesForSize($parentId, $sizeTermId, $existing?->variationId, $viewerId)
                 : [],
         ], $retail);
     }
@@ -187,17 +245,10 @@ final class ListingFormContext
             return ListingConditionRank::sortForSale($candidates);
         }
 
-        if ($draft->id !== null && (int) $draft->id > 0) {
-            $candidates = array_values(array_filter(
-                $candidates,
-                static fn (Listing $listing): bool => (int) $listing->id !== (int) $draft->id
-            ));
-        } elseif ((int) $draft->id === -1) {
-            $candidates = array_values(array_filter(
-                $candidates,
-                static fn (Listing $listing): bool => (int) $listing->id !== -1
-            ));
-        }
+        $candidates = array_values(array_filter(
+            $candidates,
+            static fn (Listing $listing): bool => (int) $listing->variationId !== (int) $draft->variationId
+        ));
 
         $candidates[] = $draft;
 
@@ -238,7 +289,6 @@ final class ListingFormContext
 
         if ($existing) {
             return new Listing(
-                id: $existing->id,
                 variationId: $existing->variationId,
                 parentProductId: $existing->parentProductId,
                 sizeTermId: $existing->sizeTermId,
@@ -248,6 +298,8 @@ final class ListingFormContext
                 conditionFingerprint: $fingerprint,
                 campaignStatus: $existing->campaignStatus,
                 campaignId: $existing->campaignId,
+                campaignCooledUntil: $existing->campaignCooledUntil,
+                campaignAgingStep: $existing->campaignAgingStep,
                 expireAt: $existing->expireAt,
                 fastShipment: $fastShipment,
                 hasInvoice: $hasInvoice,
@@ -262,7 +314,6 @@ final class ListingFormContext
         }
 
         return new Listing(
-            id: -1,
             variationId: 0,
             parentProductId: $parentId,
             sizeTermId: $sizeTermId,
@@ -315,7 +366,6 @@ final class ListingFormContext
             $asking = (float) $listing->asking;
             $rows[] = [
                 'position' => $index + 1,
-                'listing_id' => $listing->id,
                 'variation_id' => $listing->variationId,
                 'listing_status' => $listing->listingStatus,
                 'is_winner' => $listing->isWinner,
@@ -325,10 +375,9 @@ final class ListingFormContext
                     MarketplacePricing::listingComparePrice($asking)
                 ),
                 'is_own' => (int) $listing->merchantId === $viewerId,
-                'is_current' => $currentListingId !== null && (int) $listing->id === $currentListingId,
+                'is_current' => $currentListingId !== null && (int) $listing->variationId === $currentListingId,
                 'is_flawless' => ListingConditionRank::isFlawless($listing),
                 'has_defect' => ListingConditionRank::hasDefect($listing),
-                'defect_severity' => ListingConditionRank::defectSeverity($listing),
                 'conditions' => $listing->conditions,
                 'fast_shipment' => $listing->fastShipment,
                 'has_invoice' => $listing->hasInvoice,

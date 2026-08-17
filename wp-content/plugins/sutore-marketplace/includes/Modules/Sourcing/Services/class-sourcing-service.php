@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Modules\Sourcing\Services;
 
+use SutoreMarketplace\Modules\Listings\Domain\ListingEventType;
 use SutoreMarketplace\Modules\Listings\Domain\Listing;
 use SutoreMarketplace\Modules\Listings\Domain\ListingPriceValidator;
 use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
@@ -11,54 +12,38 @@ use SutoreMarketplace\Modules\Listings\Repositories\ListingEventsRepository;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 use SutoreMarketplace\Modules\Listings\Services\ListingSelector;
 use SutoreMarketplace\Modules\Listings\Services\ListingService;
-use SutoreMarketplace\Modules\Orders\Repositories\FulfillmentRepository;
-use SutoreMarketplace\Modules\Sourcing\Repositories\SourcingRepository;
+use SutoreMarketplace\Modules\Orders\Services\FulfillmentService;
 use SutoreMarketplace\Shared\Settings\Settings;
 
 final class SourcingService
 {
     public function __construct(
-        private readonly SourcingRepository $sourcing = new SourcingRepository(),
         private readonly ListingRepository $listings = new ListingRepository(),
         private readonly ListingEventsRepository $events = new ListingEventsRepository(),
         private readonly ListingSelector $selector = new ListingSelector(),
         private readonly ListingService $listingService = new ListingService(),
-        private readonly FulfillmentRepository $fulfillments = new FulfillmentRepository(),
+        private readonly FulfillmentService $fulfillments = new FulfillmentService(),
     ) {
     }
 
     /**
-     * Accept an open sourcing request. A matching merchant listing is reused by
-     * default; the merchant may explicitly keep it and create a new pre-order listing.
+     * Accept a pre-order board listing — immediate order swap.
      *
-     * @return array{ok: true, request_id: int, listing_id: int, listing_created: bool}|\WP_Error
+     * @return array{ok: true, variation_id: int, listing_created: bool, asking: int}|\WP_Error
      */
     public function accept(
-        int $requestId,
+        int $preOrderVariationId,
         int $merchantId,
         ?int $listingId = null,
         bool $createNewListing = false
-    ): array|\WP_Error
-    {
-        $row = $this->sourcing->find($requestId);
-        if (!$row) {
-            return new \WP_Error('sutore_sourcing_missing', __('Sourcing request not found.', 'sutore-marketplace'));
-        }
-        if ($row->status !== 'open') {
-            return new \WP_Error('sutore_sourcing_closed', __('Request is not open.', 'sutore-marketplace'));
-        }
-
-        $parentId = (int) $row->parent_product_id;
-        $sizeTermId = (int) ($row->size_term_id ?? 0);
-        if ($parentId <= 0 || $sizeTermId <= 0) {
-            return new \WP_Error(
-                'sutore_sourcing_incomplete',
-                __('Pre-order request is missing product or size.', 'sutore-marketplace')
-            );
+    ): array|\WP_Error {
+        $preOrder = $this->listings->find($preOrderVariationId);
+        if (!$preOrder || $preOrder->listingStatus !== ListingStatus::PRE_ORDER) {
+            return new \WP_Error('sutore_pre_order_missing', __('Pre-order not found.', 'sutore-marketplace'));
         }
 
         $resolved = $this->resolveListingForAccept(
-            $row,
+            $preOrder,
             $merchantId,
             $createNewListing ? null : $listingId,
             $createNewListing
@@ -68,129 +53,100 @@ final class SourcingService
         }
 
         /** @var array{listing: Listing, created: bool} $resolved */
-        $listing = $resolved['listing'];
+        $replacement = $resolved['listing'];
         $created = $resolved['created'];
-        $offerAsking = $this->askingForRequest($row);
+        $offerAsking = $this->askingForPreOrder($preOrder);
 
-        $this->sourcing->update($requestId, [
-            'status' => 'accepted',
-            'accepted_merchant_id' => $merchantId,
-        ]);
+        if (!$created && (int) $replacement->asking !== $offerAsking) {
+            $this->listings->update((int) $replacement->variationId, ['asking' => $offerAsking]);
+            $this->syncVariationAsking((int) $replacement->variationId, $offerAsking);
+            $this->selector->rerunSize($replacement->parentProductId, $replacement->sizeTermId);
+        }
 
-        $this->listings->update((int) $listing->id, [
-            'listing_status' => ListingStatus::NOT_SALE,
-            'is_winner' => 0,
-            'asking' => $offerAsking,
-            'sourcing_request_id' => $requestId,
-        ]);
-        $this->syncVariationAsking((int) $listing->variationId, $offerAsking);
-        $this->selector->rerunSize($listing->parentProductId, $listing->sizeTermId);
-        $this->events->log('sourcing_pre_order', [
-            'request_id' => $requestId,
-            'listing_id' => (int) $listing->id,
-            'listing_created' => $created,
-            'asking' => $offerAsking,
-        ], (int) $listing->id, $listing->variationId, $merchantId, 'merchant_visible');
+        $swapped = $this->fulfillments->acceptPreOrderSwap(
+            $preOrderVariationId,
+            (int) $replacement->variationId,
+            $merchantId
+        );
+        if (is_wp_error($swapped)) {
+            return $swapped;
+        }
+
+        $this->events->logForListing(
+            ListingEventType::PRE_ORDER_ACCEPTED,
+            $replacement,
+            [
+                'pre_order_variation_id' => $preOrderVariationId,
+                'variation_id' => (int) $replacement->variationId,
+                'listing_created' => $created,
+                'asking' => $offerAsking,
+            ],
+            $merchantId,
+            'merchant_visible'
+        );
+
+        $this->events->logForListing(
+            ListingEventType::SOURCING_FULFILLED,
+            $replacement,
+            [
+                'pre_order_variation_id' => $preOrderVariationId,
+                'variation_id' => (int) $replacement->variationId,
+                'asking' => $offerAsking,
+            ],
+            $merchantId,
+            'merchant_visible'
+        );
+
+        (new \SutoreMarketplace\Modules\Merchants\Services\BehaviorScoreService())->refreshMerchant($merchantId);
+        (new \SutoreMarketplace\Modules\Tasks\Services\TaskProgressService())
+            ->incrementByTemplate($merchantId, \SutoreMarketplace\Modules\Tasks\Domain\OpportunityTemplate::ENGAGEMENT_SOURCING);
 
         return [
             'ok' => true,
-            'request_id' => $requestId,
-            'listing_id' => (int) $listing->id,
+            'variation_id' => (int) $replacement->variationId,
             'listing_created' => $created,
             'asking' => $offerAsking,
         ];
-    }
-
-    public function fulfill(int $requestId): true|\WP_Error
-    {
-        $row = $this->sourcing->find($requestId);
-        if (!$row) {
-            return new \WP_Error('sutore_sourcing_missing', __('Sourcing request not found.', 'sutore-marketplace'));
-        }
-
-        $this->sourcing->update($requestId, ['status' => 'fulfilled']);
-        $this->events->log('sourcing_fulfilled', [
-            'request_id' => $requestId,
-            'order_id' => (int) $row->order_id,
-        ], null, null, (int) ($row->accepted_merchant_id ?: 0), 'admin_only');
-
-        do_action('sutore_marketplace_sourcing_fulfilled', $requestId, $row);
-
-        return true;
-    }
-
-    public function cancel(int $requestId): true|\WP_Error
-    {
-        $listing = $this->listings->findBySourcingRequestId($requestId);
-        if ($listing) {
-            $wasHeld = ListingStatus::isSourcingHeld($listing);
-            $this->listings->update((int) $listing->id, [
-                'sourcing_request_id' => null,
-                'listing_status' => ListingStatus::NOT_SALE,
-            ]);
-            if ($wasHeld) {
-                $this->selector->rerunSize($listing->parentProductId, $listing->sizeTermId);
-            }
-        }
-
-        $this->sourcing->update($requestId, ['status' => 'cancelled']);
-
-        return true;
-    }
-
-    /**
-     * Staff-created sourcing request (same fields as former Rest create).
-     *
-     * @param array<string, mixed> $params
-     */
-    public function createRequest(array $params, int $requestedBy): int|\WP_Error
-    {
-        return $this->sourcing->create([
-            'order_id' => (int) ($params['order_id'] ?? 0),
-            'order_item_id' => (int) ($params['order_item_id'] ?? 0),
-            'parent_product_id' => (int) ($params['parent_product_id'] ?? 0),
-            'size_term_id' => (int) ($params['size_term_id'] ?? 0),
-            'status' => 'open',
-            'requested_by' => $requestedBy,
-            'notes' => sanitize_textarea_field((string) ($params['notes'] ?? '')),
-        ]);
     }
 
     /**
      * @return array{listing: Listing, created: bool}|\WP_Error
      */
     private function resolveListingForAccept(
-        object $row,
+        Listing $preOrder,
         int $merchantId,
         ?int $listingId,
         bool $createNewListing = false
-    ): array|\WP_Error
-    {
-        $parentId = (int) $row->parent_product_id;
-        $sizeTermId = (int) $row->size_term_id;
+    ): array|\WP_Error {
+        $parentId = (int) $preOrder->parentProductId;
+        $sizeTermId = (int) $preOrder->sizeTermId;
 
         if ($listingId) {
             $listing = $this->listings->find($listingId);
             if (!$listing || (int) $listing->merchantId !== $merchantId) {
                 return new \WP_Error(
-                    'sutore_sourcing_listing_forbidden',
-                    __('This Listing does not belong to you.', 'sutore-marketplace')
+                    'sutore_pre_order_listing_forbidden',
+                    __('This listing does not belong to you.', 'sutore-marketplace')
                 );
             }
             if ((int) $listing->parentProductId !== $parentId || (int) $listing->sizeTermId !== $sizeTermId) {
                 return new \WP_Error(
-                    'sutore_sourcing_listing_mismatch',
+                    'sutore_pre_order_listing_mismatch',
                     __('Listing does not match this pre-order product or size.', 'sutore-marketplace')
                 );
             }
-            if (ListingStatus::isProcessLocked($listing)) {
+            if ($listing->variationId !== $preOrder->variationId && ListingStatus::isProcessLocked($listing)) {
                 return new \WP_Error(
-                    'sutore_sourcing_listing_locked',
-                    __('This Listing is already in an order process.', 'sutore-marketplace')
+                    'sutore_pre_order_listing_locked',
+                    __('This listing is already in an order process.', 'sutore-marketplace')
                 );
             }
 
             return ['listing' => $listing, 'created' => false];
+        }
+
+        if ((int) $preOrder->merchantId === $merchantId) {
+            return ['listing' => $preOrder, 'created' => false];
         }
 
         if (!$createNewListing) {
@@ -200,7 +156,7 @@ final class SourcingService
             }
         }
 
-        $asking = $this->askingForRequest($row);
+        $asking = $this->askingForPreOrder($preOrder);
         $createdListing = $this->listingService->create([
             'parent_product_id' => $parentId,
             'size_term_id' => $sizeTermId,
@@ -211,19 +167,18 @@ final class SourcingService
             'box_damaged' => 0,
             'missing_accessory' => 0,
             'damaged' => 0,
-            'used' => 0,
-        ], $merchantId);
+        ], $merchantId, ['defer_selector' => true]);
 
         if (is_wp_error($createdListing)) {
             return $createdListing;
         }
 
-        $this->events->log('sourcing_listing_auto_created', [
-            'request_id' => (int) $row->id,
-            'order_id' => (int) $row->order_id,
+        $this->events->log('pre_order_listing_auto_created', [
+            'pre_order_variation_id' => $preOrder->variationId,
+            'order_id' => $preOrder->orderId,
             'asking' => $asking,
             'existing_listing_kept' => $createNewListing,
-        ], (int) $createdListing->id, $createdListing->variationId, $merchantId, 'merchant_visible');
+        ], $createdListing->variationId, $merchantId, 'merchant_visible');
 
         return ['listing' => $createdListing, 'created' => true];
     }
@@ -256,33 +211,16 @@ final class SourcingService
         return $fallback;
     }
 
-    /**
-     * Asking price offered for this pre-order (original sold listing price when available).
-     */
-    public function askingForRequest(object $row): int
+    public function askingForPreOrder(Listing $preOrder): int
     {
         $step = Settings::listingPriceStep();
 
-        $orderItemId = (int) ($row->order_item_id ?? 0);
-        $orderId = (int) ($row->order_id ?? 0);
-        if ($orderId > 0 && $orderItemId > 0) {
-            $fulfillment = $this->fulfillments->findByOrderItem($orderId, $orderItemId);
-            if ($fulfillment) {
-                $original = $this->listings->find((int) $fulfillment->listing_id);
-                if ($original && (float) $original->asking > 0) {
-                    return max($step, ListingPriceValidator::roundDownToStep((float) $original->asking, $step));
-                }
-            }
+        if ((float) $preOrder->asking > 0) {
+            return max($step, ListingPriceValidator::roundDownToStep((float) $preOrder->asking, $step));
         }
 
-        $lowest = $this->listings->getLowestOnSaleForSize(
-            (int) $row->parent_product_id,
-            (int) $row->size_term_id
-        );
-        if ($lowest && (float) $lowest->asking > 0) {
-            return max($step, ListingPriceValidator::roundDownToStep((float) $lowest->asking, $step));
-        }
-
+        $orderId = (int) ($preOrder->orderId ?? 0);
+        $orderItemId = (int) ($preOrder->orderItemId ?? 0);
         if ($orderId > 0 && $orderItemId > 0) {
             $order = wc_get_order($orderId);
             if ($order) {
@@ -294,6 +232,14 @@ final class SourcingService
                     }
                 }
             }
+        }
+
+        $lowest = $this->listings->getLowestOnSaleForSize(
+            (int) $preOrder->parentProductId,
+            (int) $preOrder->sizeTermId
+        );
+        if ($lowest && (float) $lowest->asking > 0) {
+            return max($step, ListingPriceValidator::roundDownToStep((float) $lowest->asking, $step));
         }
 
         return max($step, $step * 40);

@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Modules\Orders\Services;
 
 use SutoreMarketplace\Admin\AdminMenu;
+use SutoreMarketplace\Modules\Invoices\Repositories\InvoiceRepository;
+use SutoreMarketplace\Modules\Invoices\Services\InvoicePresenter;
 use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
 use SutoreMarketplace\Modules\Listings\Domain\ProductThumbnail;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 use SutoreMarketplace\Modules\Listings\Services\ListingActivityPresenter;
 use SutoreMarketplace\Modules\Listings\Services\ListingService;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutStatus;
+use SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule;
 use SutoreMarketplace\Modules\Merchants\Repositories\PayoutLineRepository;
 use SutoreMarketplace\Modules\Orders\Domain\StaffQueueFilter;
 use SutoreMarketplace\Modules\Orders\Repositories\FulfillmentRepository;
@@ -27,6 +30,7 @@ final class StaffFulfillmentPresenter
         private readonly ListingService $listingService = new ListingService(),
         private readonly FulfillmentService $fulfillmentService = new FulfillmentService(),
         private readonly PayoutLineRepository $payouts = new PayoutLineRepository(),
+        private readonly InvoiceRepository $invoices = new InvoiceRepository(),
         private readonly ListingActivityPresenter $activity = new ListingActivityPresenter(),
     ) {
     }
@@ -46,10 +50,14 @@ final class StaffFulfillmentPresenter
         }
 
         $item = $this->presentRow($row);
-        $payout = $this->payouts->findByListingId($fulfillmentId);
+        $payout = $this->payouts->findByVariationId($fulfillmentId);
         $actions = $this->buildActions($row, $item, $payout);
 
         $snapshot = is_array($item['merchant_snapshot'] ?? null) ? $item['merchant_snapshot'] : [];
+        $levelKey = sanitize_key((string) ($snapshot['merchant_level'] ?? ''));
+        if ($levelKey !== '') {
+            $snapshot['merchant_level_label'] = \SutoreMarketplace\Shared\Domain\MerchantLevels::labelForStatus($levelKey);
+        }
         $capturedAt = (string) ($snapshot['captured_at'] ?? '');
         $capturedTs = $capturedAt !== '' ? strtotime($capturedAt) : false;
         if ($capturedTs) {
@@ -63,26 +71,53 @@ final class StaffFulfillmentPresenter
 
         $payoutPayload = null;
         if ($payout) {
+            $scheduled = PayoutSchedule::normalizeDate($payout->scheduled_payout_date ?? '');
+            $paidAt = trim((string) ($payout->paid_at ?? ''));
+            $paidTs = $paidAt !== '' ? strtotime($paidAt) : false;
             $payoutPayload = [
                 'payout_status' => (string) $payout->payout_status,
                 'payout_status_label' => PayoutStatus::label((string) $payout->payout_status),
+                'commission_percent' => round((float) $payout->commission_percent, 2),
+                'commission_amount' => round((float) ($payout->commission_amount ?? 0), 2),
+                'hizmet_fee' => round((float) ($payout->hizmet_fee ?? 0), 2),
+                'guvence_fee' => round((float) ($payout->guvence_fee ?? 0), 2),
+                'extra_deduction' => round((float) ($payout->extra_deduction ?? 0), 2),
+                'gross_asking' => (float) $payout->gross_asking,
                 'net_amount' => (float) $payout->net_amount,
                 'net_amount_display' => MarketplacePricing::formatTl((float) $payout->net_amount),
+                'scheduled_payout_date' => $scheduled,
+                'scheduled_payout_date_display' => PayoutSchedule::formatDateWithWeekday($scheduled),
+                'scheduled_message' => (string) $payout->payout_status === PayoutStatus::PENDING
+                    ? PayoutSchedule::merchantPendingMessage($scheduled)
+                    : '',
+                'payout_due' => (string) $payout->payout_status === PayoutStatus::PENDING
+                    && PayoutSchedule::isDue($scheduled),
+                'paid_at' => $paidAt,
+                'paid_at_display' => $paidTs
+                    ? (string) wp_date(get_option('date_format') . ' ' . get_option('time_format'), $paidTs)
+                    : '',
+                'payment_ref' => (string) ($payout->payment_ref ?? ''),
             ];
         }
+
+        $commission = $this->commissionPayload($this->listings->find($fulfillmentId), $payout);
+        $invoiceRows = $this->invoices->findForVariations([
+            $fulfillmentId => (int) ($row->order_id ?? 0),
+        ])[$fulfillmentId] ?? [];
 
         return array_merge($item, [
             'merchant_snapshot' => $snapshot,
             'has_merchant_snapshot' => MerchantSnapshot::hasPaymentFields($snapshot),
             'payout' => $payoutPayload,
+            'commission' => $commission,
+            'invoices' => InvoicePresenter::forStaff($invoiceRows),
+            'invoice_summary' => InvoicePresenter::summary($invoiceRows),
+            'invoice_has_error' => InvoicePresenter::hasError($invoiceRows),
             'payment_status_display' => $payoutPayload
                 ? ($payoutPayload['payout_status_label'] . ' · ' . $payoutPayload['net_amount_display'])
                 : __('Not created yet (after verification)', 'sutore-marketplace'),
             'actions' => $actions,
-            'activity' => $this->activity->present(
-                (int) $item['listing_id'],
-                (int) $item['variation_id']
-            ),
+            'activity' => $this->activity->present((int) $item['variation_id']),
         ]);
     }
 
@@ -101,6 +136,8 @@ final class StaffFulfillmentPresenter
      */
     public function presentStaffQuery(array $args): array
     {
+        // Manage Products includes pre-sale listings (pending / for sale / queue), not only the sale pipeline.
+        $args['all_statuses'] = true;
         $result = $this->fulfillments->query($args);
 
         return [
@@ -130,7 +167,6 @@ final class StaffFulfillmentPresenter
         $items = array_map(static function (object $row): array {
             return [
                 'id' => (int) $row->id,
-                'listing_id' => (int) $row->listing_id,
                 'variation_id' => (int) $row->variation_id,
                 'order_id' => (int) $row->order_id,
                 'order_item_id' => (int) $row->order_item_id,
@@ -185,11 +221,19 @@ final class StaffFulfillmentPresenter
             }
         }
 
-        $listingIds = [];
+        $variationIds = [];
         foreach ($rows as $row) {
-            $listingIds[] = (int) ($row->id ?? $row->listing_id ?? 0);
+            $variationIds[] = (int) ($row->variation_id ?? 0);
         }
-        $payoutMap = $this->payouts->findByListingIds($listingIds);
+        $payoutMap = $this->payouts->findByVariationIds($variationIds);
+        $orderIdByVariation = [];
+        foreach ($rows as $row) {
+            $variationId = (int) ($row->variation_id ?? 0);
+            if ($variationId > 0) {
+                $orderIdByVariation[$variationId] = (int) ($row->order_id ?? 0);
+            }
+        }
+        $invoiceMap = $this->invoices->findForVariations($orderIdByVariation);
 
         $out = [];
         foreach ($rows as $row) {
@@ -198,16 +242,29 @@ final class StaffFulfillmentPresenter
                 $row,
                 $merchantNames[$merchantId] ?? ('#' . $merchantId)
             );
-            $listingId = (int) ($item['listing_id'] ?? $item['id'] ?? 0);
-            $payout = $payoutMap[$listingId] ?? null;
+            $variationId = (int) ($item['variation_id'] ?? $item['id'] ?? 0);
+            $payout = $payoutMap[$variationId] ?? null;
+            $invoiceRows = $invoiceMap[$variationId] ?? [];
+            $item['invoices'] = InvoicePresenter::forStaff($invoiceRows);
+            $item['invoice_summary'] = InvoicePresenter::summary($invoiceRows);
+            $item['invoice_has_error'] = InvoicePresenter::hasError($invoiceRows);
             if ($payout) {
                 $status = (string) $payout->payout_status;
                 $label = PayoutStatus::label($status);
                 $netDisplay = MarketplacePricing::formatTl((float) $payout->net_amount);
+                $scheduled = PayoutSchedule::normalizeDate($payout->scheduled_payout_date ?? '');
                 $item['payout_status'] = $status;
                 $item['payout_status_label'] = $label;
                 $item['payout_net_amount_display'] = $netDisplay;
+                $item['scheduled_payout_date'] = $scheduled;
+                $item['scheduled_payout_date_display'] = PayoutSchedule::formatDateWithWeekday($scheduled);
+                $item['payout_due'] = $status === PayoutStatus::PENDING && PayoutSchedule::isDue($scheduled);
                 $item['payment_status_display'] = $label;
+                if ($status === PayoutStatus::PENDING && $scheduled !== '') {
+                    $item['payment_status_display'] = $item['payout_due']
+                        ? $label . ' · ' . __('Due', 'sutore-marketplace')
+                        : $label . ' · ' . $item['scheduled_payout_date_display'];
+                }
             } else {
                 $item['payout_status'] = '';
                 $item['payout_status_label'] = __('Not created yet', 'sutore-marketplace');
@@ -238,6 +295,12 @@ final class StaffFulfillmentPresenter
             && $payout
             && (string) $payout->payout_status === PayoutStatus::PENDING;
         $canPutOnSale = !empty($caps['put_on_sale']) && !empty($item['can_put_on_sale']);
+        $canRemoveFromSale = !empty($caps['remove_from_sale']) && !empty($item['can_remove_from_sale']);
+        $canApprove = !empty($caps['approve'])
+            && $status === ListingStatus::PENDING
+            && !empty($item['is_winner']);
+        $canSendCampaignOffer = !empty($caps['send_campaign_offer'])
+            && !empty($item['can_send_campaign_offer']);
         $canDelete = !empty($caps['delete'])
             && !empty($item['can_delete'])
             && empty($item['has_order_link']);
@@ -249,6 +312,7 @@ final class StaffFulfillmentPresenter
         return [
             'confirm_payment' => !empty($caps['confirm_payment']),
             'swap' => !empty($caps['swap']),
+            'mark_pre_order' => !empty($caps['mark_pre_order']) && !empty($item['has_order_link']),
             'detach' => $canDetach,
             'attach_to_order' => $canAttachToOrder,
             'mark_arrived' => !empty($caps['mark_arrived']),
@@ -257,12 +321,30 @@ final class StaffFulfillmentPresenter
             'mark_shipped_to_customer' => !empty($caps['mark_shipped_to_customer']),
             'mark_delivered' => !empty($caps['mark_delivered']),
             'mark_not_for_sale' => !empty($caps['mark_not_for_sale']),
+            'remove_from_sale' => $canRemoveFromSale,
             'chargeback' => !empty($caps['chargeback']),
+            'close_pre_order' => !empty($caps['close_pre_order']),
             'mark_payout' => $canMarkPayout,
+            'adjust_commission' => $canMarkPayout,
+            'mark_imported' => empty($item['is_imported']),
+            'unmark_imported' => !empty($item['is_imported']),
             'put_on_sale' => $canPutOnSale,
+            'approve' => $canApprove,
+            'send_campaign_offer' => $canSendCampaignOffer,
             'delete' => $canDelete,
             'requires_staff_note' => ListingStatus::actionsRequiringStaffNote(),
         ];
+    }
+
+    /**
+     * Public wrapper for bulk intersection checks (same flags as list/detail).
+     *
+     * @param array<string, mixed> $item
+     * @return array<string, mixed>
+     */
+    public function actionFlagsForRow(object $row, array $item, ?object $payout): array
+    {
+        return $this->buildActions($row, $item, $payout);
     }
 
     /**
@@ -270,7 +352,6 @@ final class StaffFulfillmentPresenter
      */
     public function presentRow(object $row, ?string $merchantName = null): array
     {
-        $listingId = (int) $row->listing_id;
         $variationId = (int) $row->variation_id;
         $orderId = (int) $row->order_id;
         $merchantId = (int) $row->merchant_id;
@@ -285,17 +366,17 @@ final class StaffFulfillmentPresenter
             $parentId = $parentId > 0 ? $parentId : (int) $listing->parentProductId;
             $sizeTermId = $sizeTermId > 0 ? $sizeTermId : (int) $listing->sizeTermId;
         } else {
-            $listing = $this->listings->find($listingId);
+            $listing = $this->listings->find($variationId);
             $parentId = $listing ? (int) $listing->parentProductId : 0;
             $sizeTermId = $listing ? (int) $listing->sizeTermId : 0;
         }
 
-        $title = Notifications::productTitle($listingId, $variationId, $parentId, $sizeTermId);
+        $title = Notifications::productTitle($variationId, $variationId, $parentId, $sizeTermId);
         if ($title === '' || $title === (string) $variationId) {
             $title = sprintf(
                 /* translators: %d: listing id */
                 __('Listing #%d', 'sutore-marketplace'),
-                $listingId
+                $variationId
             );
         }
 
@@ -315,15 +396,20 @@ final class StaffFulfillmentPresenter
 
         $canPutOnSale = $listing ? $this->listingService->canPutOnSale($listing) : false;
         $canDelete = $listing ? $this->listingService->canDelete($listing) : false;
+        $canRemoveFromSale = $listing ? $this->listingService->canRemoveFromSale($listing) : false;
+        $isWinner = $listing
+            ? (bool) $listing->isWinner
+            : !empty($row->is_winner);
         $listingStatus = $listing ? (string) $listing->listingStatus : (string) ($row->listing_status ?? '');
         $asking = isset($row->asking) ? (float) $row->asking : ($listing ? (float) $listing->asking : 0.0);
         $campaignStatus = $listing
             ? (string) $listing->campaignStatus
             : (string) ($row->campaign_status ?? 'none');
-        $isSourcing = $listing
-            ? $listing->sourcingRequestId !== null
-            : (isset($row->sourcing_request_id) && $row->sourcing_request_id !== null && (int) $row->sourcing_request_id > 0);
-        $isPreOrder = $isSourcing;
+        $canSendCampaignOffer = in_array($listingStatus, [ListingStatus::PUBLISH, ListingStatus::QUEUED], true)
+            && $campaignStatus === 'none';
+        $isPreOrder = $listing
+            ? $listing->listingStatus === ListingStatus::PRE_ORDER
+            : (string) ($row->listing_status ?? '') === ListingStatus::PRE_ORDER;
         $orderShipmentType = sanitize_key((string) ($row->order_shipment_type ?? ''));
         if ($orderShipmentType === '' && $orderId > 0) {
             $order = wc_get_order($orderId);
@@ -344,10 +430,12 @@ final class StaffFulfillmentPresenter
         $merchantShippedAt = (string) ($row->merchant_shipped_at ?? '');
         $sutoreShippedAt = (string) ($row->sutore_shipped_at ?? '');
         $deliveredAt = (string) ($row->delivered_at ?? '');
+        $createdAt = $listing
+            ? trim((string) ($listing->createdAt ?? ''))
+            : trim((string) ($row->created_at ?? ''));
 
         return [
-            'id' => (int) $row->id,
-            'listing_id' => $listingId,
+            'id' => $variationId,
             'variation_id' => $variationId,
             'parent_product_id' => $parentId,
             'order_id' => $orderId,
@@ -368,6 +456,14 @@ final class StaffFulfillmentPresenter
             'merchant_shipment_code' => (string) ($row->merchant_shipment_code ?? ''),
             'order_shipment_type' => $orderShipmentType,
             'order_shipment_type_label' => $orderShipmentTypeLabel !== '' ? $orderShipmentTypeLabel : '—',
+            'fast_shipment' => $listing
+                ? $listing->fastShipment
+                : !empty($row->fast_shipment),
+            'has_invoice' => $listing
+                ? $listing->hasInvoice
+                : !empty($row->has_invoice),
+            'created_at' => $createdAt,
+            'created_at_display' => self::formatDateTime($createdAt),
             'merchant_shipped_at' => $merchantShippedAt,
             'merchant_shipped_at_display' => self::formatDateTime($merchantShippedAt),
             'sutore_shipped_at' => $sutoreShippedAt,
@@ -376,17 +472,55 @@ final class StaffFulfillmentPresenter
             'delivered_at_display' => self::formatDateTime($deliveredAt),
             'return_window_ends_at' => (string) ($row->return_window_ends_at ?? ''),
             'can_put_on_sale' => $canPutOnSale,
+            'can_remove_from_sale' => $canRemoveFromSale,
             'can_delete' => $canDelete,
+            'can_send_campaign_offer' => $canSendCampaignOffer,
+            'is_winner' => $isWinner,
             'listing_status' => $listingStatus,
             'listing_status_label' => $listingStatus !== '' ? ListingStatus::label($listingStatus) : '—',
             'campaign_status' => $campaignStatus,
             'campaign_status_label' => ListingStatus::campaignLabel($campaignStatus),
-            'is_sourcing' => $isSourcing,
+            'is_pre_order' => $isPreOrder,
+            'is_sourcing' => $isPreOrder,
             'is_pre_order' => $isPreOrder,
             'is_imported' => $listing
                 ? $listing->isImported
                 : !empty($row->is_imported),
+            'listing_commission_percent' => $listing?->commissionPercent,
+            'sale_commission_percent' => $listing?->saleCommissionPercent,
+            'notes' => $listing
+                ? (string) ($listing->notes ?? '')
+                : (string) ($row->notes ?? ''),
             'merchant_snapshot' => MerchantSnapshot::decode($row->merchant_snapshot ?? null),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function commissionPayload(?\SutoreMarketplace\Modules\Listings\Domain\Listing $listing, ?object $payout): array
+    {
+        if (!$listing) {
+            return [
+                'listing_percent' => null,
+                'sale_percent' => null,
+                'live_percent' => null,
+                'payout_percent' => $payout ? round((float) $payout->commission_percent, 2) : null,
+                'source' => '',
+                'level_percent' => null,
+            ];
+        }
+
+        $resolved = (new \SutoreMarketplace\Modules\Merchants\Services\CommissionResolver())->forListing($listing);
+
+        return [
+            'listing_percent' => $listing->commissionPercent,
+            'sale_percent' => $listing->saleCommissionPercent,
+            'live_percent' => (float) $resolved['percent'],
+            'payout_percent' => $payout ? round((float) $payout->commission_percent, 2) : null,
+            'source' => (string) $resolved['source'],
+            'level_percent' => (float) $resolved['level_percent'],
+            'raises_level' => (bool) $resolved['raises_level'],
         ];
     }
 

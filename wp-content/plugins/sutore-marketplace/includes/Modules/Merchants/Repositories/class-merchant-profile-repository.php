@@ -143,6 +143,99 @@ final class MerchantProfileRepository
         }
     }
 
+    public function findUserIdByReferralCode(string $code): int
+    {
+        $code = strtoupper(trim($code));
+        if ($code === '') {
+            return 0;
+        }
+
+        global $wpdb;
+
+        return (int) $wpdb->get_var($wpdb->prepare(
+            'SELECT user_id FROM ' . $this->table() . ' WHERE referral_code = %s LIMIT 1',
+            $code
+        ));
+    }
+
+    public function setReferralCode(int $userId, string $code): bool
+    {
+        if ($userId <= 0) {
+            return false;
+        }
+
+        $code = strtoupper(trim($code));
+        if ($code === '') {
+            return false;
+        }
+
+        global $wpdb;
+
+        $result = $wpdb->update(
+            $this->table(),
+            [
+                'referral_code' => $code,
+                'updated_at' => current_time('mysql'),
+            ],
+            ['user_id' => $userId],
+            ['%s', '%s'],
+            ['%d']
+        );
+
+        return is_int($result) && $result > 0;
+    }
+
+    public function setReferredBy(int $inviteeId, int $inviterId): bool
+    {
+        if ($inviteeId <= 0 || $inviterId <= 0 || $inviteeId === $inviterId) {
+            return false;
+        }
+
+        global $wpdb;
+        $now = current_time('mysql');
+        $updated = $wpdb->query($wpdb->prepare(
+            'UPDATE ' . $this->table() . '
+                SET referred_by_user_id = %d, updated_at = %s
+              WHERE user_id = %d
+                AND (referred_by_user_id IS NULL OR referred_by_user_id = 0 OR referred_by_user_id = %d)',
+            $inviterId,
+            $now,
+            $inviteeId,
+            $inviterId
+        ));
+
+        return $updated === 1 || $this->isReferredBy($inviteeId, $inviterId);
+    }
+
+    public function claimReferralReward(int $inviteeId): bool
+    {
+        if ($inviteeId <= 0) {
+            return false;
+        }
+
+        global $wpdb;
+        $now = current_time('mysql');
+        $updated = $wpdb->query($wpdb->prepare(
+            'UPDATE ' . $this->table() . '
+                SET referral_rewarded_at = %s, updated_at = %s
+              WHERE user_id = %d
+                AND referred_by_user_id > 0
+                AND referral_rewarded_at IS NULL',
+            $now,
+            $now,
+            $inviteeId
+        ));
+
+        return $updated === 1;
+    }
+
+    public function isReferredBy(int $inviteeId, int $inviterId): bool
+    {
+        $row = $this->find($inviteeId);
+
+        return $row !== null && (int) ($row['referred_by_user_id'] ?? 0) === $inviterId;
+    }
+
     public function findUserIdByPhone(string $phone, int $exceptUserId = 0): int
     {
         if ($phone === '') {

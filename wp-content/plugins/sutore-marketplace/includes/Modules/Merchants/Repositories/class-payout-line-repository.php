@@ -21,34 +21,34 @@ final class PayoutLineRepository
         return $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table() . ' WHERE id = %d', $id));
     }
 
-    public function findByListingId(int $listingId): ?object
+    public function findByVariationId(int $variationId): ?object
     {
-        $map = $this->findByListingIds([$listingId]);
+        $map = $this->findByVariationIds([$variationId]);
 
-        return $map[$listingId] ?? null;
+        return $map[$variationId] ?? null;
     }
 
     /**
-     * @param list<int> $listingIds
+     * @param list<int> $variationIds
      * @return array<int, object>
      */
-    public function findByListingIds(array $listingIds): array
+    public function findByVariationIds(array $variationIds): array
     {
-        $listingIds = array_values(array_unique(array_filter(array_map('intval', $listingIds))));
-        if ($listingIds === []) {
+        $variationIds = array_values(array_unique(array_filter(array_map('intval', $variationIds))));
+        if ($variationIds === []) {
             return [];
         }
 
         global $wpdb;
-        $placeholders = implode(',', array_fill(0, count($listingIds), '%d'));
+        $placeholders = implode(',', array_fill(0, count($variationIds), '%d'));
         $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$this->table()} WHERE listing_id IN ({$placeholders})",
-            ...$listingIds
+            "SELECT * FROM {$this->table()} WHERE variation_id IN ({$placeholders})",
+            ...$variationIds
         ));
 
         $out = [];
         foreach ($rows ?: [] as $row) {
-            $out[(int) $row->listing_id] = $row;
+            $out[(int) $row->variation_id] = $row;
         }
 
         return $out;
@@ -130,7 +130,7 @@ final class PayoutLineRepository
     }
 
     /** @return list<object> */
-    public function recentForMerchant(int $merchantId, int $limit = 10): array
+    public function recentForMerchant(int $merchantId, int $limit = 20): array
     {
         global $wpdb;
         $limit = max(1, min(50, $limit));

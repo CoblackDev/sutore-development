@@ -12,6 +12,10 @@ namespace SutoreMarketplace\Admin;
 
 use SutoreMarketplace\Admin\Orders\SettingsPage as FulfillmentSettingsPage;
 
+use SutoreMarketplace\Modules\Invoices\Admin\InvoiceSettingsSection;
+
+use SutoreMarketplace\Shared\Domain\MerchantLevels;
+
 use SutoreMarketplace\Shared\Settings\Settings;
 
 
@@ -23,6 +27,10 @@ final class SettingsPage
     private ?FulfillmentSettingsPage $fulfillmentSettings = null;
 
     private ?SmsSettingsSection $smsSettings = null;
+
+    private ?InvoiceSettingsSection $invoiceSettings = null;
+
+    private ?BehaviorSettingsSection $behaviorSettings = null;
 
 
 
@@ -64,9 +72,13 @@ final class SettingsPage
 
             'listing' => __('Listing', 'sutore-marketplace'),
 
+            'behavior' => __('Behavior', 'sutore-marketplace'),
+
             'operations' => __('Operations', 'sutore-marketplace'),
 
             'sms' => __('SMS', 'sutore-marketplace'),
+
+            'invoices' => __('Invoices', 'sutore-marketplace'),
 
             'orders' => __('Order Flow', 'sutore-marketplace'),
 
@@ -122,6 +134,10 @@ final class SettingsPage
 
             $this->listingFields($s);
 
+        } elseif ($tab === 'behavior') {
+
+            $this->behaviorSettingsSection()->render($s);
+
         } elseif ($tab === 'operations') {
 
             $this->operationsFields($s);
@@ -129,6 +145,10 @@ final class SettingsPage
         } elseif ($tab === 'sms') {
 
             $this->smsSettingsSection()->render($s);
+
+        } elseif ($tab === 'invoices') {
+
+            $this->invoiceSettingsSection()->render($s);
 
         } elseif ($tab === 'orders') {
 
@@ -252,17 +272,53 @@ final class SettingsPage
 
         echo '<table class="form-table" role="presentation"><tbody>';
 
-        echo '<tr><th scope="row"><label for="listing_expire_duration_days">' . esc_html__('Listing duration (days)', 'sutore-marketplace') . '</label></th><td>';
+        $defaultDuration = (int) ($s['listing_expire_duration_days'] ?? 45);
+        $maxByLevel = is_array($s['listing_duration_max_by_level'] ?? null)
+            ? $s['listing_duration_max_by_level']
+            : Settings::defaults()['listing_duration_max_by_level'];
 
-        printf(
+        echo '<tr><th scope="row"><label for="listing_expire_duration_days">' . esc_html__('Default listing duration (days)', 'sutore-marketplace') . '</label></th><td>';
 
-            '<input name="listing_expire_duration_days" type="number" id="listing_expire_duration_days" value="%s" class="small-text" min="1" step="1" />',
+        echo '<select name="listing_expire_duration_days" id="listing_expire_duration_days">';
+        foreach (\SutoreMarketplace\Modules\Listings\Domain\ListingDuration::ALLOWED_DAYS as $days) {
+            printf(
+                '<option value="%1$d" %2$s>%3$s</option>',
+                $days,
+                selected($defaultDuration, $days, false),
+                esc_html(\SutoreMarketplace\Modules\Listings\Domain\ListingDuration::optionLabel($days))
+            );
+        }
+        echo '</select>';
 
-            esc_attr((string) $s['listing_expire_duration_days'])
+        echo '<p class="description">' . esc_html__('Pre-selected duration in the listing form when sellers create a listing.', 'sutore-marketplace') . '</p>';
 
-        );
+        echo '</td></tr>';
 
-        echo '<p class="description">' . esc_html__('Default expire duration for draft/queued listings.', 'sutore-marketplace') . '</p>';
+        echo '<tr><th scope="row">' . esc_html__('Maximum duration by seller level', 'sutore-marketplace') . '</th><td>';
+
+        foreach (
+            [
+                MerchantLevels::NORMAL,
+                MerchantLevels::VERIFIED,
+                MerchantLevels::PREMIUM,
+            ] as $level
+        ) {
+            $label = MerchantLevels::labelForStatus($level);
+            $value = (int) ($maxByLevel[$level] ?? Settings::defaults()['listing_duration_max_by_level'][$level]);
+            echo '<p><label for="listing_duration_max_' . esc_attr($level) . '">' . esc_html($label) . '</label> ';
+            echo '<select name="listing_duration_max_by_level[' . esc_attr($level) . ']" id="listing_duration_max_' . esc_attr($level) . '">';
+            foreach (\SutoreMarketplace\Modules\Listings\Domain\ListingDuration::ALLOWED_DAYS as $days) {
+                printf(
+                    '<option value="%1$d" %2$s>%3$s</option>',
+                    $days,
+                    selected($value, $days, false),
+                    esc_html(\SutoreMarketplace\Modules\Listings\Domain\ListingDuration::optionLabel($days))
+                );
+            }
+            echo '</select></p>';
+        }
+
+        echo '<p class="description">' . esc_html__('Caps which duration options each seller level can choose (2 / 7 / 30 / 45 / 60 days).', 'sutore-marketplace') . '</p>';
 
         echo '</td></tr></tbody></table>';
 
@@ -340,6 +396,14 @@ final class SettingsPage
 
         echo '</td></tr>';
 
+        echo '<tr><th scope="row"><label for="catalog_product_request_levels">' . esc_html__('Catalog product request levels', 'sutore-marketplace') . '</label></th><td>';
+        printf(
+            '<input name="catalog_product_request_levels" type="text" id="catalog_product_request_levels" value="%s" class="regular-text" />',
+            esc_attr((string) ($s['catalog_product_request_levels'] ?? 'verified,premium'))
+        );
+        echo '<p class="description">' . esc_html__('Comma-separated seller levels that may request a missing catalog product (SKU or link) from the listing form. Default: verified,premium', 'sutore-marketplace') . '</p>';
+        echo '</td></tr>';
+
         $tcMode = (string) ($s['tc_verification_mode'] ?? '');
         echo '<tr><th scope="row"><label for="tc_verification_mode">' . esc_html__('TC verification mode', 'sutore-marketplace') . '</label></th><td>';
         echo '<select name="tc_verification_mode" id="tc_verification_mode">';
@@ -363,6 +427,91 @@ final class SettingsPage
         echo '<p class="description">' . esc_html__('Enter the endpoint URL here when you have corporate KPS access.', 'sutore-marketplace') . '</p>';
         echo '</td></tr>';
 
+        echo '<tr><th scope="row">' . esc_html__('Youth discount', 'sutore-marketplace') . '</th><td>';
+        echo '<label><input name="youth_discount_enabled" type="checkbox" value="1" '
+            . checked(!empty($s['youth_discount_enabled']), true, false) . ' /> ';
+        echo esc_html__('Enable youth discount', 'sutore-marketplace') . '</label>';
+        echo '<p class="description">' . esc_html__(
+            'Verified customers below the maximum age see an automatic cart fee (not a coupon). Seller asking and seller net (asking minus commission) stay unchanged. The discount is capped by remaining service fee + guarantee fee + commission.',
+            'sutore-marketplace'
+        ) . '</p>';
+        echo '</td></tr>';
+
+        echo '<tr><th scope="row"><label for="youth_discount_max_age">' . esc_html__('Maximum age', 'sutore-marketplace') . '</label></th><td>';
+        printf(
+            '<input name="youth_discount_max_age" type="number" id="youth_discount_max_age" value="%s" class="small-text" min="1" max="120" step="1" />',
+            esc_attr((string) ($s['youth_discount_max_age'] ?? 26))
+        );
+        echo '<p class="description">' . esc_html__(
+            'Customers younger than this age qualify. Age is current year minus verified birth year.',
+            'sutore-marketplace'
+        ) . '</p>';
+        echo '</td></tr>';
+
+        echo '<tr><th scope="row"><label for="youth_discount_percent">' . esc_html__('Discount percent', 'sutore-marketplace') . '</label></th><td>';
+        printf(
+            '<input name="youth_discount_percent" type="number" id="youth_discount_percent" value="%s" class="small-text" min="0" max="100" step="0.01" />',
+            esc_attr((string) ($s['youth_discount_percent'] ?? 20))
+        );
+        echo '</td></tr>';
+
+        $referral = is_array($s['referral'] ?? null)
+            ? $s['referral']
+            : \SutoreMarketplace\Modules\Merchants\Settings\ReferralSettings::defaults();
+        $referralDefaults = \SutoreMarketplace\Modules\Merchants\Settings\ReferralSettings::defaults();
+
+        echo '<tr><th scope="row">' . esc_html__('Seller referral', 'sutore-marketplace') . '</th><td>';
+        echo '<p class="description">' . esc_html__(
+            'Invite codes grant a time-limited commission discount (points off the seller level). The invited seller receives it at registration; the inviter receives it when that seller’s first sale is confirmed.',
+            'sutore-marketplace'
+        ) . '</p>';
+        echo '</td></tr>';
+
+        echo '<tr><th scope="row"><label for="referral_invitee_points_off">' . esc_html__('Invitee points off', 'sutore-marketplace') . '</label></th><td>';
+        printf(
+            '<input name="referral_invitee_points_off" type="number" id="referral_invitee_points_off" value="%s" class="small-text" min="0" max="100" step="0.01" />',
+            esc_attr((string) ($referral['invitee_points_off'] ?? $referralDefaults['invitee_points_off']))
+        );
+        echo '<p class="description">' . esc_html__('Commission points subtracted from the invited seller’s level rate at registration.', 'sutore-marketplace') . '</p>';
+        echo '</td></tr>';
+
+        echo '<tr><th scope="row"><label for="referral_invitee_duration_days">' . esc_html__('Invitee duration (days)', 'sutore-marketplace') . '</label></th><td>';
+        printf(
+            '<input name="referral_invitee_duration_days" type="number" id="referral_invitee_duration_days" value="%s" class="small-text" min="1" step="1" />',
+            esc_attr((string) ($referral['invitee_duration_days'] ?? $referralDefaults['invitee_duration_days']))
+        );
+        echo '</td></tr>';
+
+        echo '<tr><th scope="row"><label for="referral_inviter_points_off">' . esc_html__('Inviter points off', 'sutore-marketplace') . '</label></th><td>';
+        printf(
+            '<input name="referral_inviter_points_off" type="number" id="referral_inviter_points_off" value="%s" class="small-text" min="0" max="100" step="0.01" />',
+            esc_attr((string) ($referral['inviter_points_off'] ?? $referralDefaults['inviter_points_off']))
+        );
+        echo '<p class="description">' . esc_html__('Commission points subtracted from the inviting seller’s level rate after the invitee’s first confirmed sale.', 'sutore-marketplace') . '</p>';
+        echo '</td></tr>';
+
+        echo '<tr><th scope="row"><label for="referral_inviter_duration_days">' . esc_html__('Inviter duration (days)', 'sutore-marketplace') . '</label></th><td>';
+        printf(
+            '<input name="referral_inviter_duration_days" type="number" id="referral_inviter_duration_days" value="%s" class="small-text" min="1" step="1" />',
+            esc_attr((string) ($referral['inviter_duration_days'] ?? $referralDefaults['inviter_duration_days']))
+        );
+        echo '</td></tr>';
+
+        echo '<tr><th scope="row"><label for="referral_inviter_max_rewards_per_period">' . esc_html__('Inviter reward cap per period', 'sutore-marketplace') . '</label></th><td>';
+        printf(
+            '<input name="referral_inviter_max_rewards_per_period" type="number" id="referral_inviter_max_rewards_per_period" value="%s" class="small-text" min="0" step="1" />',
+            esc_attr((string) ($referral['inviter_max_rewards_per_period'] ?? $referralDefaults['inviter_max_rewards_per_period']))
+        );
+        echo '<p class="description">' . esc_html__('Maximum inviter rewards per rolling period. 0 blocks inviter rewards.', 'sutore-marketplace') . '</p>';
+        echo '</td></tr>';
+
+        echo '<tr><th scope="row"><label for="referral_period_days">' . esc_html__('Reward period (days)', 'sutore-marketplace') . '</label></th><td>';
+        printf(
+            '<input name="referral_period_days" type="number" id="referral_period_days" value="%s" class="small-text" min="1" step="1" />',
+            esc_attr((string) ($referral['period_days'] ?? $referralDefaults['period_days']))
+        );
+        echo '</td></tr>';
+
         echo '<tr><th scope="row"><label for="international_commitment_text">' . esc_html__('International commitment text', 'sutore-marketplace') . '</label></th><td>';
 
         printf(
@@ -379,14 +528,6 @@ final class SettingsPage
         );
 
         echo '</td></tr>';
-
-        echo '<tr><th scope="row">' . esc_html__('Freeze expiry while for sale', 'sutore-marketplace') . '</th><td>';
-
-        echo '<label><input name="freeze_expire_on_sale" type="checkbox" value="1" '
-
-            . checked(!empty($s['freeze_expire_on_sale']), true, false) . ' /> ';
-
-        echo esc_html__('Clear expire duration during payment/sale process', 'sutore-marketplace') . '</label></td></tr>';
 
         echo '<tr><th scope="row">' . esc_html__('Queue change notification', 'sutore-marketplace') . '</th><td>';
 
@@ -607,19 +748,80 @@ final class SettingsPage
 
         echo '<table class="form-table" role="presentation"><tbody>';
 
-        echo '<tr><th scope="row"><label for="default_platform_discount">' . esc_html__('Default platform discount', 'sutore-marketplace') . '</label></th><td>';
+        $fields = [
 
+            'campaign_discount_min_percent' => [__('Minimum seller discount (%)', 'sutore-marketplace'), '10'],
+
+            'campaign_discount_max_percent' => [__('Maximum seller discount (%)', 'sutore-marketplace'), '40'],
+
+            'campaign_max_days' => [__('Maximum campaign duration (days)', 'sutore-marketplace'), '14'],
+
+            'campaign_cooldown_days' => [__('Cooldown after a campaign (days)', 'sutore-marketplace'), '14'],
+
+            'campaign_aging_day_1' => [__('Aging suggestion day 1', 'sutore-marketplace'), '45'],
+
+            'campaign_aging_day_2' => [__('Aging suggestion day 2 (matched)', 'sutore-marketplace'), '60'],
+
+        ];
+
+        foreach ($fields as $key => $meta) {
+
+            echo '<tr><th scope="row"><label for="' . esc_attr($key) . '">' . esc_html($meta[0]) . '</label></th><td>';
+
+            printf(
+
+                '<input name="%1$s" type="number" id="%1$s" value="%2$s" class="small-text" min="0" step="1" />',
+
+                esc_attr($key),
+
+                esc_attr((string) ($s[$key] ?? $meta[1]))
+
+            );
+
+            echo '</td></tr>';
+
+        }
+
+        echo '</tbody></table>';
+
+        echo '<h2>' . esc_html__('Customer price offers', 'sutore-marketplace') . '</h2>';
+        echo '<p class="description">' . esc_html__(
+            'Customers bid against seller asking. Accepting issues a personal, time-limited coupon for that listing — the public price does not change.',
+            'sutore-marketplace'
+        ) . '</p>';
+        echo '<table class="form-table" role="presentation"><tbody>';
+        echo '<tr><th scope="row">' . esc_html__('Enable customer offers', 'sutore-marketplace') . '</th><td>';
+        echo '<label><input name="customer_offer_enabled" type="checkbox" value="1" '
+            . checked(!empty($s['customer_offer_enabled']), true, false) . ' /> ';
+        echo esc_html__('Allow logged-in customers to send a price offer to the listing currently for sale.', 'sutore-marketplace');
+        echo '</label></td></tr>';
+        echo '<tr><th scope="row"><label for="customer_offer_ttl_hours">' . esc_html__('Offer lifetime (hours)', 'sutore-marketplace') . '</label></th><td>';
         printf(
-
-            '<input name="default_platform_discount" type="number" id="default_platform_discount" value="%s" class="regular-text" min="0" step="1" />',
-
-            esc_attr((string) ($s['default_platform_discount'] ?? 0))
-
+            '<input name="customer_offer_ttl_hours" type="number" id="customer_offer_ttl_hours" value="%s" class="small-text" min="1" max="168" step="1" />',
+            esc_attr((string) ($s['customer_offer_ttl_hours'] ?? 48))
         );
+        echo '</td></tr>';
+        echo '<tr><th scope="row"><label for="customer_offer_min_percent">' . esc_html__('Minimum bid (% of asking)', 'sutore-marketplace') . '</label></th><td>';
+        printf(
+            '<input name="customer_offer_min_percent" type="number" id="customer_offer_min_percent" value="%s" class="small-text" min="1" max="99" step="1" />',
+            esc_attr((string) ($s['customer_offer_min_percent'] ?? 70))
+        );
+        echo '</td></tr>';
+        echo '<tr><th scope="row"><label for="customer_offer_max_per_day">' . esc_html__('Max offers per customer per day', 'sutore-marketplace') . '</label></th><td>';
+        printf(
+            '<input name="customer_offer_max_per_day" type="number" id="customer_offer_max_per_day" value="%s" class="small-text" min="1" max="50" step="1" />',
+            esc_attr((string) ($s['customer_offer_max_per_day'] ?? 10))
+        );
+        echo '</td></tr>';
+        echo '</tbody></table>';
 
-        echo '</td></tr></tbody></table>';
+        echo '<p class="description">' . esc_html__(
 
+            'Timed strikethrough discounts only. Permanent markdowns are a silent asking drop. System suggestions waive fees up to service + guarantee.',
 
+            'sutore-marketplace'
+
+        ) . '</p>';
 
         echo '<p><a class="button" href="' . esc_url(admin_url('admin.php?page=sutore-marketplace-campaigns')) . '">'
 
@@ -667,7 +869,24 @@ final class SettingsPage
 
         } elseif ($tab === 'listing') {
 
-            $patch['listing_expire_duration_days'] = max(1, (int) ($_POST['listing_expire_duration_days'] ?? 45));
+            $defaultDuration = (int) ($_POST['listing_expire_duration_days'] ?? 45);
+            if (!\SutoreMarketplace\Modules\Listings\Domain\ListingDuration::isAllowed($defaultDuration)) {
+                $defaultDuration = 45;
+            }
+            $patch['listing_expire_duration_days'] = $defaultDuration;
+
+            $maxInput = is_array($_POST['listing_duration_max_by_level'] ?? null)
+                ? $_POST['listing_duration_max_by_level']
+                : [];
+            $maxPatch = [];
+            foreach (Settings::defaults()['listing_duration_max_by_level'] as $level => $fallback) {
+                $value = (int) ($maxInput[$level] ?? $fallback);
+                if (!\SutoreMarketplace\Modules\Listings\Domain\ListingDuration::isAllowed($value)) {
+                    $value = (int) $fallback;
+                }
+                $maxPatch[$level] = $value;
+            }
+            $patch['listing_duration_max_by_level'] = $maxPatch;
 
         } elseif ($tab === 'operations') {
 
@@ -681,9 +900,9 @@ final class SettingsPage
 
             $patch['fast_shipment_levels'] = sanitize_text_field((string) ($_POST['fast_shipment_levels'] ?? 'verified,premium'));
 
-            $patch['international_commitment_text'] = sanitize_textarea_field((string) ($_POST['international_commitment_text'] ?? ''));
+            $patch['catalog_product_request_levels'] = sanitize_text_field((string) ($_POST['catalog_product_request_levels'] ?? 'verified,premium'));
 
-            $patch['freeze_expire_on_sale'] = !empty($_POST['freeze_expire_on_sale']);
+            $patch['international_commitment_text'] = sanitize_textarea_field((string) ($_POST['international_commitment_text'] ?? ''));
 
             $patch['notify_queue_position_change'] = !empty($_POST['notify_queue_position_change']);
 
@@ -691,13 +910,50 @@ final class SettingsPage
             $patch['tc_verification_mode'] = in_array($mode, ['', 'nvi', 'algorithm', 'manual'], true) ? $mode : '';
             $patch['tc_verification_nvi_endpoint'] = esc_url_raw((string) ($_POST['tc_verification_nvi_endpoint'] ?? ''));
 
+            $patch['youth_discount_enabled'] = !empty($_POST['youth_discount_enabled']);
+            $patch['youth_discount_max_age'] = max(1, min(120, (int) ($_POST['youth_discount_max_age'] ?? 26)));
+            $patch['youth_discount_percent'] = max(0.0, min(100.0, (float) ($_POST['youth_discount_percent'] ?? 20)));
+
+            $patch['referral'] = \SutoreMarketplace\Modules\Merchants\Settings\ReferralSettings::sanitizeFromInput($_POST);
+
         } elseif ($tab === 'sms') {
 
             $patch = $this->smsSettingsSection()->buildSavePatch();
 
+        } elseif ($tab === 'invoices') {
+
+            $patch = $this->invoiceSettingsSection()->buildSavePatch();
+
+        } elseif ($tab === 'behavior') {
+
+            $patch = $this->behaviorSettingsSection()->buildSavePatch();
+
         } elseif ($tab === 'campaigns') {
 
-            $patch['default_platform_discount'] = max(0, (float) ($_POST['default_platform_discount'] ?? 0));
+            $min = max(1, (int) ($_POST['campaign_discount_min_percent'] ?? 10));
+
+            $max = max($min, (int) ($_POST['campaign_discount_max_percent'] ?? 40));
+
+            $patch['campaign_discount_min_percent'] = min(90, $min);
+
+            $patch['campaign_discount_max_percent'] = min(90, $max);
+
+            $patch['campaign_max_days'] = max(1, min(90, (int) ($_POST['campaign_max_days'] ?? 14)));
+
+            $patch['campaign_cooldown_days'] = max(0, min(90, (int) ($_POST['campaign_cooldown_days'] ?? 14)));
+
+            $day1 = max(1, (int) ($_POST['campaign_aging_day_1'] ?? 45));
+
+            $day2 = max($day1, (int) ($_POST['campaign_aging_day_2'] ?? 60));
+
+            $patch['campaign_aging_day_1'] = $day1;
+
+            $patch['campaign_aging_day_2'] = $day2;
+
+            $patch['customer_offer_enabled'] = !empty($_POST['customer_offer_enabled']);
+            $patch['customer_offer_ttl_hours'] = max(1, min(168, (int) ($_POST['customer_offer_ttl_hours'] ?? 48)));
+            $patch['customer_offer_min_percent'] = max(1, min(99, (int) ($_POST['customer_offer_min_percent'] ?? 70)));
+            $patch['customer_offer_max_per_day'] = max(1, min(50, (int) ($_POST['customer_offer_max_per_day'] ?? 10)));
 
         } elseif ($tab === 'shipping') {
 
@@ -760,10 +1016,6 @@ final class SettingsPage
             $feesChanged = (float) $patch['service_fee_amount'] !== (float) $before['service_fee_amount']
 
                 || (float) $patch['assurance_fee_percent'] !== (float) $before['assurance_fee_percent'];
-
-        } elseif ($tab === 'campaigns' && array_key_exists('default_platform_discount', $patch)) {
-
-            $feesChanged = (float) $patch['default_platform_discount'] !== (float) ($before['default_platform_discount'] ?? 0);
 
         }
 
@@ -851,6 +1103,22 @@ final class SettingsPage
     {
 
         return $this->smsSettings ??= new SmsSettingsSection();
+
+    }
+
+    private function invoiceSettingsSection(): InvoiceSettingsSection
+
+    {
+
+        return $this->invoiceSettings ??= new InvoiceSettingsSection();
+
+    }
+
+    private function behaviorSettingsSection(): BehaviorSettingsSection
+
+    {
+
+        return $this->behaviorSettings ??= new BehaviorSettingsSection();
 
     }
 

@@ -50,7 +50,7 @@ assets/css|js/          → sayfa bazlı statik dosyalar
 templates/              → PHP şablonları (My Account/staff: shell + i18n; veri REST’ten)
 ```
 
-Aktif modüller: Listings, Tasks, Sourcing, Merchants, Otp, Orders, Shipping, Coupons, Contracts.
+Aktif modüller: Listings (kampanya + outlet), Tasks, Sourcing, Merchants, Otp, Orders, Shipping, Coupons, Contracts, Invoices.
 
 ## Temiz kod
 

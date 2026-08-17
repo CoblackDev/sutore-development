@@ -28,35 +28,40 @@ final class CustomerDisplayHooks
 
         $variationId = (int) $item->get_variation_id() ?: (int) $item->get_product_id();
         $listing = (new ListingRepository())->findByVariationId($variationId);
-        if (!$listing || !$listing->id) {
+        if (!$listing || !$listing->variationId) {
             return $name;
         }
 
-        $fulfillment = (new FulfillmentRepository())->findActiveByListingId((int) $listing->id);
+        $fulfillment = (new FulfillmentRepository())->findActiveByVariationId((int) $listing->variationId);
         if (!$fulfillment) {
-            $fulfillment = (new FulfillmentRepository())->findByListingId((int) $listing->id);
+            $fulfillment = (new FulfillmentRepository())->findByVariationId((int) $listing->variationId);
         }
         if (!$fulfillment) {
             return $name;
         }
 
-        $label = ListingStatus::label($fulfillment->fulfillment_status);
-        $track = '';
         $order = wc_get_order((int) $fulfillment->order_id);
         $shipmentType = $order ? (string) $order->get_meta(ShipmentMeta::TYPE) : 'standard';
+        if ($shipmentType === '') {
+            $shipmentType = 'standard';
+        }
 
-        if ($fulfillment->fulfillment_status === ListingStatus::SHIPPED_TO_SUTORE && $fulfillment->merchant_shipment_code) {
+        $status = (string) $fulfillment->fulfillment_status;
+        $label = ListingStatus::customerLabel($status, $shipmentType);
+        $track = '';
+
+        if ($status === ListingStatus::SHIPPED_TO_SUTORE && $fulfillment->merchant_shipment_code) {
             $url = ShipmentTracking::customerTrackUrl('standard', (string) $fulfillment->merchant_shipment_code);
             if ($url !== '') {
-                $track = ' <a href="' . esc_url($url) . '" target="_blank" rel="noopener noreferrer">'
-                    . esc_html__('Tracking', 'sutore-marketplace') . '</a>';
+                $track = ' — <a href="' . esc_url($url) . '" target="_blank" rel="noopener noreferrer">'
+                    . esc_html__('Track', 'sutore-marketplace') . '</a>';
             }
         }
-        if ($fulfillment->fulfillment_status === ListingStatus::SHIPPED && $fulfillment->sutore_shipment_code) {
+        if ($status === ListingStatus::SHIPPED && $fulfillment->sutore_shipment_code) {
             $url = ShipmentTracking::customerTrackUrl($shipmentType, (string) $fulfillment->sutore_shipment_code);
             if ($url !== '') {
-                $track = ' <a href="' . esc_url($url) . '" target="_blank" rel="noopener noreferrer">'
-                    . esc_html__('Tracking', 'sutore-marketplace') . '</a>';
+                $track = ' — <a href="' . esc_url($url) . '" target="_blank" rel="noopener noreferrer">'
+                    . esc_html__('Track', 'sutore-marketplace') . '</a>';
             }
         }
 

@@ -1,8 +1,11 @@
 <?php
-/** @var int $step */
-/** @var bool $asPage */
-/** @var int $pageListingId */
-/** @var bool $forceEditChrome */
+/**
+ * @var int  $step
+ * @var bool $asPage
+ * @var int  $pageListingId
+ * @var bool $forceEditChrome
+ * @var bool $staff_create
+ */
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -10,10 +13,11 @@ if (!defined('ABSPATH')) {
 $pageListingId = (int) ($pageListingId ?? 0);
 $forceEditChrome = !empty($forceEditChrome);
 $isEdit = $pageListingId > 0 || $forceEditChrome;
+$staffCreate = !empty($staff_create);
 ?>
 <div
     class="sutore-mp-listing-form-wrap"
-    data-listing-id="<?php echo esc_attr((string) $pageListingId); ?>"
+    data-variation-id="<?php echo esc_attr((string) $pageListingId); ?>"
     data-price-step="<?php echo esc_attr((string) $step); ?>"
 >
     <div class="sutore-mp-listing-form-loading" hidden>
@@ -22,19 +26,41 @@ $isEdit = $pageListingId > 0 || $forceEditChrome;
     </div>
 
     <input type="hidden" class="sutore-mp-parent-id" value="" />
+    <p class="sutore-mp-create-wizard-alert sutore-mp-notice" role="alert" aria-live="assertive" hidden></p>
+
+    <?php if ($staffCreate) : ?>
+    <section class="sutore-mp-form-section sutore-mp-form-section-seller" data-section="seller" hidden>
+            <h3 id="sutore-mp-seller-heading"><?php esc_html_e('Seller', 'sutore-marketplace'); ?></h3>
+            <p class="description">
+                <?php esc_html_e('Choose the seller this listing will belong to.', 'sutore-marketplace'); ?>
+            </p>
+            <div class="sutore-mp-staff-merchant-picker">
+                <input
+                    id="sutore-mp-staff-merchant-search"
+                    type="search"
+                    class="sutore-mp-input sutore-mp-staff-merchant-search"
+                    autocomplete="off"
+                    aria-labelledby="sutore-mp-seller-heading"
+                    placeholder="<?php esc_attr_e('Search seller by name, email, ID…', 'sutore-marketplace'); ?>"
+                />
+                <input type="hidden" class="sutore-mp-staff-merchant-id" value="" />
+                <div class="sutore-mp-staff-merchant-results" hidden></div>
+            </div>
+    </section>
+    <?php endif; ?>
 
     <section class="sutore-mp-form-section sutore-mp-form-section-product" data-section="product"<?php echo $isEdit ? ' hidden' : ''; ?>>
-            <h3><?php esc_html_e('Product', 'sutore-marketplace'); ?></h3>
+            <h3 id="sutore-mp-product-heading"><?php esc_html_e('Product', 'sutore-marketplace'); ?></h3>
             <p class="description">
                 <?php esc_html_e('Search by product code or SKU to attach a catalog product to this listing.', 'sutore-marketplace'); ?>
             </p>
-            <label class="sutore-mp-field-label" for="sutore-mp-product-code"><?php esc_html_e('Search product code', 'sutore-marketplace'); ?></label>
             <div class="sutore-mp-search-wrap">
                 <input
                     id="sutore-mp-product-code"
                     type="text"
                     class="sutore-mp-input sutore-mp-product-code"
                     autocomplete="off"
+                    aria-labelledby="sutore-mp-product-heading"
                     placeholder="<?php esc_attr_e('Enter product code / SKU…', 'sutore-marketplace'); ?>"
                 />
                 <span class="sutore-mp-spinner" hidden aria-hidden="true"></span>
@@ -43,12 +69,12 @@ $isEdit = $pageListingId > 0 || $forceEditChrome;
     </section>
 
     <section class="sutore-mp-form-section sutore-mp-form-section-size" data-section="size"<?php echo $isEdit ? ' hidden' : ''; ?>>
-            <h3><?php esc_html_e('Size', 'sutore-marketplace'); ?></h3>
-            <p class="description">
-                <?php esc_html_e('Choose the size for this listing.', 'sutore-marketplace'); ?>
+            <h3 class="sutore-mp-axis-heading"><?php esc_html_e('Variation', 'sutore-marketplace'); ?></h3>
+            <p class="sutore-mp-axis-hint description">
+                <?php esc_html_e('Choose the variation for this listing.', 'sutore-marketplace'); ?>
             </p>
             <div class="sutore-mp-sizes">
-                <div class="sutore-mp-size-options" role="group" aria-label="<?php esc_attr_e('Size', 'sutore-marketplace'); ?>"></div>
+                <div class="sutore-mp-size-options" role="group" aria-label="<?php esc_attr_e('Variation', 'sutore-marketplace'); ?>"></div>
             </div>
     </section>
 
@@ -110,11 +136,35 @@ $isEdit = $pageListingId > 0 || $forceEditChrome;
             <p class="sutore-mp-step-error sutore-mp-shipping-error" hidden></p>
     </section>
 
-    <section class="sutore-mp-form-section sutore-mp-form-section-price" data-section="price">
-            <h3><?php esc_html_e('Price', 'sutore-marketplace'); ?></h3>
-            <p class="description">
-                <?php esc_html_e('Set your asking price and review queue position and estimated payout.', 'sutore-marketplace'); ?>
+    <?php if ($staffCreate) : ?>
+    <section class="sutore-mp-form-section sutore-mp-form-section-imported" data-section="imported">
+            <h3><?php esc_html_e('Imported', 'sutore-marketplace'); ?></h3>
+            <div class="sutore-mp-imported-options" role="group" aria-label="<?php esc_attr_e('Imported', 'sutore-marketplace'); ?>">
+                <div class="wc-block-components-checkbox">
+                    <label>
+                        <input type="checkbox" class="wc-block-components-checkbox__input sutore-mp-imported-flag" value="1" />
+                        <svg class="wc-block-components-checkbox__mark" aria-hidden="true" viewBox="0 0 24 20"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path></svg>
+                        <span class="wc-block-components-checkbox__label"><?php esc_html_e('Imported product', 'sutore-marketplace'); ?></span>
+                    </label>
+                </div>
+            </div>
+    </section>
+    <?php endif; ?>
+
+    </section>
+
+    <section class="sutore-mp-form-section sutore-mp-form-section-duration" data-section="duration">
+            <h3 id="sutore-mp-duration-heading"><?php esc_html_e('Listing duration', 'sutore-marketplace'); ?></h3>
+            <p class="description sutore-mp-duration-hint">
+                <?php esc_html_e('Choose how long this listing stays on sale.', 'sutore-marketplace'); ?>
             </p>
+            <label class="screen-reader-text" for="sutore-mp-duration-days"><?php esc_html_e('Listing duration', 'sutore-marketplace'); ?></label>
+            <select id="sutore-mp-duration-days" class="sutore-mp-input sutore-mp-duration-days"></select>
+            <p class="description sutore-mp-duration-preview" aria-live="polite"></p>
+    </section>
+
+    <section class="sutore-mp-form-section sutore-mp-form-section-price" data-section="price">
+            <h3 id="sutore-mp-price-heading"><?php esc_html_e('Price', 'sutore-marketplace'); ?></h3>
             <dl class="sutore-mp-staff-meta sutore-mp-form-context-meta">
                 <div class="sutore-mp-retail-price-row">
                     <dt><?php esc_html_e('Starting price', 'sutore-marketplace'); ?></dt>
@@ -135,9 +185,15 @@ $isEdit = $pageListingId > 0 || $forceEditChrome;
             </dl>
 
             <div class="sutore-mp-price">
-                <label class="sutore-mp-field-label" for="sutore-mp-asking"><?php esc_html_e('Price', 'sutore-marketplace'); ?></label>
                 <div class="sutore-mp-row">
-                    <input id="sutore-mp-asking" type="number" class="sutore-mp-input sutore-mp-asking" min="<?php echo esc_attr((string) $step); ?>" step="<?php echo esc_attr((string) $step); ?>" />
+                    <input
+                        id="sutore-mp-asking"
+                        type="number"
+                        class="sutore-mp-input sutore-mp-asking"
+                        min="<?php echo esc_attr((string) $step); ?>"
+                        step="<?php echo esc_attr((string) $step); ?>"
+                        aria-labelledby="sutore-mp-price-heading"
+                    />
                     <button type="button" class="wp-element-button is-style-outline sutore-mp-first-place is-hidden" hidden><?php esc_html_e('Move to First Place', 'sutore-marketplace'); ?></button>
                 </div>
                 <div class="sutore-mp-price-meta">
@@ -200,7 +256,7 @@ $isEdit = $pageListingId > 0 || $forceEditChrome;
                     type="button"
                     class="wp-element-button is-style-outline sutore-mp-remove-from-sale is-hidden"
                     hidden
-                    data-listing-id="<?php echo esc_attr((string) $pageListingId); ?>"
+                    data-variation-id="<?php echo esc_attr((string) $pageListingId); ?>"
                 >
                     <?php esc_html_e('Remove from sale', 'sutore-marketplace'); ?>
                 </button>
@@ -208,7 +264,7 @@ $isEdit = $pageListingId > 0 || $forceEditChrome;
                     type="button"
                     class="wp-element-button is-style-outline sutore-mp-delete is-hidden"
                     hidden
-                    data-listing-id="<?php echo esc_attr((string) $pageListingId); ?>"
+                    data-variation-id="<?php echo esc_attr((string) $pageListingId); ?>"
                 >
                     <?php esc_html_e('Delete', 'sutore-marketplace'); ?>
                 </button>

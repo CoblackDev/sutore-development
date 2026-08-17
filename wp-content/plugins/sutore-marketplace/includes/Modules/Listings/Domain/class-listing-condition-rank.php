@@ -7,20 +7,11 @@ namespace SutoreMarketplace\Modules\Listings\Domain;
 final class ListingConditionRank
 {
     /** @var list<string> */
-    public const DEFECT_KEYS = ['no_box', 'box_damaged', 'missing_accessory', 'used', 'damaged'];
-
-    /** @var array<string, int> */
-    private const SEVERITY_WEIGHTS = [
-        'no_box' => 1,
-        'box_damaged' => 2,
-        'missing_accessory' => 3,
-        'used' => 4,
-        'damaged' => 5,
-    ];
+    public const DEFECT_KEYS = ['no_box', 'box_damaged', 'missing_accessory', 'damaged'];
 
     public static function hasDefect(Listing|array $listingOrConditions): bool
     {
-        return self::defectSeverity($listingOrConditions) > 0;
+        return self::activeKeys($listingOrConditions) !== [];
     }
 
     public static function isFlawless(Listing|array $listingOrConditions): bool
@@ -28,41 +19,13 @@ final class ListingConditionRank
         return !self::hasDefect($listingOrConditions);
     }
 
-    public static function defectSeverity(Listing|array $listingOrConditions): int
-    {
-        $conditions = $listingOrConditions instanceof Listing
-            ? $listingOrConditions->conditions
-            : $listingOrConditions;
-
-        $score = 0;
-        foreach (self::DEFECT_KEYS as $key) {
-            if (!empty($conditions[$key])) {
-                $score += self::SEVERITY_WEIGHTS[$key];
-            }
-        }
-
-        return $score;
-    }
-
     /**
-     * Sale order: flawless before defective; lower severity; lower asking; older first.
+     * Sale order: lower asking first; older listing first on a tie.
      *
      * @return int negative when $a ranks before $b (wins sale)
      */
     public static function compareForSale(Listing $a, Listing $b): int
     {
-        $defectA = self::hasDefect($a);
-        $defectB = self::hasDefect($b);
-        if ($defectA !== $defectB) {
-            return $defectA <=> $defectB;
-        }
-
-        $severityA = self::defectSeverity($a);
-        $severityB = self::defectSeverity($b);
-        if ($severityA !== $severityB) {
-            return $severityA <=> $severityB;
-        }
-
         $askingA = (float) $a->asking;
         $askingB = (float) $b->asking;
         if ($askingA !== $askingB) {
@@ -83,16 +46,6 @@ final class ListingConditionRank
         return $listings;
     }
 
-    /** Price alone cannot move $self ahead of $other when condition tiers differ. */
-    public static function canBeatByPriceOnly(Listing $self, Listing $other): bool
-    {
-        if (self::hasDefect($self) !== self::hasDefect($other)) {
-            return false;
-        }
-
-        return self::defectSeverity($self) === self::defectSeverity($other);
-    }
-
     /**
      * @param Listing[] $ranked
      */
@@ -103,57 +56,85 @@ final class ListingConditionRank
         }
 
         $index = null;
-        $draft = null;
         foreach ($ranked as $i => $listing) {
-            if ((int) $listing->id === $draftId) {
+            if ((int) $listing->variationId === $draftId) {
                 $index = $i;
-                $draft = $listing;
                 break;
             }
         }
 
-        if ($index === null || $index === 0 || !$draft) {
+        if ($index === null || $index === 0) {
             return null;
         }
 
-        $leader = $ranked[0];
-        if (!self::canBeatByPriceOnly($draft, $leader)) {
-            return null;
-        }
-
-        $target = \SutoreMarketplace\Shared\Domain\MarketplacePricing::firstPlaceAsking((float) $leader->asking);
-        if ($target === null || (float) $draft->asking <= $target) {
+        $target = \SutoreMarketplace\Shared\Domain\MarketplacePricing::firstPlaceAsking((float) $ranked[0]->asking);
+        $draftAsking = (float) $ranked[$index]->asking;
+        if ($target === null || $draftAsking <= $target) {
             return null;
         }
 
         return $target;
     }
 
-    /**
-     * @param Listing[] $ranked
-     */
-    public static function isBlockedByBetterCondition(array $ranked, int $draftId): bool
+    public static function label(string $key): string
     {
-        $draftIndex = null;
-        $draftListing = null;
-        foreach ($ranked as $index => $listing) {
-            if ((int) $listing->id === $draftId) {
-                $draftIndex = $index;
-                $draftListing = $listing;
-                break;
+        return match ($key) {
+            'no_box' => __('No box', 'sutore-marketplace'),
+            'box_damaged' => __('Box damaged', 'sutore-marketplace'),
+            'missing_accessory' => __('Missing accessory', 'sutore-marketplace'),
+            'damaged' => __('Damaged', 'sutore-marketplace'),
+            default => $key,
+        };
+    }
+
+    /**
+     * @param Listing|array<string, mixed> $listingOrConditions
+     * @return list<string>
+     */
+    public static function activeKeys(Listing|array $listingOrConditions): array
+    {
+        $conditions = $listingOrConditions instanceof Listing
+            ? $listingOrConditions->conditions
+            : $listingOrConditions;
+
+        $keys = [];
+        foreach (self::DEFECT_KEYS as $key) {
+            if (!empty($conditions[$key])) {
+                $keys[] = $key;
             }
         }
 
-        if ($draftIndex === null || !$draftListing || !self::hasDefect($draftListing)) {
-            return false;
+        return $keys;
+    }
+
+    /**
+     * @param Listing|array<string, mixed> $listingOrConditions
+     * @return list<string>
+     */
+    public static function activeLabels(Listing|array $listingOrConditions): array
+    {
+        $labels = [];
+        foreach (self::activeKeys($listingOrConditions) as $key) {
+            $labels[] = self::label($key);
         }
 
-        for ($i = 0; $i < $draftIndex; $i++) {
-            if (self::isFlawless($ranked[$i])) {
-                return true;
-            }
+        return $labels;
+    }
+
+    public static function customerBadgesHtml(Listing $listing): string
+    {
+        $labels = self::activeLabels($listing);
+        if ($labels === []) {
+            return '';
         }
 
-        return false;
+        $items = '';
+        foreach ($labels as $label) {
+            $items .= '<span class="sutore-mp-pdp-condition-badge">' . esc_html($label) . '</span>';
+        }
+
+        return '<div class="sutore-mp-pdp-conditions" role="group" aria-label="'
+            . esc_attr__('Condition', 'sutore-marketplace')
+            . '">' . $items . '</div>';
     }
 }

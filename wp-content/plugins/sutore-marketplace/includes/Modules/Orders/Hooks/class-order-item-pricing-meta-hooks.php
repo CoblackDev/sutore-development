@@ -57,11 +57,29 @@ final class OrderItemPricingMetaHooks
         }
 
         $fees = MarketplacePricing::feeBreakdownForListing($listing);
+        $customerUnit = MarketplacePricing::customerPrice($listing);
+
         $item->add_meta_data(self::META_ASKING, MarketplacePricing::activeAsking($listing), true);
         $item->add_meta_data(self::META_HIZMET, $fees['hizmet'], true);
         $item->add_meta_data(self::META_GUVENCE, $fees['guvence'], true);
         $item->add_meta_data(self::META_WAIVER, $fees['waiver'], true);
-        $item->add_meta_data(self::META_CUSTOMER_UNIT, MarketplacePricing::customerPrice($listing), true);
+        $item->add_meta_data(self::META_CUSTOMER_UNIT, $customerUnit, true);
+    }
+
+    /**
+     * Force the WC line totals to the marketplace customer price (manual attach/swap).
+     */
+    public function applyMarketplaceLineTotals(\WC_Order_Item_Product $item): void
+    {
+        $this->attachMeta($item);
+        $customerUnit = (float) $item->get_meta(self::META_CUSTOMER_UNIT, true);
+        if ($customerUnit <= 0) {
+            return;
+        }
+        $qty = max(1, (int) $item->get_quantity());
+        $lineTotal = round($customerUnit * $qty, 2);
+        $item->set_subtotal($lineTotal);
+        $item->set_total($lineTotal);
     }
 
     /**

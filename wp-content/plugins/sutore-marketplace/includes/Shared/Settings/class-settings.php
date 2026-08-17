@@ -14,6 +14,11 @@ final class Settings
             'listing_price_step' => 25,
             'usd_try_exchange_rate' => 0.0,
             'listing_expire_duration_days' => 45,
+            'listing_duration_max_by_level' => [
+                'normal' => 30,
+                'verified' => 45,
+                'premium' => 60,
+            ],
             'service_fee_amount' => 0.0,
             'assurance_fee_percent' => 0.0,
             'merchant_levels' => [
@@ -21,15 +26,27 @@ final class Settings
                 'verified' => ['commission_percent' => 12],
                 'premium' => ['commission_percent' => 8],
             ],
-            'default_platform_discount' => 0.0,
+            'campaign_discount_min_percent' => 10,
+            'campaign_discount_max_percent' => 40,
+            'campaign_max_days' => 14,
+            'campaign_cooldown_days' => 14,
+            'campaign_aging_day_1' => 45,
+            'campaign_aging_day_2' => 60,
             'pricing_revision' => 2,
             'cart_max_quantity' => 8,
             'checkout_tckno_cart_total_threshold' => 80000.0,
+            'youth_discount_enabled' => false,
+            'youth_discount_max_age' => 26,
+            'youth_discount_percent' => 20.0,
+            'customer_offer_enabled' => true,
+            'customer_offer_ttl_hours' => 48,
+            'customer_offer_min_percent' => 70,
+            'customer_offer_max_per_day' => 10,
             'auto_active_merchant_statuses' => 'verified,premium',
             'fast_shipment_city' => 'TR34',
             'fast_shipment_levels' => 'verified,premium',
+            'catalog_product_request_levels' => 'verified,premium',
             'international_commitment_text' => '',
-            'freeze_expire_on_sale' => true,
             'notify_queue_position_change' => false,
             'checkout_fast_shipping_fee' => 0.0,
             'checkout_express_base_fee' => 0.0,
@@ -69,6 +86,9 @@ final class Settings
             'netgsm_header' => 'SUTORE',
             'netgsm_encoding' => 'TR',
             'sms_simulation_mode' => false,
+            'behavior' => \SutoreMarketplace\Modules\Merchants\Settings\BehaviorSettings::defaults(),
+            'referral' => \SutoreMarketplace\Modules\Merchants\Settings\ReferralSettings::defaults(),
+            'invoices' => \SutoreMarketplace\Modules\Invoices\Settings\InvoiceSettings::defaults(),
         ];
     }
 
@@ -132,9 +152,31 @@ final class Settings
         return max(0.0, (float) self::get('usd_try_exchange_rate', 0));
     }
 
-    public static function expireDays(): int
+    public static function defaultListingDurationDays(): int
     {
-        return max(1, (int) self::get('listing_expire_duration_days', 45));
+        $days = (int) self::get('listing_expire_duration_days', 45);
+        if (!\SutoreMarketplace\Modules\Listings\Domain\ListingDuration::isAllowed($days)) {
+            return 45;
+        }
+
+        return $days;
+    }
+
+    /** @return array<string, int> */
+    public static function listingDurationMaxByLevel(): array
+    {
+        $defaults = self::defaults()['listing_duration_max_by_level'];
+        $stored = self::get('listing_duration_max_by_level', $defaults);
+        if (!is_array($stored)) {
+            return $defaults;
+        }
+
+        $merged = [];
+        foreach ($defaults as $level => $defaultMax) {
+            $merged[$level] = max(1, (int) ($stored[$level] ?? $defaultMax));
+        }
+
+        return $merged;
     }
 
     public static function hizmetBedeli(): float
@@ -171,6 +213,21 @@ final class Settings
         return max(0.0, (float) self::get('checkout_tckno_cart_total_threshold', 80000));
     }
 
+    public static function youthDiscountEnabled(): bool
+    {
+        return (bool) self::get('youth_discount_enabled', false);
+    }
+
+    public static function youthDiscountMaxAge(): int
+    {
+        return max(1, min(120, (int) self::get('youth_discount_max_age', 26)));
+    }
+
+    public static function youthDiscountPercent(): float
+    {
+        return max(0.0, min(100.0, (float) self::get('youth_discount_percent', 20)));
+    }
+
     /** @return list<string> */
     public static function autoActiveMerchantStatuses(): array
     {
@@ -203,6 +260,22 @@ final class Settings
         return $parts ?: ['verified', 'premium'];
     }
 
+    /** @return list<string> */
+    public static function catalogProductRequestLevels(): array
+    {
+        $raw = (string) self::get('catalog_product_request_levels', 'verified,premium');
+        $parts = array_map('sanitize_key', array_filter(array_map('trim', explode(',', $raw))));
+
+        return $parts ?: ['verified', 'premium'];
+    }
+
+    public static function merchantCanRequestCatalogProduct(int $merchantId): bool
+    {
+        $status = \SutoreMarketplace\Shared\Domain\MerchantLevels::statusForUser($merchantId);
+
+        return in_array($status, self::catalogProductRequestLevels(), true);
+    }
+
     public static function internationalCommitmentText(): string
     {
         $text = trim((string) self::get('international_commitment_text', ''));
@@ -211,11 +284,6 @@ final class Settings
             'I agree to provide invoice and customs documents for international shipping.',
             'sutore-marketplace'
         );
-    }
-
-    public static function freezeExpireOnSale(): bool
-    {
-        return (bool) self::get('freeze_expire_on_sale', true);
     }
 
     public static function notifyQueuePositionChange(): bool

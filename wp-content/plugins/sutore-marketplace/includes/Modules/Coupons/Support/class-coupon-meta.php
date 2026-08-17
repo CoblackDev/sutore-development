@@ -10,6 +10,8 @@ final class CouponMeta
     public const MIN_BRAND_QTY = '_sutore_mp_min_brand_qty';
     public const NOTICE_PRIORITY = '_sutore_mp_notice_priority';
     public const NOTICE_COLOR = '_sutore_mp_notice_color';
+    public const CUSTOMER_OFFER_ID = '_sutore_mp_customer_offer_id';
+    public const CUSTOMER_OFFER_LISTING = '_sutore_mp_customer_offer_listing';
 
     public static function isBrandCampaign(\WC_Coupon $coupon): bool
     {

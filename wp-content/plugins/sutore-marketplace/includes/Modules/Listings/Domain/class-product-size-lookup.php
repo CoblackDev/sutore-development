@@ -4,41 +4,113 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Modules\Listings\Domain;
 
+/**
+ * Variation-axis term lookup for listings (size, color, or any WC variation attribute).
+ * DB column remains size_term_id — it stores the primary variation axis term id.
+ */
 final class ProductSizeLookup
 {
+    /** Preferred size taxonomy when a product has multiple variation axes. */
+    public const PRIMARY_SIZE_TAXONOMY = 'pa_beden-numara';
+
     /**
      * @return list<array{term_id: int, slug: string, name: string, taxonomy: string}>
      */
     public static function termsForParent(int $parentId): array
     {
-        $product = wc_get_product($parentId);
-        if (!$product || !$product->is_type('variable')) {
+        $taxonomy = self::primaryVariationTaxonomy($parentId);
+        if ($taxonomy === null) {
             return [];
         }
 
-        $sizes = [];
+        $terms = [];
+        foreach (wc_get_product_terms($parentId, $taxonomy, ['fields' => 'all']) as $term) {
+            if (!$term || is_wp_error($term)) {
+                continue;
+            }
+            $terms[] = [
+                'term_id' => (int) $term->term_id,
+                'slug' => (string) $term->slug,
+                'name' => (string) $term->name,
+                'taxonomy' => $taxonomy,
+            ];
+        }
+
+        return $terms;
+    }
+
+    /**
+     * @return array{taxonomy: string, axis_label: string, items: list<array{term_id: int, slug: string, name: string, taxonomy: string}>}
+     */
+    public static function axisContextForParent(int $parentId): array
+    {
+        $taxonomy = self::primaryVariationTaxonomy($parentId) ?? '';
+        $items = self::termsForParent($parentId);
+
+        return [
+            'taxonomy' => $taxonomy,
+            'axis_label' => $taxonomy !== '' ? self::axisLabelForTaxonomy($taxonomy) : '',
+            'items' => $items,
+        ];
+    }
+
+    public static function primaryVariationTaxonomy(int $parentId): ?string
+    {
+        $product = wc_get_product($parentId);
+        if (!$product || !$product->is_type('variable')) {
+            return null;
+        }
+
+        $variationTaxonomies = [];
         foreach ($product->get_attributes() as $attr) {
             if (!$attr->get_variation()) {
                 continue;
             }
             $name = $attr->get_name();
-            if ($name !== 'pa_beden-numara' && !str_contains($name, 'beden')) {
-                continue;
-            }
-            foreach (wc_get_product_terms($parentId, $name, ['fields' => 'all']) as $term) {
-                if (!$term || is_wp_error($term)) {
-                    continue;
-                }
-                $sizes[] = [
-                    'term_id' => (int) $term->term_id,
-                    'slug' => (string) $term->slug,
-                    'name' => (string) $term->name,
-                    'taxonomy' => $name,
-                ];
+            if ($name !== '') {
+                $variationTaxonomies[] = $name;
             }
         }
 
-        return $sizes;
+        if ($variationTaxonomies === []) {
+            return null;
+        }
+
+        if (in_array(self::PRIMARY_SIZE_TAXONOMY, $variationTaxonomies, true)) {
+            return self::PRIMARY_SIZE_TAXONOMY;
+        }
+
+        foreach ($variationTaxonomies as $taxonomy) {
+            if (str_contains($taxonomy, 'beden')) {
+                return $taxonomy;
+            }
+        }
+
+        return $variationTaxonomies[0];
+    }
+
+    public static function axisLabelForTaxonomy(string $taxonomy): string
+    {
+        if ($taxonomy === self::PRIMARY_SIZE_TAXONOMY || str_contains($taxonomy, 'beden')) {
+            return __('Size', 'sutore-marketplace');
+        }
+
+        if (
+            $taxonomy === 'pa_color'
+            || str_contains($taxonomy, 'color')
+            || str_contains($taxonomy, 'renk')
+        ) {
+            return __('Color', 'sutore-marketplace');
+        }
+
+        if (function_exists('wc_attribute_label')) {
+            $label = wc_attribute_label($taxonomy);
+            if (is_string($label) && $label !== '' && $label !== $taxonomy) {
+                return $label;
+            }
+        }
+
+        return __('Variation', 'sutore-marketplace');
     }
 
     public static function resolveTermId(int $parentId, string $sizeLabel): ?int
@@ -77,7 +149,7 @@ final class ProductSizeLookup
             return '';
         }
 
-        $term = get_term($termId, 'pa_beden-numara');
+        $term = get_term($termId, self::PRIMARY_SIZE_TAXONOMY);
         if (!$term || is_wp_error($term)) {
             $term = get_term($termId);
         }

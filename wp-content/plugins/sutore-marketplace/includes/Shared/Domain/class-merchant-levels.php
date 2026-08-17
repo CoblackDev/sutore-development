@@ -13,7 +13,7 @@ use SutoreMarketplace\Shared\Settings\Settings;
  * Seller level (marketplace tier) — not TC identity status.
  *
  * Storage keys: normal | verified | premium
- * UI labels:    Normal | Confirmed | Premium
+ * UI labels:    New | Confirmed | Super
  *
  * TC identity uses separate flags (tckno_verified). Never label TC status with
  * bare "Verified" next to a seller level; use "TC verified" / "TC not verified".
@@ -53,9 +53,9 @@ final class MerchantLevels
     public static function labelForStatus(string $status): string
     {
         return match ($status) {
-            self::PREMIUM => __('Premium', 'sutore-marketplace'),
+            self::PREMIUM => __('Super', 'sutore-marketplace'),
             self::VERIFIED => __('Confirmed', 'sutore-marketplace'),
-            default => __('Normal', 'sutore-marketplace'),
+            default => __('New', 'sutore-marketplace'),
         };
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Modules\Orders\Hooks;
 
+use SutoreMarketplace\Modules\Orders\Services\FulfillmentService;
 use SutoreMarketplace\Modules\Orders\Services\Notifications;
 use SutoreMarketplace\Modules\Orders\Services\OrderItemSellerDisplay;
 use SutoreMarketplace\Modules\Orders\Services\PaymentHandler;
@@ -19,6 +20,7 @@ final class WooCommerceHooks
         add_action('woocommerce_order_status_on-hold', [$this, 'onOrderConfirmed'], 10, 1);
         add_action('woocommerce_order_status_completed', [$this, 'onOrderCompleted'], 10, 1);
         add_action('woocommerce_order_status_refunded', [$this, 'onOrderRefunded'], 10, 1);
+        add_action('woocommerce_order_status_cancelled', [$this, 'onOrderCancelled'], 10, 1);
         add_action('woocommerce_after_order_itemmeta', [$this, 'renderAdminSellerMeta'], 10, 3);
     }
 
@@ -86,5 +88,10 @@ final class WooCommerceHooks
             (string) $order->get_billing_phone(),
             Notifications::baseVars($order, __('Your order', 'sutore-marketplace'))
         );
+    }
+
+    public function onOrderCancelled(int $orderId): void
+    {
+        (new FulfillmentService())->onWooCommerceOrderCancelled($orderId);
     }
 }

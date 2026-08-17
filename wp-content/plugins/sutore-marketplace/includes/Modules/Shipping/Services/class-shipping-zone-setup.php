@@ -7,21 +7,24 @@ namespace SutoreMarketplace\Modules\Shipping\Services;
 use SutoreMarketplace\Modules\Shipping\Methods\SutoreShippingMethod;
 
 /**
- * Ensures Sutore shipping method exists on relevant zones, including a dedicated Cyprus zone.
+ * Ensures the full native WC shipping zone layout the marketplace expects.
  *
  * Zone layout (native WC):
- * - Türkiye (TR) → free / fast / express
- * - Kıbrıs (CY) → cyprus only
- * - Rest of the World (0) → international / fallback (no cyprus)
+ * - Turkey (TR) → free / fast / express
+ * - Cyprus (CY) → cyprus only
+ * - Rest of the World (0) → international / fallback
+ *
+ * Every dedicated zone plus Rest of the World carries the Sutore shipping method;
+ * competing WC Free Shipping is disabled so the native UI stays single-source.
  */
 final class ShippingZoneSetup
 {
     /** Bump when zone installation logic changes so ensure() re-runs. */
-    private const OPTION_KEY = 'sutore_marketplace_shipping_zone_v3';
+    private const OPTION_KEY = 'sutore_marketplace_shipping_zone_v4';
 
     public static function ensure(): void
     {
-        if (!class_exists('WooCommerce') || !class_exists('WC_Shipping_Zone')) {
+        if (!class_exists('WooCommerce') || !class_exists('WC_Shipping_Zone') || !class_exists('WC_Shipping_Zones')) {
             return;
         }
 
@@ -29,18 +32,18 @@ final class ShippingZoneSetup
             return;
         }
 
+        self::ensureCountryZone('TR', __('Turkey', 'sutore-marketplace'), 0);
+        self::ensureCountryZone('CY', __('Cyprus', 'sutore-marketplace'), 1);
         self::ensureMethodOnZone(new \WC_Shipping_Zone(0));
-        self::ensureCyprusZone();
 
-        if (class_exists('WC_Shipping_Zones')) {
-            foreach (\WC_Shipping_Zones::get_zones() as $zoneData) {
-                $zoneId = (int) ($zoneData['id'] ?? $zoneData['zone_id'] ?? 0);
-                if ($zoneId <= 0) {
-                    continue;
-                }
-                self::ensureMethodOnZone(new \WC_Shipping_Zone($zoneId));
-                self::disableCompetingFreeShipping(new \WC_Shipping_Zone($zoneId));
+        foreach (\WC_Shipping_Zones::get_zones() as $zoneData) {
+            $zoneId = (int) ($zoneData['id'] ?? $zoneData['zone_id'] ?? 0);
+            if ($zoneId <= 0) {
+                continue;
             }
+            $zone = new \WC_Shipping_Zone($zoneId);
+            self::ensureMethodOnZone($zone);
+            self::disableCompetingFreeShipping($zone);
         }
 
         self::disableCompetingFreeShipping(new \WC_Shipping_Zone(0));
@@ -48,18 +51,18 @@ final class ShippingZoneSetup
         update_option(self::OPTION_KEY, 'done', false);
     }
 
-    private static function ensureCyprusZone(): void
+    /**
+     * Reuse an existing zone that already targets the country, otherwise create it.
+     */
+    private static function ensureCountryZone(string $countryCode, string $zoneName, int $zoneOrder): void
     {
-        if (!class_exists('WC_Shipping_Zones')) {
-            return;
-        }
+        $countryCode = strtoupper($countryCode);
 
         foreach (\WC_Shipping_Zones::get_zones() as $zoneData) {
-            $locations = $zoneData['zone_locations'] ?? [];
-            foreach ($locations as $location) {
+            foreach ($zoneData['zone_locations'] ?? [] as $location) {
                 $code = strtoupper((string) ($location->code ?? $location['code'] ?? ''));
                 $type = (string) ($location->type ?? $location['type'] ?? '');
-                if ($type === 'country' && $code === 'CY') {
+                if ($type === 'country' && $code === $countryCode) {
                     $zoneId = (int) ($zoneData['id'] ?? $zoneData['zone_id'] ?? 0);
                     if ($zoneId > 0) {
                         self::ensureMethodOnZone(new \WC_Shipping_Zone($zoneId));
@@ -71,10 +74,10 @@ final class ShippingZoneSetup
         }
 
         $zone = new \WC_Shipping_Zone();
-        $zone->set_zone_name(__('Cyprus', 'sutore-marketplace'));
-        $zone->set_zone_order(1);
+        $zone->set_zone_name($zoneName);
+        $zone->set_zone_order($zoneOrder);
         $zone->save();
-        $zone->add_location('CY', 'country');
+        $zone->add_location($countryCode, 'country');
         $zone->save();
         self::ensureMethodOnZone($zone);
     }

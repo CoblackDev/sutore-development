@@ -38,6 +38,13 @@ final class AdminCampaignsController
                 'permission_callback' => [AdminPermission::class, 'canManage'],
             ],
         ]);
+        register_rest_route($ns, '/admin/campaigns/(?P<id>\d+)/offers', [
+            [
+                'methods' => 'POST',
+                'callback' => [$this, 'createOffer'],
+                'permission_callback' => [AdminPermission::class, 'canManage'],
+            ],
+        ]);
         register_rest_route($ns, '/admin/campaigns/(?P<id>\d+)/publish', [
             [
                 'methods' => 'POST',
@@ -82,10 +89,72 @@ final class AdminCampaignsController
         ]);
     }
 
-    public function index(): \WP_REST_Response
+    public function index(\WP_REST_Request $req): \WP_REST_Response
     {
+        $service = new CampaignService();
+        $sendable = (string) $req->get_param('sendable') === '1'
+            || (string) $req->get_param('sendable') === 'true';
+
         return RestResponse::success([
-            'items' => (new CampaignService())->listForAdmin(),
+            'items' => $sendable ? $service->listSendableForStaff() : $service->listForAdmin(),
+        ]);
+    }
+
+    public function createOffer(\WP_REST_Request $req): \WP_REST_Response
+    {
+        $params = $this->params($req);
+        $campaignId = (int) $req['id'];
+        $listingIds = [];
+        if (isset($params['variation_ids']) && is_array($params['variation_ids'])) {
+            $listingIds = array_values(array_unique(array_filter(array_map('intval', $params['variation_ids']))));
+        } elseif (!empty($params['variation_id'])) {
+            $listingIds = [(int) $params['variation_id']];
+        }
+
+        if ($listingIds === []) {
+            return RestResponse::fail(
+                __('Select at least one product.', 'sutore-marketplace'),
+                400,
+                'sutore_campaign_listing_required'
+            );
+        }
+
+        $service = new CampaignService();
+        $created = 0;
+        $errors = [];
+        foreach ($listingIds as $listingId) {
+            $result = $service->createOfferForListing($campaignId, $listingId, [
+                'skip_targeting' => true,
+                'activate_campaign' => true,
+                'staff_manual' => true,
+            ]);
+            if (is_wp_error($result)) {
+                $errors[] = [
+                    'variation_id' => $listingId,
+                    'code' => $result->get_error_code(),
+                    'message' => $result->get_error_message(),
+                ];
+                continue;
+            }
+            $created++;
+        }
+
+        if ($created === 0) {
+            $first = $errors[0]['message'] ?? __('Campaign offer could not be created.', 'sutore-marketplace');
+
+            return RestResponse::fail($first, 409, 'sutore_campaign_offer_failed', [
+                'errors' => $errors,
+            ]);
+        }
+
+        return RestResponse::success([
+            'offers_created' => $created,
+            'errors' => $errors,
+            'message' => sprintf(
+                /* translators: %d: number of offers created */
+                _n('%d campaign offer sent.', '%d campaign offers sent.', $created, 'sutore-marketplace'),
+                $created
+            ),
         ]);
     }
 
@@ -106,18 +175,44 @@ final class AdminCampaignsController
     public function preview(\WP_REST_Request $req): \WP_REST_Response
     {
         $result = (new CampaignService())->previewTargeting($this->params($req));
+        $listingCount = (int) $result['listing_count'];
+        $merchantCount = (int) $result['merchant_count'];
+        $matchedCount = (int) ($result['matched_count'] ?? $listingCount);
+        $busyCount = (int) ($result['busy_count'] ?? 0);
+        $truncated = !empty($result['truncated']);
+
+        if ($listingCount > 0) {
+            $message = sprintf(
+                /* translators: 1: listing/product count, 2: merchant count */
+                __('This campaign will cover %1$d products (%2$d merchants).', 'sutore-marketplace'),
+                $listingCount,
+                $merchantCount
+            );
+            if ($truncated) {
+                $message .= ' ' . sprintf(
+                    /* translators: %d: scan cap */
+                    __('Audience scan is capped at %d matching listings; the real audience may be larger.', 'sutore-marketplace'),
+                    2000
+                );
+            }
+        } elseif ($matchedCount > 0 && $busyCount > 0) {
+            $message = sprintf(
+                /* translators: %d: count of matching listings already in a campaign */
+                __('No eligible products: %d matching listing(s) already have a campaign offer or active campaign.', 'sutore-marketplace'),
+                $busyCount
+            );
+        } else {
+            $message = __('No products match the current targeting.', 'sutore-marketplace');
+        }
 
         return RestResponse::success([
-            'listing_count' => $result['listing_count'],
-            'merchant_count' => $result['merchant_count'],
-            /* translators: 1: listing/product count, 2: merchant count */
-            'message' => $result['listing_count'] > 0
-                ? sprintf(
-                    __('This campaign will cover %1$d products (%2$d merchants).', 'sutore-marketplace'),
-                    $result['listing_count'],
-                    $result['merchant_count']
-                )
-                : __('No products match the current targeting.', 'sutore-marketplace'),
+            'listing_count' => $listingCount,
+            'merchant_count' => $merchantCount,
+            'matched_count' => $matchedCount,
+            'busy_count' => $busyCount,
+            'truncated' => $truncated,
+            'samples' => $result['samples'] ?? [],
+            'message' => $message,
         ]);
     }
 
@@ -195,10 +290,7 @@ final class AdminCampaignsController
     public function listingActivity(\WP_REST_Request $req): \WP_REST_Response
     {
         return RestResponse::success(
-            (new CampaignService())->listingActivityForAdmin(
-                (int) $req['id'],
-                (int) ($req->get_param('variation_id') ?: 0)
-            )
+            (new CampaignService())->listingActivityForAdmin((int) $req['id'])
         );
     }
 

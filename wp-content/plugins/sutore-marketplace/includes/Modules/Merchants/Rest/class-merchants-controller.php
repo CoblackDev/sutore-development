@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Modules\Merchants\Rest;
 
-use SutoreMarketplace\Modules\Merchants\Domain\PayoutStatus;
+use SutoreMarketplace\Modules\Merchants\Services\BehaviorScoreService;
 use SutoreMarketplace\Modules\Merchants\Services\CommissionResolver;
 use SutoreMarketplace\Modules\Merchants\Services\MerchantBalanceService;
 use SutoreMarketplace\Modules\Merchants\Services\MerchantProfileService;
 use SutoreMarketplace\Modules\Merchants\Services\NotificationService;
+use SutoreMarketplace\Modules\Merchants\Services\PayoutLineService;
+use SutoreMarketplace\Modules\Merchants\Services\ReferralService;
 use SutoreMarketplace\Modules\Merchants\Support\MerchantMeta;
 use SutoreMarketplace\Shared\Data\TrDistricts;
 use SutoreMarketplace\Shared\Domain\MerchantLevels;
@@ -80,6 +82,14 @@ final class MerchantsController
             [
                 'methods' => 'GET',
                 'callback' => [$this, 'balance'],
+                'permission_callback' => [$this, 'canViewDashboard'],
+            ],
+        ]);
+
+        register_rest_route($ns, '/merchant/behavior', [
+            [
+                'methods' => 'GET',
+                'callback' => [$this, 'behavior'],
                 'permission_callback' => [$this, 'canViewDashboard'],
             ],
         ]);
@@ -168,7 +178,7 @@ final class MerchantsController
         }
         if (!$isTcVerified) {
             $note = match ($tcMode) {
-                'manual' => __('After your information is saved, TC verification is performed by an administrator. Once approved, you move to Confirmed seller level.', 'sutore-marketplace'),
+                'manual' => __('After your information is saved, TC verification is performed by an administrator.', 'sutore-marketplace'),
                 'algorithm' => __('In development mode, the TC number is checked algorithmically; the NVI service is not contacted.', 'sutore-marketplace'),
                 default => __('During registration, your TC identity number, first name, last name, and birth year are verified with the Directorate General of Population and Citizenship Affairs service. If the NVI public service is unavailable, change the verification mode from the admin panel.', 'sutore-marketplace'),
             };
@@ -177,7 +187,9 @@ final class MerchantsController
         $commission = (new CommissionResolver())->forUser($userId);
         $overrideLabel = '';
         if ($commission['is_overridden']) {
-            $overrideLabel = __('Commission discount active', 'sutore-marketplace');
+            $overrideLabel = !empty($commission['raises_level'])
+                ? __('Commission override active', 'sutore-marketplace')
+                : __('Commission discount active', 'sutore-marketplace');
         }
 
         return RestResponse::success([
@@ -201,7 +213,21 @@ final class MerchantsController
             'submit_label' => $isMerchant
                 ? __('Update My Info', 'sutore-marketplace')
                 : __('Save My Info', 'sutore-marketplace'),
+            'behavior' => (new BehaviorScoreService())->snapshotForMerchant($userId),
+            'referral' => (new ReferralService())->snapshotForUser($userId, $isMerchant),
         ]);
+    }
+
+    public function behavior(\WP_REST_Request $req): \WP_REST_Response
+    {
+        $userId = get_current_user_id();
+        $includeLedger = !empty($req->get_param('ledger'));
+        $data = (new BehaviorScoreService())->snapshotForMerchant($userId);
+        if ($includeLedger) {
+            $data['digest'] = (new BehaviorScoreService())->digestForMerchant($userId);
+        }
+
+        return RestResponse::success($data);
     }
 
     public function saveProfile(\WP_REST_Request $req): \WP_REST_Response
@@ -232,15 +258,7 @@ final class MerchantsController
         $summary = (new MerchantBalanceService())->summaryForMerchant(get_current_user_id());
         $recent = [];
         foreach ($summary['recent'] as $line) {
-            $recent[] = [
-                'product_title' => (string) ($line->product_title ?? ''),
-                'listing_id' => (int) ($line->listing_id ?? 0),
-                'variation_id' => (int) ($line->variation_id ?? 0),
-                'net_amount' => (float) ($line->net_amount ?? 0),
-                'formatted_net' => number_format((float) ($line->net_amount ?? 0), 0, ',', '.') . ' TL',
-                'payout_status' => (string) ($line->payout_status ?? ''),
-                'payout_status_label' => PayoutStatus::label((string) ($line->payout_status ?? '')),
-            ];
+            $recent[] = PayoutLineService::presentLine($line);
         }
         $summary['recent'] = $recent;
 

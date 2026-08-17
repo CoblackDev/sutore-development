@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Frontend;
 
 use SutoreMarketplace\Admin\AdminMenu;
+use SutoreMarketplace\Modules\Listings\Domain\CatalogProductRequestStatus;
+use SutoreMarketplace\Modules\Listings\Repositories\CatalogProductRequestRepository;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutStatus;
 use SutoreMarketplace\Modules\Shipping\Domain\ShipmentType;
 
@@ -15,9 +17,11 @@ use SutoreMarketplace\Modules\Shipping\Domain\ShipmentType;
 final class StaffAccount
 {
     public const ENDPOINT_MANAGE_PRODUCTS = 'manage-products';
+    public const ENDPOINT_MANAGE_ORDERS = 'manage-orders';
     public const ENDPOINT_MERCHANTS = 'merchants';
+    public const ENDPOINT_CATALOG_REQUESTS = 'catalog-product-requests';
 
-    private const ENDPOINTS_REVISION = '20260717-staff-merchants';
+    private const ENDPOINTS_REVISION = '20260815-catalog-product-requests';
 
     public function __construct(
         private readonly Assets $assets = new Assets(),
@@ -35,8 +39,16 @@ final class StaffAccount
             [$this, 'renderManageProducts']
         );
         add_action(
+            'woocommerce_account_' . self::ENDPOINT_MANAGE_ORDERS . '_endpoint',
+            [$this, 'renderManageOrders']
+        );
+        add_action(
             'woocommerce_account_' . self::ENDPOINT_MERCHANTS . '_endpoint',
             [$this, 'renderMerchants']
+        );
+        add_action(
+            'woocommerce_account_' . self::ENDPOINT_CATALOG_REQUESTS . '_endpoint',
+            [$this, 'renderCatalogRequests']
         );
         add_action('wp_loaded', [$this, 'maybeFlushRewrites']);
     }
@@ -44,13 +56,20 @@ final class StaffAccount
     /** @return list<string> */
     public static function endpointSlugs(): array
     {
-        return [self::ENDPOINT_MANAGE_PRODUCTS, self::ENDPOINT_MERCHANTS];
+        return [
+            self::ENDPOINT_MANAGE_PRODUCTS,
+            self::ENDPOINT_MANAGE_ORDERS,
+            self::ENDPOINT_MERCHANTS,
+            self::ENDPOINT_CATALOG_REQUESTS,
+        ];
     }
 
     public function addEndpoints(): void
     {
         add_rewrite_endpoint(self::ENDPOINT_MANAGE_PRODUCTS, EP_ROOT | EP_PAGES);
+        add_rewrite_endpoint(self::ENDPOINT_MANAGE_ORDERS, EP_ROOT | EP_PAGES);
         add_rewrite_endpoint(self::ENDPOINT_MERCHANTS, EP_ROOT | EP_PAGES);
+        add_rewrite_endpoint(self::ENDPOINT_CATALOG_REQUESTS, EP_ROOT | EP_PAGES);
     }
 
     /**
@@ -60,7 +79,9 @@ final class StaffAccount
     public function queryVars(array $vars): array
     {
         $vars[self::ENDPOINT_MANAGE_PRODUCTS] = self::ENDPOINT_MANAGE_PRODUCTS;
+        $vars[self::ENDPOINT_MANAGE_ORDERS] = self::ENDPOINT_MANAGE_ORDERS;
         $vars[self::ENDPOINT_MERCHANTS] = self::ENDPOINT_MERCHANTS;
+        $vars[self::ENDPOINT_CATALOG_REQUESTS] = self::ENDPOINT_CATALOG_REQUESTS;
 
         return $vars;
     }
@@ -75,19 +96,35 @@ final class StaffAccount
             return $items;
         }
 
+        $catalogLabel = __('Catalog requests', 'sutore-marketplace');
+        $pendingRequests = (new CatalogProductRequestRepository())
+            ->countForStaff(['status' => CatalogProductRequestStatus::PENDING]);
+        if ($pendingRequests > 0) {
+            $catalogLabel = sprintf(
+                /* translators: 1: menu label, 2: pending request count */
+                __('%1$s (%2$d)', 'sutore-marketplace'),
+                $catalogLabel,
+                $pendingRequests
+            );
+        }
+
         $result = [];
         $inserted = false;
         foreach ($items as $key => $text) {
             $result[$key] = $text;
             if (!$inserted && $key === 'dashboard') {
                 $result[self::ENDPOINT_MANAGE_PRODUCTS] = __('Manage Products', 'sutore-marketplace');
+                $result[self::ENDPOINT_MANAGE_ORDERS] = __('Manage Orders', 'sutore-marketplace');
                 $result[self::ENDPOINT_MERCHANTS] = __('Sellers', 'sutore-marketplace');
+                $result[self::ENDPOINT_CATALOG_REQUESTS] = $catalogLabel;
                 $inserted = true;
             }
         }
         if (!$inserted) {
             $result[self::ENDPOINT_MANAGE_PRODUCTS] = __('Manage Products', 'sutore-marketplace');
+            $result[self::ENDPOINT_MANAGE_ORDERS] = __('Manage Orders', 'sutore-marketplace');
             $result[self::ENDPOINT_MERCHANTS] = __('Sellers', 'sutore-marketplace');
+            $result[self::ENDPOINT_CATALOG_REQUESTS] = $catalogLabel;
         }
 
         return $result;
@@ -103,8 +140,14 @@ final class StaffAccount
         if (isset($wp->query_vars[self::ENDPOINT_MANAGE_PRODUCTS])) {
             $this->assets->enqueueStaffManageProducts();
         }
+        if (isset($wp->query_vars[self::ENDPOINT_MANAGE_ORDERS])) {
+            $this->assets->enqueueStaffOrders();
+        }
         if (isset($wp->query_vars[self::ENDPOINT_MERCHANTS])) {
             $this->assets->enqueueStaffMerchants();
+        }
+        if (isset($wp->query_vars[self::ENDPOINT_CATALOG_REQUESTS])) {
+            $this->assets->enqueueStaffCatalogRequests();
         }
     }
 
@@ -152,9 +195,15 @@ final class StaffAccount
         if (!in_array($isImported, ['yes', 'no'], true)) {
             $isImported = '';
         }
+        $payoutDue = sanitize_key((string) ($_GET['payout_due'] ?? ''));
+        if ($payoutDue !== '1') {
+            $payoutDue = '';
+        }
+        $soldFrom = \SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule::normalizeDate($_GET['sold_from'] ?? '');
+        $soldTo = \SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule::normalizeDate($_GET['sold_to'] ?? '');
 
         $view = [
-            'detail_id' => absint($_GET['listing_id'] ?? 0),
+            'detail_id' => absint($_GET['variation_id'] ?? 0),
             'search' => sanitize_text_field((string) ($_GET['search'] ?? '')),
             'status_filter' => sanitize_key((string) ($_GET['status'] ?? '')),
             'queue_filter' => sanitize_key((string) ($_GET['queue'] ?? '')),
@@ -163,12 +212,57 @@ final class StaffAccount
             'is_sourcing' => $isSourcing,
             'shipment_type' => $shipmentType,
             'is_imported' => $isImported,
+            'payout_due' => $payoutDue,
+            'sold_from' => $soldFrom,
+            'sold_to' => $soldTo,
             'orderby' => $orderby,
             'page' => max(1, absint($_GET['paged'] ?? 1)),
             'base_url' => wc_get_account_endpoint_url(self::ENDPOINT_MANAGE_PRODUCTS),
         ];
 
         include SUTORE_MARKETPLACE_PATH . 'templates/staff-manage-products.php';
+    }
+
+    public function renderManageOrders(): void
+    {
+        if (!is_user_logged_in() || !$this->currentUserCanManage()) {
+            echo '<p class="sutore-mp-error">' . esc_html__('You do not have access to this area.', 'sutore-marketplace') . '</p>';
+            return;
+        }
+
+        $this->assets->enqueueStaffOrders();
+
+        $orderby = sanitize_key((string) ($_GET['orderby'] ?? 'date_desc'));
+        $allowedOrderby = [
+            'date_desc',
+            'date_asc',
+            'id_desc',
+            'id_asc',
+            'total_desc',
+            'total_asc',
+            'deadline_asc',
+            'deadline_desc',
+        ];
+        if (!in_array($orderby, $allowedOrderby, true)) {
+            $orderby = 'date_desc';
+        }
+
+        $status = sanitize_key((string) ($_GET['status'] ?? ''));
+        if (str_starts_with($status, 'wc-')) {
+            $status = substr($status, 3);
+        }
+
+        $view = [
+            'detail_id' => absint($_GET['order_id'] ?? 0),
+            'search' => sanitize_text_field((string) ($_GET['search'] ?? '')),
+            'status_filter' => $status,
+            'orderby' => $orderby,
+            'page' => max(1, absint($_GET['paged'] ?? 1)),
+            'base_url' => wc_get_account_endpoint_url(self::ENDPOINT_MANAGE_ORDERS),
+            'status_labels' => wc_get_order_statuses(),
+        ];
+
+        include SUTORE_MARKETPLACE_PATH . 'templates/staff-orders.php';
     }
 
     public function renderMerchants(): void
@@ -194,6 +288,31 @@ final class StaffAccount
         ];
 
         include SUTORE_MARKETPLACE_PATH . 'templates/staff-merchants.php';
+    }
+
+    public function renderCatalogRequests(): void
+    {
+        if (!is_user_logged_in() || !$this->currentUserCanManage()) {
+            echo '<p class="sutore-mp-error">' . esc_html__('You do not have access to this area.', 'sutore-marketplace') . '</p>';
+            return;
+        }
+
+        $this->assets->enqueueStaffCatalogRequests();
+
+        $status = sanitize_key((string) ($_GET['status'] ?? CatalogProductRequestStatus::PENDING));
+        if ($status !== '' && !CatalogProductRequestStatus::isValid($status)) {
+            $status = CatalogProductRequestStatus::PENDING;
+        }
+
+        $view = [
+            'search' => sanitize_text_field((string) ($_GET['search'] ?? '')),
+            'status_filter' => $status,
+            'page' => max(1, absint($_GET['paged'] ?? 1)),
+            'base_url' => wc_get_account_endpoint_url(self::ENDPOINT_CATALOG_REQUESTS),
+            'status_labels' => CatalogProductRequestStatus::labels(),
+        ];
+
+        include SUTORE_MARKETPLACE_PATH . 'templates/staff-catalog-product-requests.php';
     }
 
     private function currentUserCanManage(): bool

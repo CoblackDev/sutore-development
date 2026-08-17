@@ -22,56 +22,56 @@ final class CampaignOfferRepository
         return $row ?: null;
     }
 
-    public function findAcceptedForListing(int $listingId): ?object
+    public function findAcceptedForVariation(int $variationId): ?object
     {
-        $map = $this->findAcceptedForListings([$listingId]);
+        $map = $this->findAcceptedForVariations([$variationId]);
 
-        return $map[$listingId] ?? null;
+        return $map[$variationId] ?? null;
     }
 
     /**
-     * @param list<int> $listingIds
+     * @param list<int> $variationIds
      * @return array<int, object>
      */
-    public function findAcceptedForListings(array $listingIds): array
+    public function findAcceptedForVariations(array $variationIds): array
     {
-        $listingIds = array_values(array_unique(array_filter(array_map('intval', $listingIds))));
-        if ($listingIds === []) {
+        $variationIds = array_values(array_unique(array_filter(array_map('intval', $variationIds))));
+        if ($variationIds === []) {
             return [];
         }
 
         global $wpdb;
-        $placeholders = implode(',', array_fill(0, count($listingIds), '%d'));
+        $placeholders = implode(',', array_fill(0, count($variationIds), '%d'));
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$this->table()}
-             WHERE listing_id IN ({$placeholders}) AND status = %s
+             WHERE variation_id IN ({$placeholders}) AND status = %s
              ORDER BY id DESC",
-            ...array_merge($listingIds, [CampaignOfferStatus::ACCEPTED])
+            ...array_merge($variationIds, [CampaignOfferStatus::ACCEPTED])
         ));
 
         $out = [];
         foreach ($rows ?: [] as $row) {
-            $lid = (int) $row->listing_id;
-            if (!isset($out[$lid])) {
-                $out[$lid] = $row;
+            $variationId = (int) $row->variation_id;
+            if (!isset($out[$variationId])) {
+                $out[$variationId] = $row;
             }
         }
 
         return $out;
     }
 
-    public function findPendingForListingCampaign(int $listingId, int $campaignId): ?object
+    public function findPendingForVariationCampaign(int $variationId, int $campaignId): ?object
     {
-        $map = $this->findPendingForListingCampaigns([[$listingId, $campaignId]]);
+        $map = $this->findPendingForVariationCampaigns([[$variationId, $campaignId]]);
 
-        return $map[$listingId . ':' . $campaignId] ?? null;
+        return $map[$variationId . ':' . $campaignId] ?? null;
     }
 
     /**
-     * @param list<array{0:int,1:int}> $pairs listing_id, campaign_id
-     * @return array<string, object> keyed by "listingId:campaignId"
+     * @param list<array{0:int,1:int}> $pairs variation_id, campaign_id
+     * @return array<string, object> keyed by "variationId:campaignId"
      */
-    public function findPendingForListingCampaigns(array $pairs): array
+    public function findPendingForVariationCampaigns(array $pairs): array
     {
         $pairs = array_values(array_filter($pairs, static function ($pair): bool {
             return is_array($pair) && count($pair) >= 2 && (int) $pair[0] > 0 && (int) $pair[1] > 0;
@@ -80,13 +80,13 @@ final class CampaignOfferRepository
             return [];
         }
 
-        $listingIds = array_values(array_unique(array_map(static fn ($p): int => (int) $p[0], $pairs)));
+        $variationIds = array_values(array_unique(array_map(static fn ($p): int => (int) $p[0], $pairs)));
         global $wpdb;
-        $placeholders = implode(',', array_fill(0, count($listingIds), '%d'));
+        $placeholders = implode(',', array_fill(0, count($variationIds), '%d'));
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$this->table()}
-             WHERE listing_id IN ({$placeholders}) AND status = %s",
-            ...array_merge($listingIds, [CampaignOfferStatus::PENDING])
+             WHERE variation_id IN ({$placeholders}) AND status = %s",
+            ...array_merge($variationIds, [CampaignOfferStatus::PENDING])
         ));
 
         $wanted = [];
@@ -96,7 +96,7 @@ final class CampaignOfferRepository
 
         $out = [];
         foreach ($rows ?: [] as $row) {
-            $key = (int) $row->listing_id . ':' . (int) $row->campaign_id;
+            $key = (int) $row->variation_id . ':' . (int) $row->campaign_id;
             if (isset($wanted[$key])) {
                 $out[$key] = $row;
             }
@@ -198,6 +198,46 @@ final class CampaignOfferRepository
             $campaignId,
             CampaignOfferStatus::PENDING
         )) ?: [];
+    }
+
+    /**
+     * @param list<int> $campaignIds
+     * @return array<int, array{pending: int, accepted: int}>
+     */
+    public function countsByCampaignIds(array $campaignIds): array
+    {
+        $campaignIds = array_values(array_unique(array_filter(array_map('intval', $campaignIds))));
+        $out = [];
+        foreach ($campaignIds as $id) {
+            $out[$id] = ['pending' => 0, 'accepted' => 0];
+        }
+        if ($campaignIds === []) {
+            return $out;
+        }
+
+        global $wpdb;
+        $placeholders = implode(',', array_fill(0, count($campaignIds), '%d'));
+        $rows = $wpdb->get_results($wpdb->prepare(
+            'SELECT campaign_id, status, COUNT(*) AS total FROM ' . $this->table() . "
+             WHERE campaign_id IN ({$placeholders})
+               AND status IN (%s, %s)
+             GROUP BY campaign_id, status",
+            ...array_merge($campaignIds, [CampaignOfferStatus::PENDING, CampaignOfferStatus::ACCEPTED])
+        ));
+        foreach ($rows ?: [] as $row) {
+            $id = (int) $row->campaign_id;
+            $status = (string) $row->status;
+            if (!isset($out[$id])) {
+                $out[$id] = ['pending' => 0, 'accepted' => 0];
+            }
+            if ($status === CampaignOfferStatus::PENDING) {
+                $out[$id]['pending'] = (int) $row->total;
+            } elseif ($status === CampaignOfferStatus::ACCEPTED) {
+                $out[$id]['accepted'] = (int) $row->total;
+            }
+        }
+
+        return $out;
     }
 
     public function create(array $data): int

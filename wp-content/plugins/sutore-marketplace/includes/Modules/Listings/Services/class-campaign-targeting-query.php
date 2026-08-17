@@ -7,8 +7,11 @@ namespace SutoreMarketplace\Modules\Listings\Services;
 use SutoreMarketplace\Modules\Listings\Domain\CampaignTargeting;
 use SutoreMarketplace\Modules\Listings\Domain\Listing;
 use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
+use SutoreMarketplace\Modules\Listings\Domain\ProductCodeLookup;
+use SutoreMarketplace\Modules\Listings\Domain\ProductThumbnail;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 use SutoreMarketplace\Shared\Database\Schema;
+use SutoreMarketplace\Shared\Domain\MarketplacePricing;
 use SutoreMarketplace\Shared\Domain\MerchantLevels;
 
 /**
@@ -22,27 +25,64 @@ final class CampaignTargetingQuery
     }
 
     /**
-     * @return array{listings: list<Listing>, listing_count: int, merchant_count: int}
+     * @return array{
+     *   listings: list<Listing>,
+     *   listing_count: int,
+     *   merchant_count: int,
+     *   matched_count: int,
+     *   busy_count: int,
+     *   truncated: bool,
+     *   samples: list<array<string, mixed>>
+     * }
      */
-    public function preview(CampaignTargeting $targeting): array
+    public function preview(CampaignTargeting $targeting, int $sampleLimit = 12): array
     {
-        $matched = $this->findListings($targeting);
+        $matched = $this->findListings($targeting, false);
+        $truncated = count($matched) > 2000;
+        if ($truncated) {
+            $matched = array_slice($matched, 0, 2000);
+        }
+        $eligible = [];
         $merchantIds = [];
         foreach ($matched as $listing) {
-            $merchantIds[$listing->merchantId] = true;
+            if ($listing->campaignStatus === 'none') {
+                $eligible[] = $listing;
+                $merchantIds[$listing->merchantId] = true;
+            }
+        }
+
+        $samples = [];
+        foreach (array_slice($eligible, 0, max(1, $sampleLimit)) as $listing) {
+            $parentId = (int) $listing->parentProductId;
+            $samples[] = [
+                'variation_id' => (int) $listing->variationId,
+                'parent_product_id' => $parentId,
+                'parent_title' => $parentId > 0 ? (string) get_the_title($parentId) : '',
+                'product_code' => $parentId > 0 ? ProductCodeLookup::codeForProduct($parentId) : '',
+                'thumbnail' => $parentId > 0 ? ProductThumbnail::url($parentId) : '',
+                'asking' => (float) $listing->asking,
+                'asking_display' => MarketplacePricing::formatTl((float) $listing->asking),
+                'listing_status' => (string) $listing->listingStatus,
+                'merchant_id' => (int) $listing->merchantId,
+            ];
         }
 
         return [
-            'listings' => $matched,
-            'listing_count' => count($matched),
+            'listings' => $eligible,
+            'listing_count' => count($eligible),
             'merchant_count' => count($merchantIds),
+            'matched_count' => count($matched),
+            'busy_count' => count($matched) - count($eligible),
+            'truncated' => $truncated,
+            'match_limit' => 2000,
+            'samples' => $samples,
         ];
     }
 
     /**
      * @return list<Listing>
      */
-    public function findListings(CampaignTargeting $targeting): array
+    public function findListings(CampaignTargeting $targeting, bool $eligibleOnly = true): array
     {
         global $wpdb;
 
@@ -54,9 +94,13 @@ final class CampaignTargetingQuery
         $sql = "SELECT " . ListingRepository::listColumns('l') . "
                 FROM {$table} l
                 LEFT JOIN {$profiles} p ON p.user_id = l.merchant_id
-                WHERE l.listing_status IN ({$statusPlaceholders})
-                  AND l.campaign_status = %s";
-        $params = [...$statuses, 'none'];
+                WHERE l.listing_status IN ({$statusPlaceholders})";
+        $params = [...$statuses];
+
+        if ($eligibleOnly) {
+            $sql .= ' AND l.campaign_status = %s';
+            $params[] = 'none';
+        }
 
         if ($targeting->askingMin !== null) {
             $sql .= ' AND l.asking >= %f';
@@ -93,8 +137,9 @@ final class CampaignTargetingQuery
             }
         }
 
-        $sql .= ' ORDER BY l.id ASC LIMIT 2000';
+        $sql .= ' ORDER BY l.variation_id ASC LIMIT 2001';
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         $rows = $wpdb->get_results($wpdb->prepare($sql, ...$params)) ?: [];
         if ($rows === []) {
             return [];

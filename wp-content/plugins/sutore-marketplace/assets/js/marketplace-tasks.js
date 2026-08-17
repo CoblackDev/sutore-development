@@ -26,72 +26,70 @@
     return map[status] || status;
   }
 
+  function rewardLabel(card) {
+    if (card.reward_type === 'commission_percent' && card.reward_value > 0) {
+      return t('rewardCommission', 'Commission discount') + ': ' + card.reward_value + '%';
+    }
+    if (card.card_family === 'recovery') {
+      return t('rewardScoreRecovery', 'Reward: score recovery');
+    }
+    return t('rewardEngagement', 'Reward: marketplace engagement');
+  }
+
   function loadTasks($root) {
     if (!$root.length || !cfg.api) {
       return;
     }
 
     var $tasks = $root.find('.sutore-mp-tasks-results').attr('aria-busy', 'true').html(loadingHtml());
-    var $rewards = $root.find('.sutore-mp-rewards-results').attr('aria-busy', 'true').html(loadingHtml());
 
     cfg.api('marketplace_tasks_dashboard', {}).done(function (res) {
       $tasks.empty().attr('aria-busy', 'false');
-      $rewards.empty().attr('aria-busy', 'false');
       if (!res.success) {
         $tasks.text((res.data && res.data.message) || t('error', 'Error'));
         return;
       }
 
-      var tasks = res.data.tasks || [];
-      if (!tasks.length) {
-        $tasks.append($('<p class="sutore-mp-empty"/>').text(t('tasksEmpty', 'No tasks defined yet.')));
-      } else {
-        tasks.forEach(function (task) {
-          var $card = $('<div class="sutore-mp-task-card"/>');
-          if (task.status === 'completed') {
-            $card.addClass('is-completed');
-          }
-          $card.append($('<div class="sutore-mp-task-title"/>').text(task.title || task.task_key));
-          $card.append($('<div class="sutore-mp-task-meta"/>').text(
-            taskStatusLabel(task.status) + ' · ' + task.progress_count + ' / ' + task.target_count
-          ));
-          if (task.description) {
-            $card.append($('<div class="sutore-mp-task-desc"/>').text(task.description));
-          }
-          $card.append(
-            $('<div class="sutore-mp-progress"/>').append(
-              $('<div class="sutore-mp-progress-fill"/>').css('width', (task.percent || 0) + '%')
-            )
-          );
-          $card.append($('<div class="sutore-mp-task-reward"/>').text(
-            t('reward', 'Reward') + ': ' + task.reward_type + ' ' + task.reward_value
-          ));
-          $tasks.append($card);
-        });
+      var cards = res.data.cards || [];
+      if (!cards.length) {
+        $tasks.append($('<p class="sutore-mp-empty"/>').text(t('opportunitiesEmpty', 'No opportunity cards this month yet.')));
+        return;
       }
 
-      var rewards = res.data.rewards || [];
-      if (!rewards.length) {
-        $rewards.append($('<p class="sutore-mp-empty"/>').text(t('rewardsEmpty', 'No rewards yet.')));
-      } else {
-        rewards.forEach(function (r) {
-          $rewards.append(
-            $('<div class="sutore-mp-reward-row"/>').text(
-              '#' + r.id + ' · ' + r.reward_type + ' ' + r.reward_value + (r.created_at ? ' · ' + r.created_at : '')
-            )
+      var currentFamily = '';
+      cards.forEach(function (card) {
+        if (card.card_family && card.card_family !== currentFamily) {
+          currentFamily = card.card_family;
+          $tasks.append(
+            $('<h3 class="sutore-mp-section-title"/>').text(card.card_family_label || currentFamily)
           );
-        });
-      }
+        }
+
+        var $card = $('<div class="sutore-mp-task-card"/>');
+        if (card.status === 'completed') {
+          $card.addClass('is-completed');
+        }
+        $card.append($('<div class="sutore-mp-task-title"/>').text(card.title || card.task_key));
+        $card.append($('<div class="sutore-mp-task-meta"/>').text(
+          taskStatusLabel(card.status) + ' · ' + card.progress_count + ' / ' + card.target_count
+        ));
+        if (card.description) {
+          $card.append($('<div class="sutore-mp-task-desc"/>').text(card.description));
+        }
+        $card.append(
+          $('<div class="sutore-mp-progress"/>').append(
+            $('<div class="sutore-mp-progress-fill"/>').css('width', (card.percent || 0) + '%')
+          )
+        );
+        $card.append($('<div class="sutore-mp-task-reward"/>').text(rewardLabel(card)));
+        $tasks.append($card);
+      });
     }).fail(function () {
-      $tasks.attr('aria-busy', 'false').text(t('error', 'Error'));
-      $rewards.attr('aria-busy', 'false').empty();
+      $tasks.empty().attr('aria-busy', 'false').text(t('error', 'Error'));
     });
   }
 
   $(function () {
-    var $root = $('.sutore-mp-tasks-page .sutore-mp-tasks');
-    if ($root.length) {
-      loadTasks($root);
-    }
+    loadTasks($('.sutore-mp-tasks-page'));
   });
-}(jQuery));
+})(jQuery);

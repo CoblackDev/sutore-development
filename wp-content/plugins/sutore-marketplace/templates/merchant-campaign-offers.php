@@ -161,34 +161,21 @@ if (!defined('ABSPATH')) {
 
         >
 
+            <div class="sutore-mp-manage-modal__handle" aria-hidden="true"><span></span></div>
             <div class="sutore-mp-manage-modal__head">
-
                 <div class="sutore-mp-manage-modal__media" hidden></div>
-
                 <div class="sutore-mp-manage-modal__titles">
-
                     <h2 id="sutore-mp-offer-modal-title" class="sutore-mp-manage-modal__title">
-
                         <?php esc_html_e('Campaign offer', 'sutore-marketplace'); ?>
-
                     </h2>
-
-                    <div class="sutore-mp-manage-modal__sub"></div>
-
-                    <span class="sutore-mp-manage-modal__badge" hidden></span>
-
+                    <p class="sutore-mp-manage-modal__sub"></p>
                 </div>
-
+                <span class="sutore-mp-manage-modal__badge" hidden></span>
                 <button
-
                     type="button"
-
                     class="sutore-mp-manage-modal__close sutore-mp-offer-close"
-
                     aria-label="<?php esc_attr_e('Close', 'sutore-marketplace'); ?>"
-
                 >×</button>
-
             </div>
 
 

@@ -7,7 +7,6 @@ namespace SutoreMarketplace\Modules\Listings\Domain;
 final class Listing
 {
     public function __construct(
-        public readonly ?int $id,
         public readonly int $variationId,
         public readonly int $parentProductId,
         public readonly int $sizeTermId,
@@ -17,7 +16,10 @@ final class Listing
         public readonly string $conditionFingerprint,
         public readonly string $campaignStatus = 'none',
         public readonly ?int $campaignId = null,
+        public readonly ?string $campaignCooledUntil = null,
+        public readonly int $campaignAgingStep = 0,
         public readonly ?string $expireAt = null,
+        public readonly int $durationDays = 45,
         public readonly bool $fastShipment = false,
         public readonly bool $hasInvoice = false,
         public readonly bool $isImported = false,
@@ -29,7 +31,6 @@ final class Listing
         public readonly ?int $orderId = null,
         public readonly ?int $orderItemId = null,
         public readonly ?string $soldAt = null,
-        public readonly ?int $sourcingRequestId = null,
         public readonly ?string $confirmDeadlineAt = null,
         public readonly ?string $sellerConfirmedAt = null,
         public readonly ?string $cargoDeadlineAt = null,
@@ -45,13 +46,14 @@ final class Listing
         public readonly ?string $deliveredAt = null,
         public readonly ?string $returnWindowEndsAt = null,
         public readonly ?string $notes = null,
+        public readonly ?float $commissionPercent = null,
+        public readonly ?float $saleCommissionPercent = null,
     ) {
     }
 
     public static function fromRow(object $row, array $conditions = []): self
     {
         return new self(
-            id: isset($row->id) ? (int) $row->id : null,
             variationId: (int) $row->variation_id,
             parentProductId: (int) $row->parent_product_id,
             sizeTermId: (int) $row->size_term_id,
@@ -61,7 +63,12 @@ final class Listing
             conditionFingerprint: (string) $row->condition_fingerprint,
             campaignStatus: (string) ($row->campaign_status ?? 'none'),
             campaignId: isset($row->campaign_id) && $row->campaign_id !== null ? (int) $row->campaign_id : null,
+            campaignCooledUntil: isset($row->campaign_cooled_until) && $row->campaign_cooled_until !== null && $row->campaign_cooled_until !== ''
+                ? (string) $row->campaign_cooled_until
+                : null,
+            campaignAgingStep: isset($row->campaign_aging_step) ? max(0, (int) $row->campaign_aging_step) : 0,
             expireAt: $row->expire_at ?? null,
+            durationDays: isset($row->listing_duration_days) ? max(1, (int) $row->listing_duration_days) : 45,
             fastShipment: !empty($row->fast_shipment),
             hasInvoice: !empty($row->has_invoice),
             isImported: !empty($row->is_imported),
@@ -73,9 +80,6 @@ final class Listing
             orderId: isset($row->order_id) && $row->order_id !== null ? (int) $row->order_id : null,
             orderItemId: isset($row->order_item_id) && $row->order_item_id !== null ? (int) $row->order_item_id : null,
             soldAt: $row->sold_at ?? null,
-            sourcingRequestId: isset($row->sourcing_request_id) && $row->sourcing_request_id !== null
-                ? (int) $row->sourcing_request_id
-                : null,
             confirmDeadlineAt: $row->confirm_deadline_at ?? null,
             sellerConfirmedAt: $row->seller_confirmed_at ?? null,
             cargoDeadlineAt: $row->cargo_deadline_at ?? null,
@@ -97,13 +101,23 @@ final class Listing
             deliveredAt: $row->delivered_at ?? null,
             returnWindowEndsAt: $row->return_window_ends_at ?? null,
             notes: isset($row->notes) && $row->notes !== null ? (string) $row->notes : null,
+            commissionPercent: self::optionalDecimal($row->commission_percent ?? null),
+            saleCommissionPercent: self::optionalDecimal($row->sale_commission_percent ?? null),
         );
+    }
+
+    private static function optionalDecimal(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return round((float) $value, 2);
     }
 
     public function toArray(): array
     {
         return [
-            'id' => $this->id,
             'variation_id' => $this->variationId,
             'parent_product_id' => $this->parentProductId,
             'size_term_id' => $this->sizeTermId,
@@ -113,7 +127,10 @@ final class Listing
             'condition_fingerprint' => $this->conditionFingerprint,
             'campaign_status' => $this->campaignStatus,
             'campaign_id' => $this->campaignId,
+            'campaign_cooled_until' => $this->campaignCooledUntil,
+            'campaign_aging_step' => $this->campaignAgingStep,
             'expire_at' => $this->expireAt,
+            'duration_days' => $this->durationDays,
             'fast_shipment' => $this->fastShipment,
             'has_invoice' => $this->hasInvoice,
             'is_imported' => $this->isImported,
@@ -123,8 +140,7 @@ final class Listing
             'order_id' => $this->orderId,
             'order_item_id' => $this->orderItemId,
             'sold_at' => $this->soldAt,
-            'sourcing_request_id' => $this->sourcingRequestId,
-            'is_sourcing' => $this->sourcingRequestId !== null,
+            'is_pre_order' => $this->listingStatus === ListingStatus::PRE_ORDER,
             'confirm_deadline_at' => $this->confirmDeadlineAt,
             'seller_confirmed_at' => $this->sellerConfirmedAt,
             'cargo_deadline_at' => $this->cargoDeadlineAt,
@@ -138,6 +154,8 @@ final class Listing
             'cargo_expired_flag' => $this->cargoExpiredFlag,
             'delivered_at' => $this->deliveredAt,
             'return_window_ends_at' => $this->returnWindowEndsAt,
+            'commission_percent' => $this->commissionPercent,
+            'sale_commission_percent' => $this->saleCommissionPercent,
             'created_at' => $this->createdAt,
             'updated_at' => $this->updatedAt,
         ];

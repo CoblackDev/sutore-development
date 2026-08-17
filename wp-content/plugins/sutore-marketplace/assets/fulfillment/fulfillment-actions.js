@@ -46,8 +46,8 @@
   }
 
   $(document).on('click', '.sutore-mp-ful-details', function () {
-    var id = $(this).data('listing-id');
-    api('marketplace_fulfillment_details', { listing_id: id }).done(function (res) {
+    var id = $(this).data('variation-id');
+    api('marketplace_fulfillment_details', { variation_id: id }).done(function (res) {
       if (!res || !res.success) {
         if (typeof core.showAlert === 'function') {
           core.showAlert(t('error', 'Error'), (res && res.data && res.data.message) || t('error', 'Error'));
@@ -77,7 +77,7 @@
   });
 
   $(document).on('click', '.sutore-mp-ful-confirm', function () {
-    var id = $(this).data('listing-id');
+    var id = $(this).data('variation-id');
     var $m = modal(t('confirmSaleTitle', 'Confirm this sale?'), '<p>' + t('confirmSaleBody', 'After confirming, you must hand the product over for shipping within the specified time.') + '</p>', [
       { label: t('cancel', 'Cancel'), cls: 'wp-element-button is-style-outline sutore-mp-ful-close', onClick: function () { $('.sutore-mp-ful-modal').remove(); } },
       { label: t('yes', 'Yes'), cls: 'wp-element-button sutore-mp-ful-confirm-ok', onClick: function () {
@@ -87,7 +87,7 @@
         }
         setModalError($m, '');
         $btn.prop('disabled', true);
-        api('marketplace_fulfillment_confirm', { listing_id: id }).done(function (res) {
+        api('marketplace_fulfillment_confirm', { variation_id: id }).done(function (res) {
           if (res && res.success) {
             location.reload();
             return;
@@ -103,8 +103,8 @@
   });
 
   $(document).on('click', '.sutore-mp-ful-ship', function () {
-    var id = $(this).data('listing-id');
-    api('marketplace_fulfillment_details', { listing_id: id }).done(function (res) {
+    var id = $(this).data('variation-id');
+    api('marketplace_fulfillment_details', { variation_id: id }).done(function (res) {
       var hint = (res && res.success && res.data && res.data.shipment_hint) ? res.data.shipment_hint : t('shipmentHint', '');
       var body = '<p>' + hint + '</p>';
       body += '<p><label>' + t('shipmentCode', 'Shipping Tracking No') + '<br/><input type="text" class="sutore-mp-ful-shipment-input" inputmode="numeric" maxlength="12" style="width:100%"/></label></p>';
@@ -122,7 +122,7 @@
             return;
           }
           $btn.prop('disabled', true);
-          api('marketplace_fulfillment_ship', { listing_id: id, shipment_code: code }).done(function (r) {
+          api('marketplace_fulfillment_ship', { variation_id: id, shipment_code: code }).done(function (r) {
             if (r && r.success) {
               location.reload();
               return;

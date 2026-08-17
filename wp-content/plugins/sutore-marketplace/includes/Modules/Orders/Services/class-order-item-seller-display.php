@@ -38,14 +38,14 @@ final class OrderItemSellerDisplay
             }
         }
 
-        if (!$listing || !$listing->id) {
+        if (!$listing || !$listing->variationId) {
             return $rows;
         }
 
         $repo = new FulfillmentRepository();
-        $fulfillment = $repo->findActiveByListingId((int) $listing->id);
+        $fulfillment = $repo->findActiveByVariationId((int) $listing->variationId);
         if (!$fulfillment) {
-            $fulfillment = $repo->findByListingId((int) $listing->id);
+            $fulfillment = $repo->findByVariationId((int) $listing->variationId);
         }
         if (!$fulfillment) {
             return $rows;

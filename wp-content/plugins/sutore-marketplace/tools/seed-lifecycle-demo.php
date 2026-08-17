@@ -21,6 +21,12 @@ if (!is_file($root . '/wp-load.php')) {
 }
 require $root . '/wp-load.php';
 
+if (!defined('SUTORE_MARKETPLACE_SEEDING')) {
+    define('SUTORE_MARKETPLACE_SEEDING', true);
+}
+
+require __DIR__ . '/seed-catalog-helpers.php';
+
 if (!class_exists('WooCommerce')) {
     fwrite(STDERR, "WooCommerce is required.\n");
     exit(1);
@@ -40,13 +46,13 @@ use SutoreMarketplace\Shared\Database\Schema;
 use SutoreMarketplace\Shared\Domain\MerchantLevels;
 
 // Since the fulfillments table has been eliminated, every "fulfillment id" in
-// this seed is really the listing id: the FulfillmentRepository is a facade
-// over the listings table and hydrates rows with id/listing_id = listing id.
+// this seed is really the listing variation id: the FulfillmentRepository is a
+// facade over the listings table and hydrates rows with id = variation_id.
 
 $force = in_array('--force', array_slice($argv, 1), true);
 
 const SEED_META = '_sutore_marketplace_lifecycle_demo';
-const PASSWORD = 'SutoreDemo123!';
+const PASSWORD = 'password123';
 const SIZE_SLUG = 'lifecycle-43';
 const TRACKING_SELLER = '123456789012';
 const TRACKING_SUTORE = '987654321098';
@@ -111,44 +117,7 @@ function upsert_user(string $login, string $email, string $display, string $role
 
 function ensure_size_term(): WP_Term
 {
-    $taxonomy = 'pa_beden-numara';
-    if (!taxonomy_exists($taxonomy)) {
-        if (function_exists('wc_create_attribute')) {
-            wc_create_attribute([
-                'name' => 'Beden / Numara',
-                'slug' => 'beden-numara',
-                'type' => 'select',
-                'order_by' => 'menu_order',
-                'has_archives' => false,
-            ]);
-            delete_transient('wc_attribute_taxonomies');
-        }
-        register_taxonomy($taxonomy, 'product', [
-            'label' => 'Size',
-            'hierarchical' => false,
-            'show_ui' => false,
-            'query_var' => true,
-            'rewrite' => false,
-        ]);
-    }
-
-    $term = term_exists(SIZE_SLUG, $taxonomy);
-    if (!$term) {
-        $created = wp_insert_term('43 (Lifecycle)', $taxonomy, ['slug' => SIZE_SLUG]);
-        if (is_wp_error($created)) {
-            throw new RuntimeException('Size term failed: ' . $created->get_error_message());
-        }
-        $termId = (int) $created['term_id'];
-    } else {
-        $termId = (int) (is_array($term) ? $term['term_id'] : $term);
-    }
-
-    $obj = get_term($termId, $taxonomy);
-    if (!$obj || is_wp_error($obj)) {
-        throw new RuntimeException('Size term missing after create');
-    }
-
-    return $obj;
+    return seed_catalog_ensure_size_term(SIZE_SLUG, '43 (Lifecycle)');
 }
 
 function purge_previous_lifecycle_demo(): void
@@ -157,16 +126,15 @@ function purge_previous_lifecycle_demo(): void
 
     $state = get_option('sutore_lifecycle_demo_state');
     if (is_array($state)) {
-        $listingId = (int) ($state['listing_id'] ?? 0);
         $variationId = (int) ($state['variation_id'] ?? 0);
         $orderId = (int) ($state['order_id'] ?? 0);
         $parentId = (int) ($state['parent_product_id'] ?? 0);
 
-        if ($listingId > 0) {
-            (new ListingEventsRepository())->deleteForListing($listingId, $variationId);
-            $wpdb->delete(Schema::table('listing_conditions'), ['listing_id' => $listingId]);
-            $wpdb->delete(Schema::table('listings'), ['id' => $listingId]);
-            seed_log('Purged listing #' . $listingId . ' (sale data lived on the same row)');
+        if ($variationId > 0) {
+            (new ListingEventsRepository())->deleteForListing($variationId);
+            $wpdb->delete(Schema::table('listing_conditions'), ['variation_id' => $variationId]);
+            $wpdb->delete(Schema::table('listings'), ['variation_id' => $variationId]);
+            seed_log('Purged listing #' . $variationId . ' (sale data lived on the same row)');
         }
 
         if ($orderId > 0) {
@@ -199,42 +167,23 @@ function purge_previous_lifecycle_demo(): void
 
 function ensure_parent_product(WP_Term $sizeTerm): int
 {
-    $sku = 'LIFECYCLE-DEMO-AJ1-' . gmdate('YmdHis');
-
-    $product = new WC_Product_Variable();
-    $product->set_name('Lifecycle Demo Air Jordan 1');
-    $product->set_status('publish');
-    $product->set_catalog_visibility('visible');
-    $product->set_description('Demo product for full listing lifecycle and activity log tests.');
-    $product->set_sku($sku);
-    $product->set_manage_stock(false);
-    $product->set_stock_status('instock');
-
-    $attribute = new WC_Product_Attribute();
-    $attribute->set_id(wc_attribute_taxonomy_id_by_name('pa_beden-numara'));
-    $attribute->set_name('pa_beden-numara');
-    $attribute->set_options([$sizeTerm->term_id]);
-    $attribute->set_visible(true);
-    $attribute->set_variation(true);
-    $product->set_attributes([$attribute]);
-    $parentId = $product->save();
-    if (!$parentId) {
-        throw new RuntimeException('Parent product create failed');
-    }
-
-    wp_set_object_terms($parentId, [$sizeTerm->term_id], 'pa_beden-numara');
-    update_post_meta($parentId, SEED_META, '1');
-    update_post_meta($parentId, 'urun_kodu', 'LIFE-DEMO-001');
+    $parentId = seed_catalog_create_variable_parent(
+        'Lifecycle Demo Air Jordan 1',
+        'LIFE-DEMO-001',
+        seed_catalog_primary_taxonomy(),
+        [$sizeTerm],
+        SEED_META
+    );
     update_option('sutore_marketplace_lifecycle_demo_parent_id', $parentId, false);
 
-    return (int) $parentId;
+    return $parentId;
 }
 
-function print_activity(int $listingId, int $variationId): void
+function print_activity(int $variationId): void
 {
     $presenter = new ListingActivityPresenter();
-    $merchantRows = $presenter->present($listingId, $variationId, 'merchant_visible');
-    $allRows = $presenter->present($listingId, $variationId, null);
+    $merchantRows = $presenter->present($variationId, 'merchant_visible');
+    $allRows = $presenter->present($variationId, null);
 
     seed_log('');
     seed_log('=== ACTIVITY LOG (merchant_visible) ===');
@@ -340,33 +289,31 @@ try {
         'box_damaged' => 0,
         'missing_accessory' => 0,
         'damaged' => 0,
-        'used' => 0,
     ], $merchantId);
 
     if (is_wp_error($listing)) {
         throw new RuntimeException('Listing create failed: ' . $listing->get_error_message());
     }
 
-    $listingId = (int) $listing->id;
     $variationId = (int) $listing->variationId;
     update_post_meta($variationId, SEED_META, '1');
-    seed_log('Step 1: listing created #' . $listingId . ' (variation #' . $variationId . ') status=' . $listing->listingStatus . ' winner=' . ($listing->isWinner ? 'yes' : 'no'));
+    seed_log('Step 1: listing created #' . $variationId . ' status=' . $listing->listingStatus . ' winner=' . ($listing->isWinner ? 'yes' : 'no'));
 
-    $priceUpdate = $listingService->update($listingId, ['asking' => 3100], $merchantId);
+    $priceUpdate = $listingService->update($variationId, ['asking' => 3100], $merchantId);
     if (is_wp_error($priceUpdate)) {
         throw new RuntimeException('Price update failed: ' . $priceUpdate->get_error_message());
     }
     seed_log('Step 3: price updated 3200 → 3100');
 
-    $conditionUpdate = $listingService->update($listingId, [
-        'conditions' => ['used' => 1],
+    $conditionUpdate = $listingService->update($variationId, [
+        'conditions' => ['damaged' => 1],
     ], $merchantId);
     if (is_wp_error($conditionUpdate)) {
         throw new RuntimeException('Condition update failed: ' . $conditionUpdate->get_error_message());
     }
-    seed_log('Step 4: condition updated (used)');
+    seed_log('Step 4: condition updated (damaged)');
 
-    $shippingUpdate = $listingService->update($listingId, [
+    $shippingUpdate = $listingService->update($variationId, [
         'has_invoice' => 1,
     ], $merchantId);
     if (is_wp_error($shippingUpdate)) {
@@ -394,12 +341,12 @@ try {
     seed_log('Step 6: order #' . $order->get_id() . ' paid → sale started');
 
     $fulfillmentRepo = new FulfillmentRepository();
-    $fulfillment = $fulfillmentRepo->findActiveByListingId($listingId)
-        ?: $fulfillmentRepo->findByListingId($listingId);
+    $fulfillment = $fulfillmentRepo->findActiveByVariationId($variationId)
+        ?: $fulfillmentRepo->findByVariationId($variationId);
     if (!$fulfillment) {
-        throw new RuntimeException('Sale row not found for listing #' . $listingId);
+        throw new RuntimeException('Sale row not found for listing #' . $variationId);
     }
-    // Post-refactor: id / listing_id both = listing id (fulfillments table gone).
+    // Post-refactor: id = variation_id (fulfillments table gone).
     $fulfillmentId = (int) $fulfillment->id;
     seed_log('Step 7: sale row (listing #' . $fulfillmentId . ') status=' . $fulfillment->fulfillment_status);
 
@@ -457,7 +404,7 @@ try {
     seed_log('Step 12: delivered to customer (sale complete; return window informational)');
 
     $finalFulfillment = $fulfillmentRepo->find($fulfillmentId);
-    $finalListing = (new ListingRepository())->find($listingId);
+    $finalListing = (new ListingRepository())->find($variationId);
 
     update_option('sutore_lifecycle_demo_state', [
         'created_at' => current_time('mysql'),
@@ -466,7 +413,6 @@ try {
         'admin_user' => 'admin',
         'password' => PASSWORD,
         'parent_product_id' => $parentId,
-        'listing_id' => $listingId,
         'variation_id' => $variationId,
         'order_id' => (int) $order->get_id(),
         'listing_status' => $finalListing?->listingStatus,
@@ -474,11 +420,11 @@ try {
     ], false);
 
     $account = wc_get_page_permalink('myaccount') ?: home_url('/my-account/');
-    $listingUrl = trailingslashit($account) . 'listings/' . $listingId . '/';
+    $listingUrl = trailingslashit($account) . 'listings/' . $variationId . '/';
 
     seed_log('');
     seed_log('=== LIFECYCLE DEMO COMPLETE ===');
-    seed_log('Listing #' . $listingId . ' (also acts as fulfillment id) | Order #' . $order->get_id());
+    seed_log('Listing #' . $variationId . ' (also acts as fulfillment id) | Order #' . $order->get_id());
     seed_log('Final listing status: ' . ($finalListing?->listingStatus ?? '—'));
     seed_log('Final fulfillment status (mirror of listing_status): ' . ($finalFulfillment?->fulfillment_status ?? '—'));
     seed_log('');
@@ -491,11 +437,11 @@ try {
     seed_log('  Listing detail (activity log): ' . $listingUrl);
     seed_log('  Merchant listings list       : ' . trailingslashit($account) . 'listings/');
     seed_log('  Staff Manage Products : ' . (function_exists('wc_get_account_endpoint_url')
-        ? add_query_arg('listing_id', $listingId, wc_get_account_endpoint_url('manage-products'))
+        ? add_query_arg('variation_id', $variationId, wc_get_account_endpoint_url('manage-products'))
         : '(My Account → Manage Products)'));
     seed_log('  WC order                     : ' . admin_url('post.php?post=' . $order->get_id() . '&action=edit'));
 
-    print_activity($listingId, $variationId);
+    print_activity($variationId);
 } catch (Throwable $e) {
     fwrite(STDERR, 'ERROR: ' . $e->getMessage() . PHP_EOL);
     exit(1);

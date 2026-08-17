@@ -93,6 +93,18 @@ EXTRA: dict[str, str] = {
     "This sale was suspended.": "Bu satış askıya alındı.",
     "In sale / fulfillment": "Satış / fulfillment’da",
     "Sale ended": "Satış bitti",
+    "Youth discount": "Gençlik indirimi",
+    "Youth discount (%s%%)": "Gençlik indirimi (%%%s)",
+    "Enable youth discount": "Gençlik indirimini aç",
+    "Maximum age": "Azami yaş",
+    "Discount percent": "İndirim oranı",
+    "Year of birth": "Doğum yılı",
+    "YYYY": "YYYY",
+    "Used with your national ID to apply the youth discount.": "Gençlik indirimini uygulamak için kimlik numaranızla birlikte kullanılır.",
+    "First and last name are required for the youth discount.": "Gençlik indirimi için ad ve soyad zorunludur.",
+    "Youth discount is unavailable while TC verification is set to manual approval.": "TC doğrulama manuel onaydayken gençlik indirimi kullanılamaz.",
+    "Customers younger than this age qualify. Age is current year minus verified birth year.": "Bu yaşın altındaki müşteriler yararlanır. Yaş, içinde bulunulan yıl eksi doğrulanmış doğum yılıdır.",
+    "Verified customers below the maximum age see an automatic cart fee (not a coupon). Seller asking and seller net (asking minus commission) stay unchanged. The discount is capped by remaining service fee + guarantee fee + commission.": "Azami yaşın altındaki doğrulanmış müşteriler sepette otomatik bir ücret satırı görür (kupon değil). Satıcı asking’i ve satıcı neti (asking eksi komisyon) değişmez. İndirim kalan hizmet bedeli + güvence bedeli + komisyon ile tavanlanır.",
 }
 
 

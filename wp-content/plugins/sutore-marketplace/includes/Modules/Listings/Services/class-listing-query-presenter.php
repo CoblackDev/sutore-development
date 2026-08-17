@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Modules\Listings\Services;
 
+use SutoreMarketplace\Modules\Invoices\Domain\InvoiceKind;
+use SutoreMarketplace\Modules\Invoices\Repositories\InvoiceRepository;
+use SutoreMarketplace\Modules\Invoices\Services\InvoicePresenter;
 use SutoreMarketplace\Modules\Listings\Domain\CampaignDatetime;
 use SutoreMarketplace\Modules\Listings\Domain\CampaignDiscountType;
+use SutoreMarketplace\Modules\Listings\Domain\CampaignSource;
 use SutoreMarketplace\Modules\Listings\Domain\Listing;
 use SutoreMarketplace\Modules\Listings\Domain\ListingCampaignPolicy;
 use SutoreMarketplace\Modules\Listings\Domain\ListingExpireDisplay;
@@ -54,16 +58,35 @@ final class ListingQueryPresenter
 
         $result = $this->listings->query($args);
         $listingIds = array_values(array_filter(array_map(
-            static fn (Listing $listing): int => (int) ($listing->id ?? 0),
+            static fn (Listing $listing): int => (int) ($listing->variationId ?? 0),
             $result['items']
         )));
         ListingIntegration::primeFulfillmentCache($listingIds);
         $this->primeCampaignMaps($result['items']);
         $this->primeProductCaches($result['items']);
 
+        $orderIdByVariation = [];
+        foreach ($result['items'] as $listing) {
+            $variationId = (int) ($listing->variationId ?? 0);
+            if ($variationId > 0) {
+                $orderIdByVariation[$variationId] = (int) ($listing->orderId ?? 0);
+            }
+        }
+        $invoiceMap = (new InvoiceRepository())->findForVariations($orderIdByVariation);
+
         $items = [];
         foreach ($result['items'] as $listing) {
-            $items[] = $this->enrich($listing);
+            $item = $this->enrich($listing);
+            $variationId = (int) ($listing->variationId ?? 0);
+            $invoices = $invoiceMap[$variationId] ?? [];
+            if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
+                $invoices = array_values(array_filter(
+                    $invoices,
+                    static fn (object $row): bool => (string) $row->kind === InvoiceKind::SELLER_COMMISSION
+                ));
+            }
+            $item['invoices'] = InvoicePresenter::forStaff($invoices);
+            $items[] = $item;
         }
 
         $this->campaignMap = [];
@@ -90,11 +113,21 @@ final class ListingQueryPresenter
                 : $soldAt;
         }
 
+        $createdAt = $listing->createdAt ? trim((string) $listing->createdAt) : '';
+        $createdAtLabel = '';
+        if ($createdAt !== '') {
+            $createdTs = strtotime($createdAt);
+            $createdAtLabel = $createdTs
+                ? (string) wp_date(get_option('date_format') . ' ' . get_option('time_format'), $createdTs)
+                : $createdAt;
+        }
+
         $campaignStatus = (string) $listing->campaignStatus;
         $productId = $listing->variationId ?: $listing->parentProductId;
         $product = wc_get_product($productId);
         $productName = $product ? (string) $product->get_name() : (string) get_the_title($listing->parentProductId);
         $item = array_merge($listing->toArray(), [
+            'id' => (int) $listing->variationId,
             'parent_title' => $productName,
             'product_code' => ProductCodeLookup::codeForProduct($listing->parentProductId),
             'thumbnail' => ProductThumbnail::url($listing->parentProductId),
@@ -106,6 +139,7 @@ final class ListingQueryPresenter
                 $listing->listingStatus,
                 $listing->isWinner
             ),
+            'created_at_label' => $createdAtLabel,
             'sold_at_label' => $soldAtLabel,
             'campaign_status_label' => $campaignStatus !== '' && $campaignStatus !== 'none'
                 ? ListingStatus::campaignLabel($campaignStatus)
@@ -116,6 +150,12 @@ final class ListingQueryPresenter
             'can_delete' => $this->listingService->canDelete($listing),
             'can_edit' => $this->listingService->canEdit($listing),
             'can_increase_asking' => ListingCampaignPolicy::allowsAskingIncrease($listing),
+            'can_start_campaign' => ListingCampaignPolicy::canStart($listing),
+            'campaign_cooling' => ListingCampaignPolicy::isCoolingDown($listing),
+            'campaign_cooled_until' => $listing->campaignCooledUntil,
+            'campaign_cooled_until_label' => $listing->campaignCooledUntil
+                ? CampaignDatetime::formatLabel($listing->campaignCooledUntil)
+                : '',
             'max_asking' => ListingCampaignPolicy::isActiveCampaign($listing)
                 ? (float) $listing->asking
                 : null,
@@ -136,20 +176,20 @@ final class ListingQueryPresenter
         $activeListingIds = [];
         $pendingPairs = [];
         foreach ($listings as $listing) {
-            if ($listing->campaignStatus === 'none' || !$listing->campaignId || !$listing->id) {
+            if ($listing->campaignStatus === 'none' || !$listing->campaignId || !$listing->variationId) {
                 continue;
             }
             $campaignIds[] = (int) $listing->campaignId;
             if ($listing->campaignStatus === 'active') {
-                $activeListingIds[] = (int) $listing->id;
+                $activeListingIds[] = (int) $listing->variationId;
             } elseif ($listing->campaignStatus === 'offer') {
-                $pendingPairs[] = [(int) $listing->id, (int) $listing->campaignId];
+                $pendingPairs[] = [(int) $listing->variationId, (int) $listing->campaignId];
             }
         }
 
         $this->campaignMap = $this->campaigns->findByIds($campaignIds);
-        $this->acceptedOffers = $this->offers->findAcceptedForListings($activeListingIds);
-        $this->pendingOffers = $this->offers->findPendingForListingCampaigns($pendingPairs);
+        $this->acceptedOffers = $this->offers->findAcceptedForVariations($activeListingIds);
+        $this->pendingOffers = $this->offers->findPendingForVariationCampaigns($pendingPairs);
     }
 
     /**
@@ -182,7 +222,7 @@ final class ListingQueryPresenter
      */
     private function campaignDetails(Listing $listing): ?array
     {
-        if ($listing->campaignStatus === 'none' || !$listing->campaignId || !$listing->id) {
+        if ($listing->campaignStatus === 'none' || !$listing->campaignId || !$listing->variationId) {
             return null;
         }
 
@@ -190,12 +230,12 @@ final class ListingQueryPresenter
         $campaign = $this->campaignMap[$campaignId] ?? $this->campaigns->find($campaignId);
         $offer = null;
         if ($listing->campaignStatus === 'active') {
-            $offer = $this->acceptedOffers[(int) $listing->id]
-                ?? $this->offers->findAcceptedForListing((int) $listing->id);
+            $offer = $this->acceptedOffers[(int) $listing->variationId]
+                ?? $this->offers->findAcceptedForVariation((int) $listing->variationId);
         } elseif ($listing->campaignStatus === 'offer') {
-            $key = (int) $listing->id . ':' . $campaignId;
+            $key = (int) $listing->variationId . ':' . $campaignId;
             $offer = $this->pendingOffers[$key]
-                ?? $this->offers->findPendingForListingCampaign((int) $listing->id, $campaignId);
+                ?? $this->offers->findPendingForVariationCampaign((int) $listing->variationId, $campaignId);
         }
 
         $sellerDiscount = $offer
@@ -243,14 +283,17 @@ final class ListingQueryPresenter
             $platformDiscount = $math['platform_discount'];
         }
 
-        $startsAt = $campaign->starts_at ?? null;
-        $endsAt = $campaign->ends_at ?? null;
+        $startsAt = $campaign?->starts_at ?? null;
+        $endsAt = $campaign?->ends_at ?? null;
+        $source = CampaignSource::normalize((string) ($campaign?->source ?? CampaignSource::ADMIN));
 
         return [
             'campaign_id' => $campaignId,
             'offer_id' => $offer ? (int) $offer->id : null,
             'offer_status' => $offer ? (string) $offer->status : null,
             'name' => $campaign ? (string) $campaign->name : '',
+            'source' => $source,
+            'source_label' => CampaignSource::label($source),
             'status' => (string) $listing->campaignStatus,
             'status_label' => ListingStatus::campaignLabel((string) $listing->campaignStatus),
             'starts_at' => $startsAt,
@@ -259,6 +302,9 @@ final class ListingQueryPresenter
                 is_string($startsAt) ? $startsAt : null
             ),
             'ends_at_label' => CampaignDatetime::formatLabel(
+                is_string($endsAt) ? $endsAt : null
+            ),
+            'remaining_label' => ListingExpireDisplay::remainingFromDatetime(
                 is_string($endsAt) ? $endsAt : null
             ),
             'seller_discount_type' => $sellerType,
@@ -271,7 +317,8 @@ final class ListingQueryPresenter
             'platform_discount_label' => CampaignDiscountType::offerLabel($platformType, $platformValue, $platformDiscount),
             'asking_before' => $askingBefore,
             'asking_effective' => $math['asking_effective'],
-            'is_sourcing' => $listing->sourcingRequestId !== null,
+            'is_pre_order' => $listing->listingStatus === ListingStatus::PRE_ORDER,
+            'is_sourcing' => $listing->listingStatus === ListingStatus::PRE_ORDER,
         ];
     }
 }

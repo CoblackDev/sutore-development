@@ -14,7 +14,7 @@ Her geliştirme bu disipline uyar. `admin-ajax.php` / `wp_ajax_*` kullanılmaz.
 | **WooCommerce Store API** | Müşteri: ürün, sepet, kargo, kupon, checkout | `/wc/store/v1/*` |
 | **WooCommerce REST** | Ürün/varyasyon/sipariş/kupon/shipping | `/wc/v3/*` |
 | **WordPress REST** | Kullanıcı, medya | `/wp/v2/*` |
-| **Plugin REST** (`sutore-marketplace/v1`) | Listing, fulfillment, bildirim, payout, sourcing, task… | `/wp-json/sutore-marketplace/v1/*` |
+| **Plugin REST** (`sutore-marketplace/v1`) | Listing, fulfillment, bildirim, payout, sourcing, outlet, task… | `/wp-json/sutore-marketplace/v1/*` |
 
 Native WC/WP resource’a ait alan → `ExtendSchema` / `register_rest_field`.  
 Marketplace domain → `Modules/{Modul}/Rest/` + Service.
@@ -37,7 +37,7 @@ assets/js/*.js      → sayfa yüklenince REST fetch → DOM render
 Modules/*/Rest/     → tek HTTP API (Presenter/Service zenginleştirme)
 ```
 
-Örnekler: listings, sourcing, profile, notifications, tasks, staff manage-products.
+Örnekler: listings, sourcing, profile, notifications, tasks, outlet, staff manage-products.
 
 ## Modül klasörü
 

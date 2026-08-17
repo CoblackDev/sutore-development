@@ -117,13 +117,43 @@ final class MerchantActivityPresenter
             'merchant_commission_override_set' => sprintf(
                 /* translators: 1: commission percent, 2: expiry or dash */
                 __('Commission %1$s%% — expires %2$s', 'sutore-marketplace'),
-                (string) ($payload['commission_percent'] ?? '—'),
+                (string) ($payload['effective_percent'] ?? $payload['commission_percent'] ?? '—'),
                 !empty($payload['expires_at']) ? (string) $payload['expires_at'] : __('No end date', 'sutore-marketplace')
             ),
             'merchant_commission_override_deleted' => sprintf(
                 /* translators: %s: commission percent */
                 __('Deleted override %s%%', 'sutore-marketplace'),
                 (string) ($payload['commission_percent'] ?? '—')
+            ),
+            'merchant_payout_commission_adjusted' => sprintf(
+                /* translators: 1: previous commission percent, 2: new commission percent */
+                __('Commission %1$s%% → %2$s%%', 'sutore-marketplace'),
+                (string) ($payload['previous_percent'] ?? '—'),
+                (string) ($payload['commission_percent'] ?? '—')
+            ),
+            'merchant_listing_commission_set' => isset($payload['commission_percent']) && $payload['commission_percent'] !== null && $payload['commission_percent'] !== ''
+                ? sprintf(
+                    /* translators: %s: commission percent */
+                    __('Listing commission %s%%', 'sutore-marketplace'),
+                    (string) $payload['commission_percent']
+                )
+                : __('Listing commission cleared', 'sutore-marketplace'),
+            'merchant_referral_accepted' => sprintf(
+                /* translators: %s: inviter user id */
+                __('Invited by seller #%s', 'sutore-marketplace'),
+                (string) ($payload['inviter_id'] ?? '—')
+            ),
+            'merchant_referral_inviter_rewarded' => sprintf(
+                /* translators: 1: invitee name or id, 2: points off */
+                __('First sale by %1$s — %2$s points off', 'sutore-marketplace'),
+                (string) ($payload['invitee_name'] ?? ('#' . ($payload['invitee_id'] ?? '—'))),
+                (string) ($payload['points_off'] ?? '—')
+            ),
+            'merchant_referral_inviter_capped' => sprintf(
+                /* translators: 1: used count, 2: max rewards */
+                __('Period limit %1$s / %2$s', 'sutore-marketplace'),
+                (string) ($payload['used'] ?? '—'),
+                (string) ($payload['max_rewards'] ?? '—')
             ),
             default => '',
         };

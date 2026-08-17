@@ -10,6 +10,7 @@ use SutoreMarketplace\Modules\Orders\Domain\StaffQueueFilter;
 use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutStatus;
+use SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule;
 use SutoreMarketplace\Modules\Shipping\Domain\ShipmentType;
 
 /**
@@ -20,7 +21,7 @@ use SutoreMarketplace\Modules\Shipping\Domain\ShipmentType;
  * services and JS consumers stable this repository still returns stdClass rows
  * shaped like the old fulfillment rows:
  *
- *  - `id` = listing_id
+ *  - `id` = variation_id
  *  - `fulfillment_status` = listing_status (copy, kept in sync automatically)
  *  - every logistics column keeps its original name
  */
@@ -35,21 +36,21 @@ final class FulfillmentRepository
     {
         global $wpdb;
         $row = $wpdb->get_row($wpdb->prepare(
-            'SELECT * FROM ' . $this->table() . ' WHERE id = %d',
+            'SELECT * FROM ' . $this->table() . ' WHERE variation_id = %d',
             $id
         ));
 
         return $row ? $this->hydrateFulfillmentShape($row) : null;
     }
 
-    public function findByListingId(int $listingId): ?object
+    public function findByVariationId(int $listingId): ?object
     {
         return $this->find($listingId);
     }
 
-    public function findActiveByListingId(int $listingId): ?object
+    public function findActiveByVariationId(int $listingId): ?object
     {
-        $map = $this->findActiveByListingIds([$listingId]);
+        $map = $this->findActiveByVariationIds([$listingId]);
 
         return $map[$listingId] ?? null;
     }
@@ -60,7 +61,7 @@ final class FulfillmentRepository
      * @param list<int> $listingIds
      * @return array<int, object>
      */
-    public function findActiveByListingIds(array $listingIds): array
+    public function findActiveByVariationIds(array $listingIds): array
     {
         $listingIds = array_values(array_unique(array_filter(array_map('intval', $listingIds))));
         if ($listingIds === []) {
@@ -78,15 +79,15 @@ final class FulfillmentRepository
         $params = array_merge($listingIds, $active);
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$this->table()}
-             WHERE id IN ({$idPlaceholders})
+             WHERE variation_id IN ({$idPlaceholders})
                AND listing_status IN ({$statusPlaceholders})
-             ORDER BY id DESC",
+             ORDER BY variation_id DESC",
             ...$params
         ));
 
         $out = [];
         foreach ($rows ?: [] as $row) {
-            $out[(int) $row->id] = $this->hydrateFulfillmentShape($row);
+            $out[(int) $row->variation_id] = $this->hydrateFulfillmentShape($row);
         }
 
         return $out;
@@ -96,7 +97,7 @@ final class FulfillmentRepository
      * @param list<int> $listingIds
      * @return array<int, object>
      */
-    public function findLatestByListingIds(array $listingIds): array
+    public function findLatestByVariationIds(array $listingIds): array
     {
         $listingIds = array_values(array_unique(array_filter(array_map('intval', $listingIds))));
         if ($listingIds === []) {
@@ -106,13 +107,13 @@ final class FulfillmentRepository
         global $wpdb;
         $placeholders = implode(',', array_fill(0, count($listingIds), '%d'));
         $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$this->table()} WHERE id IN ({$placeholders})",
+            "SELECT * FROM {$this->table()} WHERE variation_id IN ({$placeholders})",
             ...$listingIds
         ));
 
         $out = [];
         foreach ($rows ?: [] as $row) {
-            $out[(int) $row->id] = $this->hydrateFulfillmentShape($row);
+            $out[(int) $row->variation_id] = $this->hydrateFulfillmentShape($row);
         }
 
         return $out;
@@ -122,7 +123,7 @@ final class FulfillmentRepository
     {
         global $wpdb;
         $row = $wpdb->get_row($wpdb->prepare(
-            'SELECT * FROM ' . $this->table() . ' WHERE order_id = %d AND order_item_id = %d ORDER BY id DESC LIMIT 1',
+            'SELECT * FROM ' . $this->table() . ' WHERE order_id = %d AND order_item_id = %d ORDER BY variation_id DESC LIMIT 1',
             $orderId,
             $orderItemId
         ));
@@ -143,7 +144,7 @@ final class FulfillmentRepository
 
         global $wpdb;
         $rows = $wpdb->get_results($wpdb->prepare(
-            'SELECT * FROM ' . $this->table() . ' WHERE order_id = %d ORDER BY id ASC',
+            'SELECT * FROM ' . $this->table() . ' WHERE order_id = %d ORDER BY variation_id ASC',
             $orderId
         ));
 
@@ -157,27 +158,27 @@ final class FulfillmentRepository
 
     /**
      * Historically inserted a new fulfillment row; now writes sale fields back
-     * onto the listing row. Expects a `listing_id` key (id of the listing to
+     * onto the listing row. Expects a `variation_id` key to
      * update). If callers pass `fulfillment_status`, it is mapped to
      * `listing_status` so the linear product status stays in sync.
      */
     public function insert(array $data): int
     {
-        $listingId = (int) ($data['listing_id'] ?? $data['id'] ?? 0);
-        if ($listingId <= 0) {
+        $variationId = (int) ($data['variation_id'] ?? 0);
+        if ($variationId <= 0) {
             return 0;
         }
 
-        unset($data['id'], $data['listing_id'], $data['variation_id'], $data['created_at']);
+        unset($data['id'], $data['variation_id'], $data['created_at']);
 
         if (array_key_exists('fulfillment_status', $data)) {
             $data['listing_status'] = (string) $data['fulfillment_status'];
             unset($data['fulfillment_status']);
         }
 
-        $this->update($listingId, $data);
+        $this->update($variationId, $data);
 
-        return $listingId;
+        return $variationId;
     }
 
     public function update(int $id, array $data): bool
@@ -200,7 +201,7 @@ final class FulfillmentRepository
         global $wpdb;
         $data['updated_at'] = current_time('mysql');
 
-        return false !== $wpdb->update($this->table(), $data, ['id' => $id]);
+        return false !== $wpdb->update($this->table(), $data, ['variation_id' => $id]);
     }
 
     /** @return array{items: object[], total: int} */
@@ -237,8 +238,9 @@ final class FulfillmentRepository
         } elseif ($status !== '') {
             $where[] = 'l.listing_status = %s';
             $params[] = $status;
-        } elseif (!$hasFlagFilter) {
-            // Default staff list: sale pipeline only. Flag filters widen to all statuses.
+        } elseif (!$hasFlagFilter && empty($args['all_statuses'])) {
+            // Default (merchant sold list / staff without all_statuses): sale pipeline only.
+            // Flag filters and staff manage-products (all_statuses) widen to every status.
             $lifecycle = array_merge(
                 ListingStatus::saleActive(),
                 ListingStatus::saleTerminal()
@@ -254,9 +256,9 @@ final class FulfillmentRepository
             $where[] = 'l.order_id = %d';
             $params[] = (int) $args['order_id'];
         }
-        if (!empty($args['listing_id'])) {
-            $where[] = 'l.id = %d';
-            $params[] = (int) $args['listing_id'];
+        if (!empty($args['variation_id'])) {
+            $where[] = 'l.variation_id = %d';
+            $params[] = (int) $args['variation_id'];
         }
 
         if ($campaign !== '' && in_array($campaign, ['none', 'offer', 'active'], true)) {
@@ -265,9 +267,9 @@ final class FulfillmentRepository
         }
 
         if ($isSourcing === 'yes') {
-            $where[] = 'l.sourcing_request_id IS NOT NULL';
+            $where[] = 'l.listing_status = "pre_order"';
         } elseif ($isSourcing === 'no') {
-            $where[] = 'l.sourcing_request_id IS NULL';
+            $where[] = 'l.listing_status <> "pre_order"';
         }
 
         if ($isImported === 'yes') {
@@ -284,23 +286,48 @@ final class FulfillmentRepository
         }
 
         $payoutStatus = sanitize_key((string) ($args['payout_status'] ?? ''));
-        if ($payoutStatus !== '') {
+        $payoutDue = !empty($args['payout_due']);
+        $hasPayout = !empty($args['has_payout']);
+        if ($payoutDue) {
+            $payoutTable = Schema::table('merchant_payout_lines');
+            $join .= " INNER JOIN {$payoutTable} pl ON pl.variation_id = l.variation_id ";
+            $where[] = 'pl.payout_status = %s';
+            $params[] = PayoutStatus::PENDING;
+            $where[] = 'pl.scheduled_payout_date IS NOT NULL';
+            $where[] = 'pl.scheduled_payout_date <= %s';
+            $params[] = PayoutSchedule::today();
+        } elseif ($payoutStatus !== '') {
             $payoutTable = Schema::table('merchant_payout_lines');
             if ($payoutStatus === 'none') {
-                $join .= " LEFT JOIN {$payoutTable} pl ON pl.listing_id = l.id ";
+                $join .= " LEFT JOIN {$payoutTable} pl ON pl.variation_id = l.variation_id ";
                 $where[] = 'pl.id IS NULL';
             } elseif (PayoutStatus::isValid($payoutStatus)) {
-                $join .= " INNER JOIN {$payoutTable} pl ON pl.listing_id = l.id AND pl.payout_status = %s ";
+                $join .= " INNER JOIN {$payoutTable} pl ON pl.variation_id = l.variation_id AND pl.payout_status = %s ";
                 $params[] = $payoutStatus;
             }
+        } elseif ($hasPayout) {
+            $payoutTable = Schema::table('merchant_payout_lines');
+            $join .= " INNER JOIN {$payoutTable} pl ON pl.variation_id = l.variation_id ";
+        }
+
+        $soldFrom = PayoutSchedule::normalizeDate($args['sold_from'] ?? '');
+        if ($soldFrom !== '') {
+            $where[] = 'l.sold_at IS NOT NULL';
+            $where[] = 'l.sold_at >= %s';
+            $params[] = $soldFrom . ' 00:00:00';
+        }
+        $soldTo = PayoutSchedule::normalizeDate($args['sold_to'] ?? '');
+        if ($soldTo !== '') {
+            $where[] = 'l.sold_at IS NOT NULL';
+            $where[] = 'l.sold_at <= %s';
+            $params[] = $soldTo . ' 23:59:59';
         }
 
         if (!empty($args['search'])) {
             $search = sanitize_text_field((string) $args['search']);
             $join .= " LEFT JOIN {$users} u ON u.ID = l.merchant_id ";
             if (preg_match('/^ID(\d+)$/i', $search, $m)) {
-                $where[] = '(l.id = %d OR l.variation_id = %d OR l.order_id = %d OR l.merchant_id = %d)';
-                $params[] = (int) $m[1];
+                $where[] = '(l.variation_id = %d OR l.order_id = %d OR l.merchant_id = %d)';
                 $params[] = (int) $m[1];
                 $params[] = (int) $m[1];
                 $params[] = (int) $m[1];
@@ -318,8 +345,7 @@ final class FulfillmentRepository
                 $idClause = $ids !== []
                     ? 'l.parent_product_id IN (' . implode(',', $ids) . ') OR '
                     : '';
-                $where[] = "({$idClause}CAST(l.id AS CHAR) = %s OR CAST(l.variation_id AS CHAR) = %s OR CAST(l.order_id AS CHAR) = %s OR u.display_name LIKE %s OR u.user_email LIKE %s OR u.user_login LIKE %s)";
-                $params[] = $search;
+                $where[] = "({$idClause}CAST(l.variation_id AS CHAR) = %s OR CAST(l.order_id AS CHAR) = %s OR u.display_name LIKE %s OR u.user_email LIKE %s OR u.user_login LIKE %s)";
                 $params[] = $search;
                 $params[] = $search;
                 $params[] = $like;
@@ -330,26 +356,31 @@ final class FulfillmentRepository
 
         $orderbyKey = sanitize_key((string) ($args['orderby'] ?? 'id_desc'));
         $orderbyMap = [
-            'id_desc' => 'l.id DESC',
-            'id_asc' => 'l.id ASC',
-            'deadline_asc' => 'l.order_shipment_deadline_at IS NULL ASC, l.order_shipment_deadline_at ASC, l.id DESC',
-            'deadline_desc' => 'l.order_shipment_deadline_at IS NULL ASC, l.order_shipment_deadline_at DESC, l.id DESC',
-            'sold_at_desc' => 'l.sold_at IS NULL ASC, l.sold_at DESC, l.id DESC',
-            'sold_at_asc' => 'l.sold_at IS NULL ASC, l.sold_at ASC, l.id DESC',
-            'status_asc' => 'l.listing_status ASC, l.id DESC',
+            'id_desc' => 'l.variation_id DESC',
+            'id_asc' => 'l.variation_id ASC',
+            'asking_asc' => 'l.asking ASC, l.variation_id DESC',
+            'asking_desc' => 'l.asking DESC, l.variation_id DESC',
+            'deadline_asc' => 'l.order_shipment_deadline_at IS NULL ASC, l.order_shipment_deadline_at ASC, l.variation_id DESC',
+            'deadline_desc' => 'l.order_shipment_deadline_at IS NULL ASC, l.order_shipment_deadline_at DESC, l.variation_id DESC',
+            'sold_at_desc' => 'l.sold_at IS NULL ASC, l.sold_at DESC, l.variation_id DESC',
+            'sold_at_asc' => 'l.sold_at IS NULL ASC, l.sold_at ASC, l.variation_id DESC',
+            'status_asc' => 'l.listing_status ASC, l.variation_id DESC',
         ];
         $orderSql = $orderbyMap[$orderbyKey] ?? $orderbyMap['id_desc'];
 
         $whereSql = implode(' AND ', $where);
         $page = max(1, (int) ($args['page'] ?? 1));
-        $perPage = min(100, max(1, (int) ($args['per_page'] ?? 20)));
+        $perPage = min(!empty($args['full_row']) ? 2000 : 100, max(1, (int) ($args['per_page'] ?? 20)));
         $offset = ($page - 1) * $perPage;
 
         $fromSql = "{$table} l{$join}";
         $countSql = "SELECT COUNT(*) FROM {$fromSql} WHERE {$whereSql}";
         $total = (int) ($params ? $wpdb->get_var($wpdb->prepare($countSql, ...$params)) : $wpdb->get_var($countSql));
 
-        $sql = 'SELECT ' . ListingRepository::listColumns('l') . "
+        $selectSql = !empty($args['full_row'])
+            ? 'l.*'
+            : ListingRepository::listColumns('l');
+        $sql = "SELECT {$selectSql}
                 FROM {$fromSql}
                 WHERE {$whereSql}
                 ORDER BY {$orderSql}
@@ -403,7 +434,7 @@ final class FulfillmentRepository
     public function countActiveForMerchant(int $merchantId): int
     {
         global $wpdb;
-        $active = \SutoreMarketplace\Modules\Listings\Domain\ListingStatus::saleActive();
+        $active = ListingStatus::saleActive();
         if ($active === []) {
             return 0;
         }
@@ -415,6 +446,49 @@ final class FulfillmentRepository
             "SELECT COUNT(*) FROM {$this->table()} WHERE merchant_id = %d AND listing_status IN ({$placeholders})",
             ...$params
         ));
+    }
+
+    /**
+     * Account deletion blockers. Chargeback and delivered+paid payout do not block.
+     *
+     * @return array{in_progress:int, pre_order:int, unpaid_delivered:int}
+     */
+    public function countAccountDeletionBlocks(int $merchantId): array
+    {
+        global $wpdb;
+        $listings = $this->table();
+        $inProgress = ListingStatus::saleInProgress();
+        $inProgressCount = 0;
+        if ($inProgress !== []) {
+            $placeholders = implode(',', array_fill(0, count($inProgress), '%s'));
+            $inProgressCount = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$listings} WHERE merchant_id = %d AND listing_status IN ({$placeholders})",
+                ...array_merge([$merchantId], $inProgress)
+            ));
+        }
+
+        $preOrderCount = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$listings} WHERE merchant_id = %d AND listing_status = %s",
+            $merchantId,
+            ListingStatus::PRE_ORDER
+        ));
+
+        $payouts = Schema::table('merchant_payout_lines');
+        $unpaidDelivered = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$listings} l
+             LEFT JOIN {$payouts} p ON p.variation_id = l.variation_id
+             WHERE l.merchant_id = %d AND l.listing_status = %s
+             AND (p.id IS NULL OR p.payout_status <> %s)",
+            $merchantId,
+            ListingStatus::DELIVERED_TO_CUSTOMER,
+            PayoutStatus::PAID
+        ));
+
+        return [
+            'in_progress' => $inProgressCount,
+            'pre_order' => $preOrderCount,
+            'unpaid_delivered' => $unpaidDelivered,
+        ];
     }
 
     /** @return object[] */
@@ -439,7 +513,7 @@ final class FulfillmentRepository
                  )
                )
              )
-             ORDER BY id ASC
+             ORDER BY variation_id ASC
              LIMIT %d",
             $awaiting,
             $now,
@@ -460,21 +534,19 @@ final class FulfillmentRepository
 
     /**
      * Present a listing row in the historical fulfillment row shape:
-     *  - id            = listing_id
-     *  - listing_id    = same value
+     *  - id                 = variation_id
      *  - fulfillment_status mirrors listing_status
      *  - all logistics columns stay named as they were.
      *
-     * We clone the row so callers can safely read $row->id / $row->listing_id
-     * (both = listing id) and $row->fulfillment_status while the underlying
+     * We clone the row so callers can safely read $row->id / $row->variation_id
+     * (both = variation ID) and $row->fulfillment_status while the underlying
      * table column stays as listing_status.
      */
     private function hydrateFulfillmentShape(object $row): object
     {
         $shaped = clone $row;
-        $listingId = (int) ($row->id ?? 0);
-        $shaped->id = $listingId;
-        $shaped->listing_id = $listingId;
+        $variationId = (int) ($row->variation_id ?? 0);
+        $shaped->id = $variationId;
         $shaped->fulfillment_status = (string) ($row->listing_status ?? '');
 
         return $shaped;

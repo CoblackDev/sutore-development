@@ -34,29 +34,29 @@
       return { method: 'GET', path: 'form-context', query: data };
     },
     marketplace_listing_get: function (data) {
-      return { method: 'GET', path: 'listings/' + data.listing_id };
+      return { method: 'GET', path: 'listings/' + data.variation_id };
     },
     marketplace_listing_create: function (data) {
       var body = Object.assign({}, data || {});
-      delete body.listing_id;
+      delete body.variation_id;
       return { method: 'POST', path: 'listings', body: body };
     },
     marketplace_listing_update: function (data) {
       var body = Object.assign({}, data || {});
-      var id = body.listing_id;
-      delete body.listing_id;
+      var id = body.variation_id;
+      delete body.variation_id;
       return { method: 'PUT', path: 'listings/' + id, body: body };
     },
     marketplace_listing_delete: function (data) {
-      return { method: 'DELETE', path: 'listings/' + data.listing_id };
+      return { method: 'DELETE', path: 'listings/' + data.variation_id };
     },
     marketplace_listing_put_on_sale: function (data) {
-      return { method: 'POST', path: 'listings/' + data.listing_id + '/put-on-sale', body: {} };
+      return { method: 'POST', path: 'listings/' + data.variation_id + '/put-on-sale', body: {} };
     },
     marketplace_listing_remove_from_sale: function (data) {
       return {
         method: 'POST',
-        path: 'listings/' + data.listing_id + '/remove-from-sale',
+        path: 'listings/' + data.variation_id + '/remove-from-sale',
         body: { staff_note: data.staff_note || '' }
       };
     },
@@ -74,6 +74,9 @@
     },
     marketplace_listing_bulk_commit: function (data) {
       return { method: 'POST', path: 'listings/bulk/commit', body: data };
+    },
+    marketplace_listing_bulk_actions: function (data) {
+      return { method: 'POST', path: 'listings/bulk-actions', body: data };
     },
     marketplace_sourcing_query: function (data) {
       return { method: 'GET', path: 'sourcing', query: data };
@@ -125,15 +128,15 @@
       return { method: 'DELETE', path: 'account', body: data };
     },
     marketplace_fulfillment_details: function (data) {
-      return { method: 'GET', path: 'fulfillments/' + data.listing_id };
+      return { method: 'GET', path: 'fulfillments/' + data.variation_id };
     },
     marketplace_fulfillment_confirm: function (data) {
-      return { method: 'POST', path: 'fulfillments/' + data.listing_id + '/confirm', body: {} };
+      return { method: 'POST', path: 'fulfillments/' + data.variation_id + '/confirm', body: {} };
     },
     marketplace_fulfillment_ship: function (data) {
       return {
         method: 'POST',
-        path: 'fulfillments/' + data.listing_id + '/ship',
+        path: 'fulfillments/' + data.variation_id + '/ship',
         body: { shipment_code: data.shipment_code }
       };
     },
@@ -145,6 +148,64 @@
     },
     marketplace_campaign_offer_decline: function (data) {
       return { method: 'POST', path: 'campaign-offers/' + data.offer_id + '/decline', body: {} };
+    },
+    marketplace_price_offers_query: function (data) {
+      return { method: 'GET', path: 'price-offers', query: data };
+    },
+    marketplace_price_offer_accept: function (data) {
+      return { method: 'POST', path: 'price-offers/' + data.offer_id + '/accept', body: {} };
+    },
+    marketplace_price_offer_decline: function (data) {
+      return { method: 'POST', path: 'price-offers/' + data.offer_id + '/decline', body: {} };
+    },
+    marketplace_my_offers_query: function (data) {
+      return { method: 'GET', path: 'my-offers', query: data };
+    },
+    marketplace_my_offer_cancel: function (data) {
+      return { method: 'POST', path: 'my-offers/' + data.offer_id + '/cancel', body: {} };
+    },
+    marketplace_outlet_query: function () {
+      return { method: 'GET', path: 'outlet' };
+    },
+    marketplace_outlet_opt_in: function (data) {
+      return { method: 'POST', path: 'outlet/' + data.item_id + '/opt-in', body: {} };
+    },
+    marketplace_outlet_cancel: function (data) {
+      return { method: 'POST', path: 'outlet/optins/' + data.optin_id + '/cancel', body: {} };
+    },
+    marketplace_listing_start_campaign: function (data) {
+      return {
+        method: 'POST',
+        path: 'listings/' + data.variation_id + '/campaign',
+        body: {
+          percent: data.percent,
+          duration_days: data.duration_days
+        }
+      };
+    },
+    marketplace_catalog_request_create: function (data) {
+      return { method: 'POST', path: 'catalog-product-requests', body: data };
+    },
+    marketplace_catalog_requests_query: function (data) {
+      return { method: 'GET', path: 'catalog-product-requests', query: data };
+    },
+    marketplace_catalog_request_cancel: function (data) {
+      return { method: 'POST', path: 'catalog-product-requests/' + data.id + '/cancel', body: {} };
+    },
+    marketplace_admin_catalog_requests: function (data) {
+      return { method: 'GET', path: 'admin/catalog-product-requests', query: data };
+    },
+    marketplace_admin_catalog_request_fulfill: function (data) {
+      var body = Object.assign({}, data || {});
+      var id = body.id;
+      delete body.id;
+      return { method: 'POST', path: 'admin/catalog-product-requests/' + id + '/fulfill', body: body };
+    },
+    marketplace_admin_catalog_request_reject: function (data) {
+      var body = Object.assign({}, data || {});
+      var id = body.id;
+      delete body.id;
+      return { method: 'POST', path: 'admin/catalog-product-requests/' + id + '/reject', body: body };
     }
   };
 
@@ -249,7 +310,8 @@
    *   text?: string,
    *   confirmLabel?: string,
    *   fields: Array<{name:string,label:string,type?:string,required?:boolean,value?:string,placeholder?:string,inputmode?:string}>,
-   *   onConfirm: function(Object<string,string>): (boolean|void)
+   *   onConfirm: function(Object<string,string>): (boolean|void),
+   *   onReady?: function(JQuery, Object<string,JQuery>): void
    * }} opts
    */
   cfg.showFormConfirm = function (opts) {
@@ -271,37 +333,55 @@
         return;
       }
       var $field = $('<label class="sutore-mp-confirm-field"/>');
-      $field.append($('<span class="sutore-mp-field-label"/>').text(field.label || name));
       var $input;
-      if (field.type === 'select') {
-        $input = $('<select class="sutore-mp-input"/>');
-        $input.append($('<option value=""/>').text(field.placeholder || '—'));
-        (field.options || []).forEach(function (opt) {
-          $input.append(
-            $('<option/>')
-              .attr('value', String(opt.value))
-              .text(opt.label || opt.value)
-          );
-        });
-      } else if (field.type === 'textarea') {
-        $input = $('<textarea class="sutore-mp-input" rows="3"/>');
+      if (field.type === 'checkbox') {
+        $field.addClass('is-checkbox');
+        $input = $('<input type="checkbox"/>');
+        if (field.checked !== false && field.checked !== 0 && field.checked !== '0') {
+          $input.prop('checked', true);
+        }
+        $field.append($input);
+        $field.append($('<span class="sutore-mp-field-label"/>').text(field.label || name));
       } else {
-        $input = $('<input type="text" class="sutore-mp-input"/>');
+        $field.append($('<span class="sutore-mp-field-label"/>').text(field.label || name));
+        if (field.type === 'select') {
+          $input = $('<select class="sutore-mp-input"/>');
+          $input.append($('<option value=""/>').text(field.placeholder || '—'));
+          (field.options || []).forEach(function (opt) {
+            var $opt = $('<option/>')
+              .attr('value', String(opt.value))
+              .text(opt.label || opt.value);
+            if (opt.same_parent != null) {
+              $opt.attr('data-same-parent', opt.same_parent ? '1' : '0');
+            }
+            if (opt.parent_product_id != null) {
+              $opt.attr('data-parent-product-id', String(opt.parent_product_id));
+            }
+            $input.append($opt);
+          });
+        } else if (field.type === 'textarea') {
+          $input = $('<textarea class="sutore-mp-input" rows="3"/>');
+        } else {
+          $input = $('<input type="text" class="sutore-mp-input"/>');
+        }
+        if (field.placeholder && field.type !== 'select') {
+          $input.attr('placeholder', field.placeholder);
+        }
+        if (field.inputmode) {
+          $input.attr('inputmode', field.inputmode);
+        }
+        if (field.value != null && field.value !== '') {
+          $input.val(String(field.value));
+        }
+        $input.attr('name', name);
+        if (field.required) {
+          $input.attr('aria-required', 'true');
+        }
+        $field.append($input);
       }
-      if (field.placeholder && field.type !== 'select') {
-        $input.attr('placeholder', field.placeholder);
+      if (field.type === 'checkbox') {
+        $input.attr('name', name);
       }
-      if (field.inputmode) {
-        $input.attr('inputmode', field.inputmode);
-      }
-      if (field.value != null && field.value !== '') {
-        $input.val(String(field.value));
-      }
-      $input.attr('name', name);
-      if (field.required) {
-        $input.attr('aria-required', 'true');
-      }
-      $field.append($input);
       $fields.append($field);
       $inputs[name] = $input;
     });
@@ -335,6 +415,10 @@
     );
     $('body').append($modal);
 
+    if (typeof opts.onReady === 'function') {
+      opts.onReady($modal, $inputs);
+    }
+
     var first = fields[0] && $inputs[fields[0].name];
     if (first) {
       window.setTimeout(function () {
@@ -357,6 +441,10 @@
       fields.forEach(function (field) {
         var name = String(field.name || '');
         if (!name || !$inputs[name]) {
+          return;
+        }
+        if (field.type === 'checkbox') {
+          values[name] = $inputs[name].prop('checked') ? '1' : '0';
           return;
         }
         var val = String($inputs[name].val() || '').trim();
@@ -566,7 +654,7 @@
   };
 
   var LIST_SHELL =
-    '.sutore-mp-listings, .sutore-mp-staff-manage, .sutore-mp-staff-merchants, .sutore-mp-campaign-offers, .sutore-mp-sourcing';
+    '.sutore-mp-listings, .sutore-mp-staff-manage, .sutore-mp-staff-merchants, .sutore-mp-campaign-offers, .sutore-mp-price-offers, .sutore-mp-my-offers, .sutore-mp-outlet, .sutore-mp-sourcing, .sutore-mp-staff-orders, .sutore-mp-staff-catalog-requests';
 
   function $listShell($from) {
     return $from.closest(LIST_SHELL);

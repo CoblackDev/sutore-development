@@ -35,15 +35,23 @@ Autoloader convention: `class-{kebab-case}.php` under the matching namespace pat
 |----------|------|-----|
 | `listings` | Listinglerim | `/hesabim/listings/` |
 | `sourcing` | Ön Sipariş | `/hesabim/sourcing/` |
+| `campaign-offers` | Kampanya teklifleri | `/hesabim/campaign-offers/` |
+| `price-offers` | Müşteri teklifleri | `/hesabim/price-offers/` |
+| `my-offers` | Tekliflerim (müşteri) | `/hesabim/my-offers/` |
 | `tasks` | Görevlerim | `/hesabim/tasks/` |
 
 Visible only for merchant / shop_manager / administrator.
 
 ### Ön sipariş (sourcing)
 
-1. Admin **Ön Sipariş** ekranından talep açar (`open`).
-2. Satıcı uygun listing ile kabul eder → `accepted` + listing `reserved`.
-3. Admin `fulfilled` işaretler → `sutore_marketplace_sourcing_fulfilled` → Orders modülü devralır.
+Ayrı talep tablosu / `open|accepted|reserved|fulfilled` durumları yok. Board, siparişe bağlı listing’in `listing_status = pre_order` olmasıdır.
+
+1. **Açılış:** staff Manage Products → `mark_pre_order`, onay süresi dolunca (`confirm_deadline`), veya satıcı iptali → `FulfillmentService::markAsPreOrder()`.
+2. **Duyuru:** hedefli SMS (`AskMerchants`) + digest cron (`sutore_marketplace_pre_order_digest_sent_ids` ile tekrar-önleme). Fiyat toleransı `sourcing_price_tolerance_percent` (eski sabit `/1.10` değil).
+3. **Kabul:** Confirmed / Super satıcı `POST /sourcing/{id}/accept` — mevcut listing reuse edilirse `asking` talep fiyatına eşitlenir (modal + confirm bunu gösterir) → **anında sipariş swap**. Staff `fulfilled` adımı yok.
+4. **İz:** `listing_pre_order`, `pre_order_accepted`, `sourcing_fulfilled` event’leri; webhook `pre_order.accepted`.
+
+Board erişimi seviye + (yaptırım açıksa) puan eşiğine bağlı: Normal satıcı menüyü görmez; Super yeni talepleri hemen görür, Confirmed `sourcing_early_access_hours` sonra.
 
 ### Görevler
 
@@ -69,7 +77,7 @@ Fee değişiklikleri `pricing_revision` ile cache bust edilir.
 | Schema version | `sutore_marketplace_db_version` = 18 |
 | Cron | `sutore_marketplace_fulfillment_deadlines` |
 | Frontend JS | `SutoreMarketplaceFulfillment`, `SutoreMarketplaceFulfillmentAppend` |
-| REST | `GET/POST /wp-json/sutore-marketplace/v1/fulfillments/{id}` (id = listing_id) |
+| REST | `GET/POST /wp-json/sutore-marketplace/v1/fulfillments/{id}` (id = variation_id) |
 
 ## Shipping modülü (checkout)
 
@@ -101,8 +109,8 @@ Kupon uygulama/kaldırma WooCommerce `wc-ajax=apply_coupon|remove_coupon` kullan
 
 **Fiyat kırılımı:** `MarketplacePricing` + `Settings::hizmetBedeli()` / `guvenceBedeli()`
 
-Hook'lar: `sutore_marketplace_listing_query_item`, `sutore_marketplace_listing_detail_after_table`, `sutore_marketplace_sourcing_fulfilled`, `sutore_marketplace_fulfillment_webhook_sent`
+Hook'lar: `sutore_marketplace_queue_position_changed`, `sutore_marketplace_notification_created`, `sutore_marketplace_notification_dispatched`, `sutore_marketplace_notification_push`, `sutore_marketplace_fulfillment_webhook_sent`, `sutore_marketplace_sms_sent`
 
 ## REST
 
-Namespace `sutore-marketplace/v1` — search-parents, sizes, form-context, listings CRUD and admin imported-product management.
+Namespace `sutore-marketplace/v1` — listings CRUD, search-parents, sizes, form-context, catalog product requests, customer price offers (`GET/POST /my-offers`, merchant `GET /price-offers` + accept/decline), sourcing, fulfillments, merchant / staff admin routes.

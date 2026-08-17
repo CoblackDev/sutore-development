@@ -1,0 +1,700 @@
+/* Staff orders — extends staff-manage chrome with order-specific detail UI. */
+
+/*
+ * Modal typography scale (align large theme headings down to the compact body size).
+ * Base ≈ 0.9rem; titles ≈ 0.95rem; secondary ≈ 0.85rem.
+ */
+.sutore-mp-staff-orders .sutore-mp-manage-modal,
+.sutore-mp-staff-orders .sutore-mp-filter-modal,
+.sutore-mp-staff-orders .sutore-mp-sort-modal {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.sutore-mp-staff-orders .sutore-mp-manage-modal__title,
+.sutore-mp-staff-orders .sutore-mp-staff-detail-title,
+.sutore-mp-staff-orders .sutore-mp-filter-head h2,
+.sutore-mp-staff-orders .sutore-mp-sort-head h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.sutore-mp-staff-orders .sutore-mp-manage-modal__sub,
+.sutore-mp-staff-orders .sutore-mp-staff-detail-sub,
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-modal .sutore-mp-manage-modal__sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.35;
+  opacity: 0.72;
+}
+
+.sutore-mp-staff-orders .sutore-mp-manage-modal__body,
+.sutore-mp-staff-orders .sutore-mp-filter-body,
+.sutore-mp-staff-orders .sutore-mp-sort-body {
+  font-size: 0.9rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-manage-modal__body p,
+.sutore-mp-staff-orders .sutore-mp-manage-modal__body .sutore-mp-empty,
+.sutore-mp-staff-orders .sutore-mp-staff-orders-swap-diff-text,
+.sutore-mp-staff-orders .sutore-mp-staff-orders-check,
+.sutore-mp-staff-orders .sutore-mp-staff-check,
+.sutore-mp-staff-orders .sutore-mp-field-label {
+  font-size: 0.9rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-check-hint,
+.sutore-mp-staff-orders .sutore-mp-staff-sub,
+.sutore-mp-staff-orders .sutore-mp-staff-orders-modal-alert {
+  font-size: 0.85rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-product-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.sutore-mp-staff-orders .sutore-mp-manage-modal__foot .wp-element-button,
+.sutore-mp-staff-orders .sutore-mp-filter-footer .wp-element-button,
+.sutore-mp-staff-orders .sutore-mp-sort-footer .wp-element-button,
+.sutore-mp-staff-orders .sutore-mp-staff-orders-foot .wp-element-button {
+  font-size: 0.9rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-input,
+.sutore-mp-staff-orders .sutore-mp-staff-orders-reason,
+.sutore-mp-staff-orders .sutore-mp-staff-orders-swap-search,
+.sutore-mp-staff-orders .sutore-mp-staff-orders-attach-search,
+.sutore-mp-staff-orders .sutore-mp-staff-orders-status-select {
+  font-size: 0.9rem;
+}
+
+/* Confirm / alert dialogs (this stylesheet is only enqueued on staff orders). */
+.sutore-mp-confirm-card {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.sutore-mp-confirm-head strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.sutore-mp-confirm-text,
+.sutore-mp-confirm-field .sutore-mp-field-label,
+.sutore-mp-confirm-actions .wp-element-button {
+  font-size: 0.9rem;
+}
+
+.sutore-mp-confirm-error {
+  font-size: 0.85rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-product-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-product {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-product-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  min-width: 4.75rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-item-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  width: 2.15rem;
+  height: 2.15rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-item-btn svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  display: block;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-item-btn.is-danger {
+  border-color: color-mix(in srgb, #b42318 45%, transparent);
+  color: #b42318;
+  background: color-mix(in srgb, #b42318 8%, transparent);
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-add-product {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-add-product svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: 0 0 auto;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-status-field {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  min-width: 10rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-status-field[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-status-select {
+  min-width: 10rem;
+  max-width: 14rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-product:last-child {
+  border-bottom: 0;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-product-thumb {
+  width: 3.25rem;
+  height: 3.25rem;
+  object-fit: cover;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-product-thumb.is-empty {
+  display: block;
+}
+
+.sutore-mp-staff-orders a.sutore-mp-staff-orders-product-link,
+.sutore-mp-staff-orders a.sutore-mp-staff-orders-merchant-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  cursor: pointer;
+}
+
+.sutore-mp-staff-orders a.sutore-mp-staff-orders-product-link:hover,
+.sutore-mp-staff-orders a.sutore-mp-staff-orders-product-link:focus-visible,
+.sutore-mp-staff-orders a.sutore-mp-staff-orders-merchant-link:hover,
+.sutore-mp-staff-orders a.sutore-mp-staff-orders-merchant-link:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-product-status {
+  margin-top: 0.35rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-product-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-item-menu {
+  position: relative;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-item-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  min-width: 11rem;
+  padding: 0.35rem;
+  background: var(--wp--preset--color--base, #fff);
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: 0.4rem;
+  box-shadow: 0 10px 28px color-mix(in srgb, #000 18%, transparent);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-item-menu-panel[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-item-menu-item {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: 0.3rem;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-item-menu-item:hover,
+.sutore-mp-staff-orders .sutore-mp-staff-item-menu-item:focus-visible {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  outline: none;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-customer {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-section-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-address-text {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-seller-price {
+  display: block;
+  font-size: 0.82rem;
+  opacity: 0.7;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-price.is-seller {
+  opacity: 0.7;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-status-menu {
+  position: relative;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-status-menu-panel {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 0.35rem);
+  min-width: 14rem;
+  max-width: min(20rem, 80vw);
+  max-height: min(18rem, 50vh);
+  overflow: auto;
+  padding: 0.35rem;
+  margin: 0;
+  background: var(--wp--preset--color--base, #fff);
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: 0.4rem;
+  box-shadow: 0 10px 28px color-mix(in srgb, #000 18%, transparent);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-status-menu-panel[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-status-menu-item {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: 0.3rem;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-status-menu-item:hover,
+.sutore-mp-staff-orders .sutore-mp-staff-status-menu-item:focus-visible {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  outline: none;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-status-menu-item.is-current {
+  font-weight: 600;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-section-head .sutore-mp-staff-order-section-title {
+  margin: 0;
+}
+
+.sutore-mp-staff-orders .sutore-mp-link-btn {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-add-panel {
+  margin: 0 0 1rem;
+  padding: 0.85rem;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-foot .sutore-mp-staff-foot-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+/* Order detail host — above product (100055), below seller (100070). */
+.sutore-mp-staff-order-detail-host > .sutore-mp-staff-orders-overlay {
+  z-index: 100065;
+}
+
+/* Nested order overlays — above seller detail so swap/attach stay usable from an order. */
+.sutore-mp-staff-order-detail-host > .sutore-mp-staff-orders-swap-overlay,
+.sutore-mp-staff-order-detail-host > .sutore-mp-staff-orders-detach-overlay,
+.sutore-mp-staff-order-detail-host > .sutore-mp-staff-orders-attach-overlay,
+.sutore-mp-staff-order-detail-host > .sutore-mp-staff-orders-apply-overlay {
+  z-index: 100075;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-product.is-pending-out {
+  opacity: 0.55;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-pending-badge {
+  display: inline-block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-modal {
+  max-width: 28rem;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-summary {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 0.45rem;
+  overflow: hidden;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-item {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  background: color-mix(in srgb, currentColor 2%, transparent);
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-item:last-child {
+  border-bottom: 0;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-row {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: baseline;
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-action {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-id {
+  font-size: 0.9rem;
+  font-weight: 400;
+  opacity: 0.65;
+  white-space: nowrap;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-meta {
+  margin-top: 0.3rem;
+  padding-left: calc(6.5rem + 0.55rem);
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.35;
+  opacity: 0.65;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-item.is-add {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, #0a7a3e 55%, transparent);
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-item.is-update {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, #1d4ed8 55%, transparent);
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-item.is-remove {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, #b42318 55%, transparent);
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-item.is-status {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-apply-error {
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 520px) {
+  .sutore-mp-staff-orders .sutore-mp-staff-orders-apply-row {
+    grid-template-columns: 1fr auto;
+    gap: 0.25rem 0.55rem;
+  }
+
+  .sutore-mp-staff-orders .sutore-mp-staff-orders-apply-action {
+    grid-column: 1 / -1;
+  }
+
+  .sutore-mp-staff-orders .sutore-mp-staff-orders-apply-meta {
+    padding-left: 0;
+  }
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-totals.is-estimated .sutore-mp-manage-kv__row:last-child dd,
+.sutore-mp-staff-orders .sutore-mp-staff-order-totals.is-estimated .sutore-mp-manage-kv__row dd strong {
+  font-weight: 700;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-order-totals.is-estimated .sutore-mp-staff-order-section-title .sutore-mp-staff-sub {
+  font-weight: 500;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-swap-previews {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 720px) {
+  .sutore-mp-staff-orders .sutore-mp-staff-orders-swap-previews {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-swap-card {
+  padding: 0.85rem;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-preview-row {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-swap-diff {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-swap-diff-text {
+  margin: 0;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-swap-diff-text.is-higher {
+  color: #b42318;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-swap-diff-text.is-lower {
+  color: #027a48;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-candidate-list {
+  list-style: none;
+  margin: 0.75rem 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-candidate {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 0.4rem;
+  background: var(--wp--preset--color--base, #fff);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-candidate:hover,
+.sutore-mp-staff-orders .sutore-mp-staff-orders-candidate:focus-visible {
+  border-color: color-mix(in srgb, currentColor 28%, transparent);
+  outline: none;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-candidate.is-selected {
+  border-color: currentColor;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-swap-body .sutore-mp-field-label,
+.sutore-mp-staff-orders .sutore-mp-staff-orders-detach-modal .sutore-mp-field-label {
+  margin-top: 0.75rem;
+  display: block;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-reason,
+.sutore-mp-staff-orders .sutore-mp-staff-orders-swap-search {
+  display: block;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-check,
+.sutore-mp-staff-orders .sutore-mp-staff-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-check input[type="checkbox"],
+.sutore-mp-staff-orders .sutore-mp-staff-check input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0.15rem 0 0;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 0.2rem;
+  background: var(--wp--preset--color--base, #fff);
+  color: inherit;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-check input[type="checkbox"]:checked,
+.sutore-mp-staff-orders .sutore-mp-staff-check input[type="checkbox"]:checked {
+  background: var(--wp--preset--color--contrast, #111);
+  border-color: var(--wp--preset--color--contrast, #111);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 20'%3E%3Cpath fill='%23fff' d='M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.85rem auto;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-check input[type="checkbox"]:focus-visible,
+.sutore-mp-staff-orders .sutore-mp-staff-check input[type="checkbox"]:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-check-hint {
+  margin: 0.35rem 0 0;
+  opacity: 0.75;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-modal-alert {
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid #cc1818;
+  line-height: 1.4;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-modal-alert[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-attach-search {
+  display: block;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-attach-body .sutore-mp-field-label {
+  margin-top: 0.75rem;
+  display: block;
+}
+
+.sutore-mp-staff-orders .sutore-mp-staff-orders-attach-candidates {
+  margin-top: 0.75rem;
+  max-height: min(40vh, 22rem);
+  overflow: auto;
+}

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Modules\Orders\Settings;
 
+use SutoreMarketplace\Modules\Merchants\Domain\NotificationChannel;
+use SutoreMarketplace\Modules\Merchants\Domain\NotificationType;
 use SutoreMarketplace\Shared\Domain\MerchantLevels;
 
 final class Settings
 {
     public const OPTION = 'sutore_marketplace_fulfillment_settings';
-    public const VERSION = 6;
+    public const VERSION = 9;
 
     /** @return array<string, mixed> */
     public static function defaults(): array
@@ -33,12 +35,12 @@ final class Settings
             'deadline_cron_schedule' => 'twicedaily',
             'use_business_days_for_deadlines' => false,
             'require_admin_payment_confirm' => true,
-            'auto_sourcing_on_suspend' => true,
-            'auto_sourcing_on_split' => true,
             'sourcing_price_tolerance_percent' => 10,
             'default_fulfillment_filter' => 'payment',
             'swap_allowed_statuses' => 'payment,sold',
             'allow_manual_order_link' => true,
+            'payout_min_hold_days' => 7,
+            'payout_weekdays' => [3],
             'express_block_carrier_shipment' => true,
             'international_invoice_required' => true,
             'suspension_threshold' => 0,
@@ -48,7 +50,7 @@ final class Settings
             'sms_events' => SmsTemplates::defaultEventFlags(),
             'sms_templates' => [],
             'merchant_notifications_enabled' => true,
-            'merchant_notification_events' => \SutoreMarketplace\Modules\Merchants\Domain\NotificationType::defaultEventFlags(),
+            'merchant_notification_channels' => NotificationType::defaultChannels(),
         ];
     }
 
@@ -62,15 +64,7 @@ final class Settings
             $current = [];
         }
 
-        $merged = array_replace_recursive(self::defaults(), $current);
-        $merged['settings_version'] = self::VERSION;
-        if (isset($merged['swap_allowed_statuses']) && is_string($merged['swap_allowed_statuses'])) {
-            $merged['swap_allowed_statuses'] = str_replace(
-                ['payment_pending', 'awaiting_seller'],
-                ['payment', 'sold'],
-                $merged['swap_allowed_statuses']
-            );
-        }
+        $merged = self::normalize($current);
         if ($merged == $current) {
             return;
         }
@@ -91,8 +85,7 @@ final class Settings
             $stored = [];
         }
 
-        self::$memo = array_replace_recursive(self::defaults(), $stored);
-        self::$memo['settings_version'] = self::VERSION;
+        self::$memo = self::normalize($stored);
 
         return self::$memo;
     }
@@ -108,10 +101,113 @@ final class Settings
     {
         $merged = array_replace_recursive(self::all(), $patch);
         $merged['settings_version'] = self::VERSION;
+        if (array_key_exists('payout_weekdays', $patch)) {
+            $merged['payout_weekdays'] = $patch['payout_weekdays'];
+        }
+        if (array_key_exists('merchant_notification_channels', $patch)) {
+            $merged['merchant_notification_channels'] = $patch['merchant_notification_channels'];
+        }
+        if (array_key_exists('sms_events', $patch)) {
+            $merged['sms_events'] = $patch['sms_events'];
+        }
+        unset($merged['merchant_notification_events']);
         update_option(self::OPTION, $merged);
         self::$memo = $merged;
 
         return $merged;
+    }
+
+    /**
+     * @param array<string, mixed> $stored
+     * @return array<string, mixed>
+     */
+    private static function normalize(array $stored): array
+    {
+        $merged = array_replace_recursive(self::defaults(), $stored);
+        $merged['settings_version'] = self::VERSION;
+        unset($merged['auto_sourcing_on_suspend'], $merged['auto_sourcing_on_split'], $merged['merchant_notification_events']);
+        if (isset($merged['swap_allowed_statuses']) && is_string($merged['swap_allowed_statuses'])) {
+            $merged['swap_allowed_statuses'] = str_replace(
+                ['payment_pending', 'awaiting_seller'],
+                ['payment', 'sold'],
+                $merged['swap_allowed_statuses']
+            );
+        }
+
+        $merged['merchant_notification_channels'] = self::migrateNotificationChannels($stored);
+        $merged['sms_events'] = self::migrateSmsEvents($stored, $merged);
+
+        return $merged;
+    }
+
+    /**
+     * @param array<string, mixed> $stored
+     * @return array<string, array{panel: bool, sms: bool, push: bool}>
+     */
+    private static function migrateNotificationChannels(array $stored): array
+    {
+        $defaults = NotificationType::defaultChannels();
+        $storedVersion = (int) ($stored['settings_version'] ?? 0);
+        $storedChannels = $stored['merchant_notification_channels'] ?? null;
+
+        if (is_array($storedChannels) && $storedVersion >= 9) {
+            $channels = $defaults;
+            foreach ($storedChannels as $type => $row) {
+                if (!isset($defaults[$type]) || !is_array($row)) {
+                    continue;
+                }
+                foreach (NotificationChannel::all() as $channel) {
+                    if (array_key_exists($channel, $row)) {
+                        $channels[$type][$channel] = !empty($row[$channel]);
+                    }
+                }
+            }
+
+            return $channels;
+        }
+
+        $oldEvents = (array) ($stored['merchant_notification_events'] ?? []);
+        $oldSms = (array) ($stored['sms_events'] ?? []);
+        $channels = [];
+        foreach ($defaults as $type => $flags) {
+            $panel = $flags[NotificationChannel::PANEL];
+            if ($oldEvents !== []) {
+                $panel = !isset($oldEvents[$type]) || !empty($oldEvents[$type]);
+            }
+            $sms = $flags[NotificationChannel::SMS];
+            $smsKey = NotificationType::smsTemplateKey($type);
+            if ($smsKey !== null && $oldSms !== [] && array_key_exists($smsKey, $oldSms)) {
+                $sms = !empty($oldSms[$smsKey]);
+            }
+            $channels[$type] = [
+                NotificationChannel::PANEL => $panel,
+                NotificationChannel::SMS => $sms,
+                NotificationChannel::PUSH => false,
+            ];
+        }
+
+        return $channels;
+    }
+
+    /**
+     * @param array<string, mixed> $stored
+     * @param array<string, mixed> $merged
+     * @return array<string, bool>
+     */
+    private static function migrateSmsEvents(array $stored, array $merged): array
+    {
+        $allowed = SmsTemplates::defaultEventFlags();
+        $existing = (array) ($merged['sms_events'] ?? []);
+        if (isset($stored['sms_events']) && is_array($stored['sms_events'])) {
+            $existing = $stored['sms_events'] + $existing;
+        }
+
+        $clean = [];
+        foreach ($allowed as $key => $default) {
+            $clean[$key] = array_key_exists($key, $existing) ? !empty($existing[$key]) : $default;
+        }
+
+        return $clean;
     }
 
     /** @return list<string> */
@@ -152,16 +248,6 @@ final class Settings
     public static function requireAdminPaymentConfirm(): bool
     {
         return (bool) self::get('require_admin_payment_confirm', true);
-    }
-
-    public static function autoSourcingOnSuspend(): bool
-    {
-        return (bool) self::get('auto_sourcing_on_suspend', true);
-    }
-
-    public static function autoSourcingOnSplit(): bool
-    {
-        return (bool) self::get('auto_sourcing_on_split', true);
     }
 
     public static function sourcingPriceTolerancePercent(): float
@@ -261,5 +347,21 @@ final class Settings
         $schedule = sanitize_key((string) self::get('deadline_cron_schedule', 'twicedaily'));
 
         return in_array($schedule, ['hourly', 'twicedaily', 'daily'], true) ? $schedule : 'twicedaily';
+    }
+
+    public static function payoutMinHoldDays(): int
+    {
+        return max(0, (int) self::get('payout_min_hold_days', 7));
+    }
+
+    /** @return list<int> */
+    public static function payoutWeekdays(): array
+    {
+        $raw = self::get('payout_weekdays', [3]);
+        if (!is_array($raw)) {
+            $raw = [3];
+        }
+
+        return \SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule::normalizeWeekdays($raw);
     }
 }

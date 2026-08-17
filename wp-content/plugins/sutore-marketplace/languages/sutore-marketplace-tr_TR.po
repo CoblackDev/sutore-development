@@ -22,11 +22,23 @@ msgstr "%1$d canlı veya öncü, %2$d sırada. %3$d satır başarısız."
 msgid "%1$d × %2$s product"
 msgstr "%1$d adet %2$s ürün"
 
+msgid "%1$s · %2$s · Size %3$s · %4$s · Var #%5$d"
+msgstr "%1$s · %2$s · Beden %3$s · %4$s · Var #%5$d"
+
+msgid "%1$s · Size %2$s · %3$s · Var #%4$d"
+msgstr "%1$s · Beden %2$s · %3$s · Var #%4$d"
+
 msgid "%1$s%% (≈ %2$s TL)"
 msgstr "%%%1$s (≈ %2$s TL)"
 
 msgid "%1$s%% of %2$s"
 msgstr "%2$s üzerinden %%%1$s"
+
+msgid "%d campaign offer sent."
+msgstr "%d kampanya teklifi gönderildi."
+
+msgid "%d campaign offers sent."
+msgstr "%d kampanya teklifi gönderildi."
 
 msgid "%d is not a product variation."
 msgstr "%d bir ürün varyasyonu değil."
@@ -34,17 +46,47 @@ msgstr "%d bir ürün varyasyonu değil."
 msgid "%d listings queued for import."
 msgstr "%d listing içe aktarma için sıraya alındı."
 
+msgid "%d product updated."
+msgstr "%d ürün güncellendi."
+
+msgid "%d product will be added"
+msgstr "%d ürün eklenecek"
+
+msgid "%d product will be detached"
+msgstr "%d ürün ayrılacak"
+
+msgid "%d product will be removed"
+msgstr "%d ürün kaldırılacak"
+
+msgid "%d products updated."
+msgstr "%d ürün güncellendi."
+
+msgid "%d products will be added"
+msgstr "%d ürün eklenecek"
+
+msgid "%d products will be detached"
+msgstr "%d ürün ayrılacak"
+
+msgid "%d products will be removed"
+msgstr "%d ürün kaldırılacak"
+
+msgid "%d products will be updated."
+msgstr "%d ürün güncellenecek."
+
 msgid "%d sales"
 msgstr "%d satış"
 
-msgid "%d variation marked as imported."
-msgstr "%d varyasyon ithal ürün olarak işaretlendi."
+msgid "%d selected"
+msgstr "%d seçili"
 
-msgid "%d variations marked as imported."
-msgstr "%d varyasyon ithal ürün olarak işaretlendi."
+msgid "%d sellers"
+msgstr "%d satıcı"
 
 msgid "(untitled product)"
 msgstr "(başlıksız ürün)"
+
+msgid "1 seller"
+msgstr "1 satıcı"
 
 msgid "5 sales"
 msgstr "5 satış"
@@ -58,6 +100,9 @@ msgstr "Bir siparişe bağlı listing buradan satıştan kaldırılamaz. Fulfill
 msgid "A new listing will be created for this pre-order. Continue?"
 msgstr "Bu ön sipariş için yeni bir listing oluşturulacak. Devam edilsin mi?"
 
+msgid "A pending offer for this campaign already exists on this product."
+msgstr "Bu üründe bu kampanya için bekleyen bir teklif zaten var."
+
 msgid "A saved password already exists. Leave blank to keep it."
 msgstr "Kayıtlı bir parola mevcut. Korumak için boş bırakın."
 
@@ -66,6 +111,9 @@ msgstr "Kayıtlı bir secret mevcut. Boş bırakırsanız korunur."
 
 msgid "A staff note is required for this action."
 msgstr "Bu işlem için personel notu gereklidir."
+
+msgid "A staff note is required when replacing with a different product."
+msgstr "Farklı bir ürünle değiştirirken personel notu zorunludur."
 
 msgid "A temporary block is applied after consecutive failed coupon attempts."
 msgstr "Ardışık başarısız kupon denemesinden sonra geçici engel uygulanır."
@@ -78,6 +126,9 @@ msgstr "Tüm giden SMS'ler için API kimlik bilgileri."
 
 msgid "Accept"
 msgstr "Kabul et"
+
+msgid "Accept an open request to add it to your listings. Accepted pre-orders are tracked under My Listings."
+msgstr "Açık bir talebi kabul ederek ürünlerinize ekleyin. Kabul edilen ön siparişler Ürünlerim altında takip edilir."
 
 msgid "Accept sale"
 msgstr "Satışı kabul et"
@@ -130,11 +181,20 @@ msgstr "Aktör"
 msgid "Add Product"
 msgstr "Ürün Ekle"
 
+msgid "Add product"
+msgstr "Ürün ekle"
+
 msgid "Add product steps"
 msgstr "Ürün ekleme adımları"
 
 msgid "Add restriction"
 msgstr "Kısıt ekle"
+
+msgid "Add this listing to a processing order and start the sale as sold (awaiting merchant confirmation)."
+msgstr "Bu listing’i hazırlanıyor durumundaki bir siparişe ekleyip satışı sold olarak başlatın (satıcı onayı bekler)."
+
+msgid "Add to order"
+msgstr "Siparişe ekle"
 
 msgid "Added to order"
 msgstr "Siparişe eklendi"
@@ -190,6 +250,9 @@ msgstr "Tüm seviyeler"
 msgid "All logged interventions for this listing from creation through fulfillment."
 msgstr "Bu listing için oluşturmadan fulfillment’a kadar kaydedilen tüm müdahaleler."
 
+msgid "All payment statuses"
+msgstr "Tüm ödeme durumları"
+
 msgid "All queues"
 msgstr "Tüm kuyruklar"
 
@@ -201,9 +264,6 @@ msgstr "Tüm satışlar"
 
 msgid "All statuses"
 msgstr "Tüm durumlar"
-
-msgid "All payment statuses"
-msgstr "Tüm ödeme durumları"
 
 msgid "Alternative seller price tolerance (%)"
 msgstr "Alternatif satıcı fiyat toleransı (%)"
@@ -228,6 +288,15 @@ msgstr "Uygula"
 
 msgid "Apply special express shipping price for customers with completed orders"
 msgstr "Tamamlanmış siparişi olan müşterilere özel hızlı kargo fiyatı uygula"
+
+msgid "Apply “%1$s” to %2$d selected products?"
+msgstr "Seçili %2$d ürüne “%1$s” uygulansın mı?"
+
+msgid "Approve & put on sale"
+msgstr "Onayla ve satışa çıkar"
+
+msgid "Approve this listing and put it on sale for customers?"
+msgstr "Bu listing onaylansın ve müşterilere satışa çıksın mı?"
 
 msgid "Approved Netgsm message header (msgheader)."
 msgstr "Onaylı Netgsm mesaj başlığı (msgheader)."
@@ -295,9 +364,6 @@ msgstr "Otomatik (local=algoritma, prod=NVI)"
 msgid "Automatic for-sale release levels"
 msgstr "Otomatik satışa çıkış seviyeleri"
 
-msgid "Automatically open pre-order when suspended"
-msgstr "Askıya alınınca otomatik ön sipariş aç"
-
 msgid "Awaiting approval"
 msgstr "Onay bekliyor"
 
@@ -312,9 +378,6 @@ msgstr "Ödeme bekliyor"
 
 msgid "Awaiting payment confirmation"
 msgstr "Ödeme onayı bekliyor"
-
-msgid "Back to list"
-msgstr "Listeye dön"
 
 msgid "Background import is unavailable. Please ensure WooCommerce is active."
 msgstr "Arka planda içe aktarma kullanılamıyor. WooCommerce'in etkin olduğundan emin olun."
@@ -336,6 +399,9 @@ msgstr "Perakendenin altında"
 
 msgid "Billing"
 msgstr "Faturalandırma"
+
+msgid "Billing & shipping address"
+msgstr "Fatura ve kargo adresi"
 
 msgid "Birth year changed"
 msgstr "Doğum yılı değişti"
@@ -361,11 +427,20 @@ msgstr "Marka kampanyası kuralları ve indirim tutarları WooCommerce → Kupon
 msgid "Brands"
 msgstr "Markalar"
 
+msgid "Brands (optional)"
+msgstr "Markalar (isteğe bağlı)"
+
+msgid "Bulk actions"
+msgstr "Toplu işlemler"
+
 msgid "Bulk import completed"
 msgstr "Toplu içe aktarma tamamlandı"
 
 msgid "Bulk import: %d listings created"
 msgstr "Toplu içe aktarma: %d listing oluşturuldu"
+
+msgid "Bulk staff action."
+msgstr "Toplu personel işlemi."
 
 msgid "Bulk upload"
 msgstr "Toplu yükleme"
@@ -433,6 +508,9 @@ msgstr "Kampanya teklifi"
 msgid "Campaign offer accepted."
 msgstr "Kampanya teklifi kabul edildi."
 
+msgid "Campaign offer could not be created."
+msgstr "Kampanya teklifi oluşturulamadı."
+
 msgid "Campaign offer declined"
 msgstr "Kampanya teklifi reddedildi"
 
@@ -450,6 +528,9 @@ msgstr "Kampanya teklifi bekliyor"
 
 msgid "Campaign offer received"
 msgstr "Kampanya teklifi alındı"
+
+msgid "Campaign offer sent."
+msgstr "Kampanya teklifi gönderildi."
 
 msgid "Campaign offer: %s"
 msgstr "Kampanya teklifi: %s"
@@ -472,9 +553,6 @@ msgstr "İptal"
 msgid "Cancel / refund"
 msgstr "İptal / iade"
 
-msgid "Cancelled"
-msgstr "İptal edildi"
-
 msgid "Cancelled."
 msgstr "İptal edildi."
 
@@ -496,8 +574,17 @@ msgstr "Sepet bildirimi önceliği"
 msgid "Categories"
 msgstr "Kategoriler"
 
+msgid "Categories (optional)"
+msgstr "Kategoriler (isteğe bağlı)"
+
 msgid "Change Seller"
 msgstr "Satıcı Değiştir"
+
+msgid "Change product"
+msgstr "Ürünü değiştir"
+
+msgid "Change status"
+msgstr "Durumu değiştir"
 
 msgid "Checkbox title"
 msgstr "Checkbox başlığı"
@@ -510,6 +597,18 @@ msgstr "Checkout sözleşmeleri"
 
 msgid "Choose a CSV file."
 msgstr "Bir CSV dosyası seçin."
+
+msgid "Choose a campaign to send an offer to the selected products."
+msgstr "Seçili ürünlere teklif göndermek üzere bir kampanya seçin."
+
+msgid "Choose a campaign to send an offer to this seller for this product."
+msgstr "Bu ürün için satıcıya teklif göndermek üzere bir kampanya seçin."
+
+msgid "Choose a seller to see the queue preview and create the listings."
+msgstr "Sıra önizlemesini görmek ve listing'leri oluşturmak için bir satıcı seçin."
+
+msgid "Choose the seller this listing will belong to."
+msgstr "Bu listing’in ait olacağı satıcıyı seçin."
 
 msgid "Choose the size for this listing."
 msgstr "Bu listing için beden seçin."
@@ -580,6 +679,96 @@ msgstr "Komisyon yüzdesi"
 msgid "Commission percent must be between 0 and 100."
 msgstr "Komisyon yüzdesi 0 ile 100 arasında olmalıdır."
 
+msgid "Commission override active"
+msgstr "Komisyon override aktif"
+
+msgid "Commission can only be adjusted on a pending payout."
+msgstr "Komisyon yalnızca bekleyen ödeme satırında değiştirilebilir."
+
+msgid "Percent off current rate"
+msgstr "Mevcut orandan yüzde indirim"
+
+msgid "Points off current rate"
+msgstr "Mevcut orandan puan indirim"
+
+msgid "Absolute rate"
+msgstr "Mutlak oran"
+
+msgid "Start date must be before the end date."
+msgstr "Başlangıç tarihi bitiş tarihinden önce olmalıdır."
+
+msgid "Platform commission campaigns"
+msgstr "Platform komisyon kampanyaları"
+
+msgid "One record applies to every seller. Relative discounts follow each seller’s level rate."
+msgstr "Tek kayıt tüm satıcılara uygulanır. Göreli indirimler her satıcının seviye oranını takip eder."
+
+msgid "No platform commission campaigns."
+msgstr "Platform komisyon kampanyası yok."
+
+msgid "Set platform commission campaign"
+msgstr "Platform komisyon kampanyası tanımla"
+
+msgid "All sellers"
+msgstr "Tüm satıcılar"
+
+msgid "Adjust commission"
+msgstr "Komisyonu ayarla"
+
+msgid "Set a new commission percent for this pending payout only. Net amount is recalculated from the sale asking price."
+msgstr "Yalnızca bu bekleyen ödeme için yeni komisyon oranı girin. Net tutar satış fiyatından yeniden hesaplanır."
+
+msgid "Listing commission %"
+msgstr "Listing komisyonu %"
+
+msgid "Optional. Leave empty for the normal seller rate. 0 means no commission on this listing."
+msgstr "İsteğe bağlı. Boş bırakırsanız normal satıcı oranı kullanılır. 0 bu listing’de komisyon yok demektir."
+
+msgid "Locked at sale"
+msgstr "Satışta kilitlendi"
+
+msgid "Live rate"
+msgstr "Canlı oran"
+
+msgid "Payout commission"
+msgstr "Ödeme komisyonu"
+
+msgid "This rate is higher than the seller level and will increase commission."
+msgstr "Bu oran satıcı seviyesinden yüksek; komisyonu artırır."
+
+msgid "Optional. Leave empty to start immediately."
+msgstr "İsteğe bağlı. Boş bırakırsanız hemen başlar."
+
+msgid "Commission locked at sale"
+msgstr "Komisyon satış anında kilitlendi"
+
+msgid "Listing commission set"
+msgstr "Listing komisyonu ayarlandı"
+
+msgid "Payout commission adjusted"
+msgstr "Ödeme komisyonu güncellendi"
+
+msgid "Listing commission cleared"
+msgstr "Listing komisyonu temizlendi"
+
+msgid "Listing commission %s%%"
+msgstr "Listing komisyonu %%%s"
+
+msgid "Commission %1$s%% → %2$s%%"
+msgstr "Komisyon %%%1$s → %%%2$s"
+
+msgid "You are not allowed to set a listing commission."
+msgstr "Listing komisyonu ayarlama yetkiniz yok."
+
+msgid "Rate type"
+msgstr "Oran tipi"
+
+msgid "Value"
+msgstr "Değer"
+
+msgid "Scheduled"
+msgstr "Planlandı"
+
 msgid "Compare other listings for this size by queue position, price, condition, and shipping."
 msgstr "Bu beden için diğer listingleri sıra, fiyat, kondisyon ve kargoya göre karşılaştırın."
 
@@ -601,14 +790,29 @@ msgstr "Kondisyon değişti"
 msgid "Configured"
 msgstr "Yapılandırıldı"
 
+msgid "Confirm"
+msgstr "Onayla"
+
 msgid "Confirm Sale"
 msgstr "Satışı Onayla"
+
+msgid "Confirm change"
+msgstr "Değişimi onayla"
 
 msgid "Confirm new password"
 msgstr "Yeni parolayı onaylayın"
 
+msgid "Confirm order update"
+msgstr "Sipariş güncellemesini onayla"
+
+msgid "Confirm selected sales?"
+msgstr "Seçili satışlar onaylansın mı?"
+
 msgid "Confirm this sale?"
 msgstr "Satışı onaylıyor musunuz?"
+
+msgid "Confirm update"
+msgstr "Güncellemeyi onayla"
 
 msgid "Confirmation deadline"
 msgstr "Onay son tarihi"
@@ -655,6 +859,9 @@ msgstr "Hedef kitle önizlemesi yenilenemedi."
 msgid "Counting matching products…"
 msgstr "Eşleşen ürünler sayılıyor…"
 
+msgid "Coupon"
+msgstr "Kupon"
+
 msgid "Coupon attempt limit"
 msgstr "Kupon deneme limiti"
 
@@ -673,6 +880,9 @@ msgstr "Taslak oluştur"
 msgid "Create listings"
 msgstr "Listing oluştur"
 
+msgid "Created at"
+msgstr "Oluşturulma tarihi"
+
 msgid "Create sample brand coupons (3)"
 msgstr "Örnek marka kuponları oluştur (3 adet)"
 
@@ -688,17 +898,35 @@ msgstr "Mevcut asking"
 msgid "Current password"
 msgstr "Mevcut parola"
 
+msgid "Current product"
+msgstr "Mevcut ürün"
+
 msgid "Current queue"
 msgstr "Mevcut Sıra"
 
 msgid "Currently #1 for sale"
 msgstr "Şu an satışta (#1)"
 
+msgid "Customer"
+msgstr "Müşteri"
+
+msgid "Customer note"
+msgstr "Müşteri notu"
+
 msgid "Customer price"
 msgstr "Müşteri fiyatı"
 
+msgid "Customer shipping"
+msgstr "Müşteri kargosu"
+
 msgid "Customer unit price"
 msgstr "Müşteri birim fiyatı"
+
+msgid "Customer, admin, and operational SMS. Seller SMS for merchant events is controlled under Merchant notifications."
+msgstr "Müşteri, admin ve operasyon SMS’leri. Satıcı olaylarının SMS’i Satıcı bildirimleri altından yönetilir."
+
+msgid "Customers younger than this age qualify. Age is current year minus verified birth year."
+msgstr "Bu yaşın altındaki müşteriler yararlanır. Yaş, içinde bulunulan yıl eksi doğrulanmış doğum yılıdır."
 
 msgid "Cyprus"
 msgstr "Kıbrıs"
@@ -723,6 +951,12 @@ msgstr "Tarih"
 
 msgid "Deactivated."
 msgstr "Deaktif edildi."
+
+msgid "Deadline latest"
+msgstr "Son tarihi en uzak"
+
+msgid "Deadline soonest"
+msgstr "Son tarihi en yakın"
 
 msgid "Decline"
 msgstr "Reddet"
@@ -750,6 +984,9 @@ msgstr "Hesabı sil"
 
 msgid "Delete my account"
 msgstr "Hesabımı sil"
+
+msgid "Delete selected listings?"
+msgstr "Seçili listing’ler silinsin mi?"
 
 msgid "Delete this Listing?"
 msgstr "Listing silinsin mi?"
@@ -790,17 +1027,20 @@ msgstr "Ürününüzü %1$d saat içinde çift kutu ile Yurtiçi Kargo'ya (%2$s)
 msgid "Deliver your product in a double box to Yurtici Kargo (%s) within %d hours."
 msgstr "Ürününüzü %d saat içinde çift kutu ile Yurtiçi Kargo'ya (%s) teslim edin."
 
+msgid "Delivered"
+msgstr "Teslim edildi"
+
 msgid "Delivered to customer"
 msgstr "Müşteriye teslim"
 
-msgid "Deadline latest"
-msgstr "Son tarihi en uzak"
-
-msgid "Deadline soonest"
-msgstr "Son tarihi en yakın"
-
 msgid "Delivery deadline"
-msgstr "Teslimat son tarihi"
+msgstr "Son teslim tarihi"
+
+msgid "Delivery deadline (latest)"
+msgstr "Son teslim tarihi (en uzak)"
+
+msgid "Delivery deadline (soonest)"
+msgstr "Son teslim tarihi (en yakın)"
 
 msgid "Delivery times"
 msgstr "Teslimat süreleri"
@@ -813,6 +1053,9 @@ msgstr "Açıklama"
 
 msgid "Detach from Order"
 msgstr "Siparişten Ayır"
+
+msgid "Detach from order"
+msgstr "Siparişten ayır"
 
 msgid "Detached by staff"
 msgstr "Personel tarafından ayrıldı"
@@ -844,11 +1087,17 @@ msgstr "Yön"
 msgid "Disable account"
 msgstr "Hesabı devre dışı bırak"
 
+msgid "Discount"
+msgstr "İndirim"
+
+msgid "Discount percent"
+msgstr "İndirim oranı"
+
 msgid "Distance Selling Agreement"
 msgstr "Mesafeli Satış Sözleşmesi"
 
-msgid "District / Neighborhood"
-msgstr "İlçe / Semt"
+msgid "District"
+msgstr "İlçe"
 
 msgid "Domestic customer code"
 msgstr "Yurtiçi müşteri kodu"
@@ -895,6 +1144,9 @@ msgstr "E-posta değişti"
 msgid "Empty response"
 msgstr "Boş yanıt"
 
+msgid "Enable youth discount"
+msgstr "Gençlik indirimini aç"
+
 msgid "Encoding"
 msgstr "Kodlama"
 
@@ -919,6 +1171,9 @@ msgstr "Değiştirmek için yeni değer girin"
 msgid "Enter a price."
 msgstr "Fiyat girin."
 
+msgid "Enter a search term."
+msgstr "Bir arama terimi girin."
+
 msgid "Enter a valid Sutore shipping tracking number."
 msgstr "Geçerli bir Sutore kargo takip numarası girin."
 
@@ -936,12 +1191,6 @@ msgstr "Geçerli bir doğum yılı girin."
 
 msgid "Enter and confirm your new password."
 msgstr "Yeni parolanızı girin ve onaylayın."
-
-msgid "Enter at least one variation ID."
-msgstr "En az bir varyasyon kimliği girin."
-
-msgid "Enter one WooCommerce variation ID per line. Parent and simple product IDs are rejected."
-msgstr "Her satıra bir WooCommerce varyasyon kimliği girin. Ana ve basit ürün kimlikleri kabul edilmez."
 
 msgid "Enter product code / SKU…"
 msgstr "Ürün kodu / SKU yazın…"
@@ -969,6 +1218,9 @@ msgstr "Hatalar"
 
 msgid "Est. net payout"
 msgstr "Tahmini net hak ediş"
+
+msgid "Estimated"
+msgstr "Tahmini"
 
 msgid "Estimated payout"
 msgstr "Tahmini hak ediş"
@@ -1039,9 +1291,6 @@ msgstr "Hızlı / Express"
 msgid "Fast Shipping"
 msgstr "Hızlı Kargo"
 
-msgid "Fast shipment"
-msgstr "Fast gönderi"
-
 msgid "Fast shipping"
 msgstr "Hızlı kargo"
 
@@ -1072,11 +1321,17 @@ msgstr "Hızlı kargo satıcı seviyeleri"
 msgid "Fast shipping: %1$s → %2$s"
 msgstr "Hızlı kargo: %1$s → %2$s"
 
+msgid "Fee"
+msgstr "Ücret"
+
 msgid "Filter"
 msgstr "Filtrele"
 
 msgid "First and last name are required for TC verification."
 msgstr "TC doğrulaması için ad ve soyad zorunludur."
+
+msgid "First and last name are required for the youth discount."
+msgstr "Gençlik indirimi için ad ve soyad zorunludur."
 
 msgid "First and last name are required."
 msgstr "Ad ve soyad zorunludur."
@@ -1192,11 +1447,8 @@ msgstr "Sutore'den e-posta ve telefon yoluyla pazarlama iletişimi almak istiyor
 msgid "IBAN changed"
 msgstr "IBAN değişti"
 
-msgid "If you do not confirm your sale within %d hours, it will be suspended."
-msgstr "Satışınızı %d saat içinde onaylamazsanız askıya alınacaktır."
-
-msgid "If you do not confirm your sale, it will be suspended."
-msgstr "Satışınızı onaylamazsanız askıya alınacaktır."
+msgid "If eligible, the winner algorithm may put it back on sale."
+msgstr "Uygunsa winner algoritması ürünü yeniden satışa çıkarabilir."
 
 msgid "Import job is missing."
 msgstr "İçe aktarma işi eksik."
@@ -1215,6 +1467,12 @@ msgstr "İçe aktarma oturumunun süresi doldu. Lütfen dosyayı yeniden yükley
 
 msgid "Import session is missing."
 msgstr "İçe aktarma oturumu eksik."
+
+msgid "Imported"
+msgstr "İthal"
+
+msgid "Imported product"
+msgstr "İthal ürün"
 
 msgid "Imported product free shipping (days)"
 msgstr "İthal ürün ücretsiz kargo (gün)"
@@ -1285,6 +1543,12 @@ msgstr "Geçersiz TC kimlik numarası."
 msgid "Invalid action."
 msgstr "Geçersiz aksiyon."
 
+msgid "Invalid bulk action."
+msgstr "Geçersiz toplu işlem."
+
+msgid "Invalid order status."
+msgstr "Geçersiz sipariş durumu."
+
 msgid "Invalid phone number for SMS."
 msgstr "SMS için geçersiz telefon numarası."
 
@@ -1309,14 +1573,8 @@ msgstr "Geçersiz doğum yılı."
 msgid "Invoice warning for international sales"
 msgstr "Uluslararası satışta fatura uyarısı"
 
-msgid "Issue opened"
-msgstr "Sorun açıldı"
-
-msgid "Issue resolved"
-msgstr "Sorun çözüldü"
-
-msgid "Issue under review"
-msgstr "Sorun inceleniyor"
+msgid "Items"
+msgstr "Ürün adedi"
 
 msgid "Its price will be updated from %1$s to the pre-order price of %2$s when you accept."
 msgstr "Kabul ettiğinizde fiyatı %1$s'den ön sipariş fiyatı olan %2$s'e güncellenecektir."
@@ -1333,6 +1591,12 @@ msgstr "Soyad"
 msgid "Latest payout lines for this seller."
 msgstr "Bu satıcı için en son hak ediş satırları."
 
+msgid "Leave empty to include all brands."
+msgstr "Tüm markaları dahil etmek için boş bırakın."
+
+msgid "Leave empty to include all categories."
+msgstr "Tüm kategorileri dahil etmek için boş bırakın."
+
 msgid "Leave empty to include all levels."
 msgstr "Tüm seviyeleri dahil etmek için boş bırakın."
 
@@ -1347,12 +1611,6 @@ msgstr "Seviye"
 
 msgid "Level %1$s%% → Effective %2$s%%"
 msgstr "Seviye %%%1$s → Etkin %%%2$s"
-
-msgid "Lifecycle closed"
-msgstr "Yaşam döngüsü kapandı"
-
-msgid "Lifecycle completed"
-msgstr "Yaşam döngüsü tamamlandı"
 
 msgid "Listing & queue"
 msgstr "Listing & sıra"
@@ -1450,6 +1708,9 @@ msgstr "En düşük satışta"
 msgid "Manage"
 msgstr "Yönet"
 
+msgid "Manage Orders"
+msgstr "Siparişleri Yönet"
+
 msgid "Manage Products"
 msgstr "Ürünleri Yönet"
 
@@ -1471,9 +1732,6 @@ msgstr "Manuel onaylandı"
 msgid "Mark TC as verified"
 msgstr "TC'yi doğrulanmış olarak işaretle"
 
-msgid "Mark WooCommerce variations as imported products. Imported products receive the configured free-shipping delivery time and always require a national ID at checkout."
-msgstr "WooCommerce varyasyonlarını ithal ürün olarak işaretleyin. İthal ürünlere yapılandırılan ücretsiz kargo teslimat süresi uygulanır ve ödeme sırasında her zaman kimlik numarası istenir."
-
 msgid "Mark all as read"
 msgstr "Tümünü okundu işaretle"
 
@@ -1486,6 +1744,12 @@ msgstr "Satıcıya Ödendi Olarak İşaretle"
 msgid "Mark as imported"
 msgstr "İthal ürün olarak işaretle"
 
+msgid "Mark as not imported"
+msgstr "İthal ürün işaretini kaldır"
+
+msgid "Marketplace listing protected"
+msgstr "Marketplace listing korumalı"
+
 msgid "Marketplace shipping fees (WooCommerce native shipping)."
 msgstr "Marketplace kargo ücretleri (WooCommerce native shipping)."
 
@@ -1494,6 +1758,9 @@ msgstr "Maks."
 
 msgid "Max failed attempts"
 msgstr "Maks. başarısız deneme"
+
+msgid "Maximum age"
+msgstr "Azami yaş"
 
 msgid "Maximum number of brand campaign progress messages shown in the cart."
 msgstr "Marka kampanyası ilerleme mesajlarının sepette en fazla kaç tanesi gösterilir."
@@ -1525,14 +1792,17 @@ msgstr "Satıcı onaylamadı — otomatik ön sipariş talebi"
 msgid "Merchant exclusive"
 msgstr "Satıcı Özel"
 
+msgid "Merchant notifications"
+msgstr "Satıcı bildirimleri"
+
+msgid "Each merchant event is sent from one dispatcher. Choose Panel and/or SMS per event. Push will use this same matrix when the mobile app is added."
+msgstr "Her satıcı olayı tek bir göndericiden çıkar. Olay başına Panel ve/veya SMS seçin. Mobil uygulama gelince push aynı matrisi kullanacak."
+
 msgid "Merchant panel notifications"
 msgstr "Satıcı panel bildirimleri"
 
 msgid "Merchant payout cannot be marked in this status."
 msgstr "Bu durumda satıcı hak edişi işaretlenemez."
-
-msgid "Merchant payout must be paid before closing the lifecycle."
-msgstr "Yaşam döngüsünü kapatmadan önce satıcı hak edişi ödenmelidir."
 
 msgid "Merchant payout paid"
 msgstr "Satıcı hak edişi ödendi"
@@ -1563,6 +1833,9 @@ msgstr "Aksesuar eksik"
 
 msgid "Missing required column: %s"
 msgstr "Zorunlu sütun eksik: %s"
+
+msgid "More actions"
+msgstr "Diğer işlemler"
 
 msgid "Move to First Place"
 msgstr "İlk Sıraya Geç"
@@ -1660,6 +1933,9 @@ msgstr "Bu bedende aktif satış yok"
 msgid "No activity recorded yet."
 msgstr "Henüz kayıtlı aktivite yok."
 
+msgid "No address."
+msgstr "Adres yok."
+
 msgid "No box"
 msgstr "Kutu yok"
 
@@ -1669,11 +1945,23 @@ msgstr "Kampanya yok"
 msgid "No campaign."
 msgstr "Kampanya yok."
 
+msgid "No changes to apply."
+msgstr "Uygulanacak değişiklik yok."
+
+msgid "No common actions for this selection"
+msgstr "Bu seçim için ortak işlem yok"
+
 msgid "No defects"
 msgstr "Kusur yok"
 
 msgid "No details available."
 msgstr "Detay yok."
+
+msgid "No eligible listings found."
+msgstr "Uygun listing bulunamadı."
+
+msgid "No eligible replacement listings found."
+msgstr "Uygun yerine konacak listing bulunamadı."
 
 msgid "No end date"
 msgstr "Bitiş tarihi yok"
@@ -1687,14 +1975,14 @@ msgstr "Listing yok."
 msgid "No new listing found."
 msgstr "Yeni listing bulunamadı."
 
+msgid "No orders found."
+msgstr "Sipariş bulunamadı."
+
 msgid "No other Listing for sale or in queue for this size."
 msgstr "Bu bedende satışta veya satış sırasında başka listing yok."
 
 msgid "No payment details were recorded at sale time."
 msgstr "Satış anında ödeme bilgisi kaydedilmemiş."
-
-msgid "No shipping details for this product yet."
-msgstr "Bu ürün için henüz kargo bilgisi yok."
 
 msgid "No payment record found for this sale."
 msgstr "Bu satış için ödeme kaydı bulunamadı."
@@ -1705,8 +1993,23 @@ msgstr "Henüz hak ediş satırı yok."
 msgid "No pending balance"
 msgstr "Bekleyen bakiye yok"
 
+msgid "No price difference."
+msgstr "Fiyat farkı yok."
+
+msgid "No processing orders found."
+msgstr "Processing sipariş bulunamadı."
+
+msgid "No eligible products: %d matching listing(s) already have a campaign offer or active campaign."
+msgstr "Uygun ürün yok: eşleşen %d listing zaten kampanya teklifine veya aktif kampanyaya sahip."
+
 msgid "No products match the current targeting."
 msgstr "Mevcut hedeflemeyle eşleşen ürün yok."
+
+msgid "…and %d more."
+msgstr "…ve %d tane daha."
+
+msgid "No products on this order."
+msgstr "Bu siparişte ürün yok."
 
 msgid "No records."
 msgstr "Kayıt yok."
@@ -1729,6 +2032,12 @@ msgstr "Satış yok"
 msgid "No sellers found."
 msgstr "Satıcı bulunamadı."
 
+msgid "No sendable campaigns found. Create one with start and end dates first."
+msgstr "Gönderilebilir kampanya yok. Önce başlangıç ve bitiş tarihi olan bir kampanya oluşturun."
+
+msgid "No shipping details for this product yet."
+msgstr "Bu ürün için henüz kargo bilgisi yok."
+
 msgid "No tasks defined yet."
 msgstr "Henüz tanımlı görev yok."
 
@@ -1738,14 +2047,17 @@ msgstr "İçe aktarılacak geçerli satır yok. CSV'yi düzeltip tekrar deneyin.
 msgid "None"
 msgstr "Yok"
 
+msgid "Not a marketplace listing"
+msgstr "Marketplace listing değil"
+
 msgid "Not configured — OTP and order SMS will not be sent."
 msgstr "Yapılandırılmamış — OTP ve sipariş SMS'leri gönderilmeyecek."
 
-msgid "Not created yet (after verification)"
-msgstr "Henüz oluşturulmadı (doğrulama sonrası)"
-
 msgid "Not created yet"
 msgstr "Henüz oluşturulmadı"
+
+msgid "Not created yet (after verification)"
+msgstr "Henüz oluşturulmadı (doğrulama sonrası)"
 
 msgid "Not for sale"
 msgstr "Satışta değil"
@@ -1780,11 +2092,17 @@ msgstr "En eski önce"
 msgid "On"
 msgstr "Açık"
 
+msgid "On Sale"
+msgstr "Satışta"
+
 msgid "On campaign"
 msgstr "Kampanyalı"
 
 msgid "Only draft or active campaigns can publish offers."
 msgstr "Yalnızca taslak veya aktif kampanyalar teklif yayınlayabilir."
+
+msgid "Only draft or active campaigns can send offers."
+msgstr "Yalnızca taslak veya aktif kampanyalar teklif gönderebilir."
 
 msgid "Only listings awaiting sale or already for sale can be removed from sale."
 msgstr "Yalnızca satış bekleyen veya zaten satışta olan listingler satıştan kaldırılabilir."
@@ -1792,8 +2110,14 @@ msgstr "Yalnızca satış bekleyen veya zaten satışta olan listingler satışt
 msgid "Only listings that are not for sale or expired can be put back on sale."
 msgstr "Yalnızca satışta olmayan veya süresi dolmuş listingler yeniden satışa çıkarılabilir."
 
+msgid "Only products that are for sale or in queue can receive a campaign offer."
+msgstr "Yalnızca satışta veya kuyruktaki ürünler kampanya teklifi alabilir."
+
 msgid "Only sales awaiting payment confirmation can be confirmed."
 msgstr "Sadece ödeme onayı bekleyen satışlar onaylanabilir."
+
+msgid "Only staff can mark rows as imported. The column was ignored."
+msgstr "Satırları yalnızca yetkili personel ithal olarak işaretleyebilir. Kolon yok sayıldı."
 
 msgid "Only the queue winner can be approved."
 msgstr "Yalnızca sıra kazananı onaylanabilir."
@@ -1804,8 +2128,14 @@ msgstr "Açık"
 msgid "Open automatic pre-order when unlinked from order"
 msgstr "Siparişten ayrılınca otomatik ön sipariş aç"
 
-msgid "Open issue"
-msgstr "Sorunu aç"
+msgid "Open listing detail"
+msgstr "Listing detayını aç"
+
+msgid "Open order detail"
+msgstr "Sipariş detayını aç"
+
+msgid "Open seller detail"
+msgstr "Satıcı detayını aç"
 
 msgid "Operations"
 msgstr "Operasyon"
@@ -1822,8 +2152,20 @@ msgstr "Sipariş #%d"
 msgid "Order #%d has been shipped."
 msgstr "Sipariş #%d kargoya verildi."
 
+msgid "Order #%s"
+msgstr "Sipariş #%s"
+
 msgid "Order Flow"
 msgstr "Sipariş Akışı"
+
+msgid "Order ID (high → low)"
+msgstr "Sipariş ID (yüksek → düşük)"
+
+msgid "Order ID (low → high)"
+msgstr "Sipariş ID (düşük → yüksek)"
+
+msgid "Order ID, customer name, email…"
+msgstr "Sipariş ID, müşteri adı, e-posta…"
 
 msgid "Order and shipping deadlines for this sale."
 msgstr "Bu satış için sipariş ve kargo son tarihleri."
@@ -1831,11 +2173,23 @@ msgstr "Bu satış için sipariş ve kargo son tarihleri."
 msgid "Order completed"
 msgstr "Sipariş tamamlandı"
 
+msgid "Order item not found."
+msgstr "Sipariş kalemi bulunamadı."
+
 msgid "Order not found."
 msgstr "Sipariş bulunamadı."
 
 msgid "Order refund"
 msgstr "Sipariş iadesi"
+
+msgid "Order status updated by staff."
+msgstr "Sipariş durumu personel tarafından güncellendi."
+
+msgid "Order totals"
+msgstr "Sipariş tutarı"
+
+msgid "Order updated."
+msgstr "Sipariş güncellendi."
 
 msgid "Orphan variation removed"
 msgstr "Sahipsiz varyasyon kaldırıldı"
@@ -1860,6 +2214,9 @@ msgstr "Satıcıya ödendi"
 
 msgid "Paid total"
 msgstr "Ödenmiş toplam"
+
+msgid "Panel"
+msgstr "Panel"
 
 msgid "Panel notifications"
 msgstr "Panel bildirimleri"
@@ -1893,6 +2250,9 @@ msgstr "Satışınız için ödemeniz gerçekleştirildi."
 
 msgid "Payment for your sale is pending."
 msgstr "Satışınız için ödeme beklemede."
+
+msgid "Payment method"
+msgstr "Ödeme yöntemi"
 
 msgid "Payment pending"
 msgstr "Ödeme bekliyor"
@@ -1933,8 +2293,17 @@ msgstr "Hak ediş ödendi"
 msgid "Payout status"
 msgstr "Ödeme durumu"
 
+msgid "Payouts"
+msgstr "Ödemeler"
+
 msgid "Pending"
 msgstr "Beklemede"
+
+msgid "Pending Confirmation"
+msgstr "Onay bekleniyor"
+
+msgid "Pending Seller Confirmation"
+msgstr "Satıcı onayı bekleniyor"
 
 msgid "Pending approval"
 msgstr "Onay bekliyor"
@@ -2011,6 +2380,9 @@ msgstr "Ön sipariş request oluşturuldu."
 msgid "Pre-order request is missing product or size."
 msgstr "Ön sipariş talebinde ürün veya beden eksik."
 
+msgid "Pre-order — awaiting order"
+msgstr "Ön sipariş — siparişe bağlanmayı bekliyor"
+
 msgid "Premium merchant confirmation time (0=default)"
 msgstr "Premium satıcı onay süresi (0=varsayılan)"
 
@@ -2028,6 +2400,9 @@ msgstr "Fiyat (düşükten yükseğe)"
 
 msgid "Price changed"
 msgstr "Fiyat değişti"
+
+msgid "Price difference"
+msgstr "Fiyat farkı"
 
 msgid "Price is below the product starting price."
 msgstr "Fiyat ürünün başlangıç fiyatının altında."
@@ -2050,8 +2425,14 @@ msgstr "Fiyat: %s TL"
 msgid "Pricing"
 msgstr "Fiyatlandırma"
 
+msgid "Processing order"
+msgstr "Processing sipariş"
+
 msgid "Product"
 msgstr "Ürün"
+
+msgid "Product #%d was not found."
+msgstr "#%d ürünü bulunamadı."
 
 msgid "Product IDs (optional)"
 msgstr "Ürün ID'leri (opsiyonel)"
@@ -2061,9 +2442,6 @@ msgstr "Ürün merkeze ulaştı: %s"
 
 msgid "Product code"
 msgstr "Ürün kodu"
-
-msgid "Product, seller, order, listing ID…"
-msgstr "Ürün, satıcı, sipariş, listing ID…"
 
 msgid "Product code is required."
 msgstr "Ürün kodu gereklidir."
@@ -2098,6 +2476,15 @@ msgstr "Ürün doğrulandı. Hak edişiniz oluşturuldu."
 msgid "Product verified: %s"
 msgstr "Ürün doğrulandı: %s"
 
+msgid "Product, seller, order, variation ID…"
+msgstr "Ürün, satıcı, sipariş, varyasyon ID…"
+
+msgid "Product, seller, variation ID…"
+msgstr "Ürün, satıcı, varyasyon ID…"
+
+msgid "Products"
+msgstr "Ürünler"
+
 msgid "Products in your cart cannot be shipped to the selected country. Please update the country or your cart."
 msgstr "Sepetinizdeki ürünler seçilen ülkeye gönderilemez. Lütfen ülke bilgisini veya sepetinizi güncelleyin."
 
@@ -2127,6 +2514,9 @@ msgstr "Yayınlandı: %1$d teklif oluşturuldu (%2$d atlandı)."
 
 msgid "Put on sale"
 msgstr "Satışa çıkar"
+
+msgid "Put selected listings on sale?"
+msgstr "Seçili listing’ler satışa çıkarılsın mı?"
 
 msgid "Put this listing back on sale?"
 msgstr "Bu listing yeniden satışa çıkarılsın mı?"
@@ -2163,6 +2553,9 @@ msgstr "Yeniden yayınla"
 
 msgid "Ready"
 msgstr "Hazır"
+
+msgid "Ready to Shipping"
+msgstr "Kargoya hazır"
 
 msgid "Ready to ship"
 msgstr "Kargoya hazır"
@@ -2209,6 +2602,9 @@ msgstr "Çıkış yılı"
 msgid "Released from order"
 msgstr "Siparişten serbest bırakıldı"
 
+msgid "Remove"
+msgstr "Kaldır"
+
 msgid "Remove from sale"
 msgstr "Satıştan kaldır"
 
@@ -2218,8 +2614,14 @@ msgstr "Kısıtı kaldır"
 msgid "Remove row"
 msgstr "Satırı kaldır"
 
+msgid "Remove selected listings from sale?"
+msgstr "Seçili listing’ler satıştan kaldırılsın mı?"
+
 msgid "Remove this listing from sale?"
 msgstr "Bu listing satıştan kaldırılsın mı?"
+
+msgid "Remove this product from the order?"
+msgstr "Bu ürün siparişten kaldırılsın mı?"
 
 msgid "Remove this restriction?"
 msgstr "Bu kısıt kaldırılsın mı?"
@@ -2233,14 +2635,38 @@ msgstr "Satıştan kaldırıldı"
 msgid "Removing…"
 msgstr "Kaldırılıyor…"
 
+msgid "Replace this sale with another eligible listing. Same product is listed by default; search to pick a different product."
+msgstr "Bu satışı uygun başka bir listing ile değiştirin. Varsayılan olarak aynı ürün listelenir; farklı ürün için arama yapın."
+
+msgid "Replaced by staff."
+msgstr "Personel tarafından değiştirildi."
+
+msgid "Replacement"
+msgstr "Yeni ürün"
+
+msgid "Replacement is %s higher."
+msgstr "Yeni ürün %s daha pahalı."
+
+msgid "Replacement is %s lower."
+msgstr "Yeni ürün %s daha ucuz."
+
+msgid "Replacement listing"
+msgstr "Yerine konacak listing"
+
 msgid "Replacement listing is already linked to an active fulfillment."
 msgstr "Yerine konan listing zaten aktif bir fulfillment'a bağlı."
+
+msgid "Replacement listing must be different from the current listing."
+msgstr "Yerine konan listing mevcut listing’den farklı olmalıdır."
 
 msgid "Replacement listing must be the active queue winner."
 msgstr "Yerine konan listing aktif sıra kazananı olmalıdır."
 
-msgid "Replacement listing must match the same product and size."
-msgstr "Yerine konan listing aynı ürün ve bedenle eşleşmelidir."
+msgid "Replacement listings"
+msgstr "Yedek listingler"
+
+msgid "Replaces: %s"
+msgstr "Yerine geçiyor: %s"
 
 msgid "Request is not open."
 msgstr "Request açık değil."
@@ -2251,11 +2677,11 @@ msgstr "Hassas hesap işlemleri için SMS doğrulaması iste"
 msgid "Require national ID at checkout when the cart total exceeds this amount. Imported products always require national ID. Set 0 to disable the cart total rule."
 msgstr "Sepet toplamı bu tutarı aştığında ödeme sırasında kimlik numarası iste. İthal ürünler her zaman kimlik numarası gerektirir. Sepet toplamı kuralını devre dışı bırakmak için 0 girin."
 
+msgid "Required when replacing with a different product…"
+msgstr "Farklı ürünle değiştirirken zorunlu…"
+
 msgid "Reset"
 msgstr "Sıfırla"
-
-msgid "Resolve issue"
-msgstr "Sorunu çöz"
 
 msgid "Respond to the campaign offer before updating this listing price."
 msgstr "Bu listing fiyatını güncellemeden önce kampanya teklifine yanıt verin."
@@ -2287,6 +2713,12 @@ msgstr "Teslimat sonrası iade / itiraz penceresi (gün)"
 msgid "Return / dispute window ends"
 msgstr "İade / itiraz penceresi bitişi"
 
+msgid "Return detached product to the sale queue"
+msgstr "Ayrılan ürünü satış sırasına geri koy"
+
+msgid "Returned"
+msgstr "İade edildi"
+
 msgid "Review"
 msgstr "İncele"
 
@@ -2298,6 +2730,9 @@ msgstr "Teklifi incele"
 
 msgid "Review platform campaign offers for your listings. Accepting updates your asking price for the campaign period."
 msgstr "Listingleriniz için platform kampanya tekliflerini inceleyin. Kabul etmek, kampanya süresi boyunca asking fiyatınızı güncelleyecektir."
+
+msgid "Review the pending changes before applying them."
+msgstr "Uygulamadan önce bekleyen değişiklikleri gözden geçirin."
 
 msgid "Review the rows below, then confirm to create listings."
 msgstr "Aşağıdaki satırları inceleyin, ardından listing oluşturmak için onaylayın."
@@ -2325,6 +2760,9 @@ msgstr "Satır içe aktarma önizlemesinde bulunamadı."
 
 msgid "Row number is missing."
 msgstr "Satır numarası eksik."
+
+msgid "SMS"
+msgstr "SMS"
 
 msgid "SMS enabled"
 msgstr "SMS aktif"
@@ -2362,9 +2800,6 @@ msgstr "Satış (admin)"
 msgid "Sale / fulfillment"
 msgstr "Satış / fulfillment"
 
-msgid "Sale cancelled"
-msgstr "Satış iptal"
-
 msgid "Sale confirmation reminder"
 msgstr "Satış onay hatırlatma"
 
@@ -2389,14 +2824,11 @@ msgstr "Satış alındı"
 msgid "Sale refunded"
 msgstr "Satış iade edildi"
 
-msgid "Sale suspended"
-msgstr "Satış askıda"
-
-msgid "Sale suspended: %s"
-msgstr "Satış askıya alındı: %s"
-
 msgid "Sales"
 msgstr "Satışlar"
+
+msgid "Same product"
+msgstr "Aynı ürün"
 
 msgid "Sample coupons created: %d (skipped: %d)."
 msgstr "Örnek kuponlar oluşturuldu: %d (atlanan: %d)."
@@ -2419,17 +2851,47 @@ msgstr "Kaydediliyor…"
 msgid "Search"
 msgstr "Ara"
 
+msgid "Search a different product…"
+msgstr "Farklı bir ürün ara…"
+
+msgid "Search another order…"
+msgstr "Başka bir sipariş ara…"
+
 msgid "Search by product code or SKU to attach a catalog product to this listing."
 msgstr "Bu listinge katalog ürünü bağlamak için ürün kodu veya SKU ile arayın."
 
-msgid "Search product code"
-msgstr "Ürün kodu ara"
+msgid "Search listing"
+msgstr "Listing ara"
+
+msgid "Search replacement"
+msgstr "Yedek ara"
+
+msgid "Search seller by name, email, ID…"
+msgstr "İsim, e-posta, ID ile satıcı ara…"
 
 msgid "Select"
 msgstr "Seçin"
 
+msgid "Select a campaign…"
+msgstr "Kampanya seçin…"
+
+msgid "Select a processing order…"
+msgstr "Processing bir sipariş seçin…"
+
 msgid "Select a product to continue."
 msgstr "Devam etmek için bir ürün seçin."
+
+msgid "Select a replacement listing."
+msgstr "Yedek listing seçin."
+
+msgid "Select a replacement listing…"
+msgstr "Yerine konacak listing’i seçin…"
+
+msgid "Select a seller before continuing."
+msgstr "Devam etmeden önce bir satıcı seçin."
+
+msgid "Select a seller."
+msgstr "Satıcı seçin."
 
 msgid "Select a size to continue."
 msgstr "Devam etmek için beden seçin."
@@ -2437,17 +2899,50 @@ msgstr "Devam etmek için beden seçin."
 msgid "Select a valid parent product."
 msgstr "Geçerli bir parent ürün seçin."
 
+msgid "Select a valid seller."
+msgstr "Geçerli bir satıcı seçin."
+
 msgid "Select a valid size."
 msgstr "Geçerli beden seçin."
 
+msgid "Select all"
+msgstr "Tümünü seç"
+
+msgid "Select at least one order."
+msgstr "En az bir sipariş seçin."
+
+msgid "Select at least one product."
+msgstr "En az bir ürün seçin."
+
+msgid "Select listing"
+msgstr "Listing seç"
+
 msgid "Select the brand restriction from the “Product brands” field above. Discount type must be percentage. Cart notices and the minimum quantity rule are managed in this section."
 msgstr "Marka kısıtını yukarıdaki “Product brands” alanından seçin. İndirim tipi yüzde olmalıdır. Sepet bildirimleri ve minimum adet kuralı bu bölümden yönetilir."
+
+msgid "Selected listings will leave the sale queue without being deleted."
+msgstr "Seçili listing’ler silinmeden satış kuyruğundan çıkar."
+
+msgid "Selected listings will re-enter the sale queue with a fresh expiry window."
+msgstr "Seçili listing’ler yeni bir süre penceresiyle satış kuyruğuna yeniden girer."
+
+msgid "Selected product"
+msgstr "Seçilen ürün"
+
+msgid "Selected sales will be confirmed and shipping deadlines will start."
+msgstr "Seçili satışlar onaylanır ve kargo süreleri başlar."
+
+msgid "Selected seller: %s"
+msgstr "Seçilen satıcı: %s"
 
 msgid "Seller"
 msgstr "Satıcı"
 
 msgid "Seller / fulfillment"
 msgstr "Satıcı / fulfillment"
+
+msgid "Seller Confirmed"
+msgstr "Satıcı onayladı"
 
 msgid "Seller ID is required."
 msgstr "Satıcı ID'si gereklidir."
@@ -2494,6 +2989,9 @@ msgstr "Satıcı kargo tarihi"
 msgid "Seller shipping tracking number"
 msgstr "Satıcı kargo takip no"
 
+msgid "Seller SMS copy for merchant events is edited here. Which merchant events send SMS is under Notifications → Merchant notifications."
+msgstr "Satıcı olaylarının SMS metni burada düzenlenir. Hangi satıcı olayının SMS gideceği Bildirimler → Satıcı bildirimleri altındadır."
+
 msgid "Seller swapped by staff."
 msgstr "Satıcı personel tarafından değiştirildi."
 
@@ -2502,6 +3000,9 @@ msgstr "Satıcı −%1$s · Platform −%2$s"
 
 msgid "Sellers"
 msgstr "Satıcılar"
+
+msgid "Send campaign offer"
+msgstr "Kampanya teklifi gönder"
 
 msgid "Sender header"
 msgstr "Gönderen başlığı"
@@ -2514,9 +3015,6 @@ msgstr "Hizmet bedeli"
 
 msgid "Set commission override"
 msgstr "Komisyon override ayarla"
-
-msgid "Set your asking price and review queue position and estimated payout."
-msgstr "Asking fiyatınızı belirleyin ve sıra pozisyonunuzla tahmini hak edişinizi inceleyin."
 
 msgid "Settings"
 msgstr "Ayarlar"
@@ -2545,6 +3043,12 @@ msgstr "Sutore'ye kargola"
 msgid "Ship to customer"
 msgstr "Müşteriye kargola"
 
+msgid "Shipment type"
+msgstr "Gönderi tipi"
+
+msgid "Shipped"
+msgstr "Kargolandı"
+
 msgid "Shipped to Sutore"
 msgstr "Sutore'ye kargolandı"
 
@@ -2553,6 +3057,9 @@ msgstr "Sutore'ye kargolandı (müşteri)"
 
 msgid "Shipped to Sutore (merchant)"
 msgstr "Sutore'ye kargolandı (satıcı)"
+
+msgid "Shipped to You"
+msgstr "Size kargolandı"
 
 msgid "Shipped to customer"
 msgstr "Müşteriye kargolandı"
@@ -2584,8 +3091,8 @@ msgstr "Kargo son tarihi"
 msgid "Shipping deadline expired"
 msgstr "Kargo süresi doldu"
 
-msgid "Shipping deadline has passed. Contact us to prevent your sale from being suspended."
-msgstr "Kargo süresi doldu. Satışın askıya alınmaması için iletişime geçin."
+msgid "Shipping deadline expired (customer)"
+msgstr "Kargo süresi doldu (müşteri)"
 
 msgid "Shipping deadline passed: %s"
 msgstr "Kargo süresi doldu: %s"
@@ -2625,6 +3132,9 @@ msgstr "Kargo takip regex"
 
 msgid "Shipping:"
 msgstr "Kargo:"
+
+msgid "Show default matches"
+msgstr "Varsayılan eşleşmeleri göster"
 
 msgid "Show express shipping options without province restriction"
 msgstr "İl kısıtı olmadan express kargo seçeneklerini göster"
@@ -2686,11 +3196,11 @@ msgstr "Kaynak"
 msgid "Sourcing request not found."
 msgstr "Sourcing request bulunamadı."
 
-msgid "Staff is reviewing an open issue on this sale."
-msgstr "Personel bu satıştaki açık sorunu inceliyor."
-
 msgid "Staff list default filter"
 msgstr "Personel liste varsayılan filtresi"
+
+msgid "Staff note"
+msgstr "Personel notu"
 
 msgid "Staff note (visible to merchant)"
 msgstr "Personel notu (satıcıya görünür)"
@@ -2722,6 +3232,9 @@ msgstr "Durum A–Z"
 msgid "Status priority"
 msgstr "Durum önceliği"
 
+msgid "Status will change to %s"
+msgstr "Durum %s olarak güncellenecek"
+
 msgid "Status:"
 msgstr "Durum:"
 
@@ -2731,14 +3244,11 @@ msgstr "Adım %1$d / %2$d"
 msgid "Submit"
 msgstr "Gönder"
 
+msgid "Subtotal"
+msgstr "Ara toplam"
+
 msgid "Summary"
 msgstr "Özet"
-
-msgid "Suspend"
-msgstr "Askıya al"
-
-msgid "Suspended"
-msgstr "Askıya alındı"
 
 msgid "Suspended (customer)"
 msgstr "Askıya alındı (müşteri)"
@@ -2842,6 +3352,9 @@ msgstr "Görevler"
 msgid "Tasks & Rewards"
 msgstr "Görevler & Ödüller"
 
+msgid "Tax"
+msgstr "Vergi"
+
 msgid "Template version"
 msgstr "Şablon sürümü"
 
@@ -2854,8 +3367,8 @@ msgstr "NVI public TC doğrulama servisi şu an programatik erişime kapalı. Ku
 msgid "The NVI public service may be closed to programmatic access after September 2025. Use \"algorithm\" mode for local development; set a corporate KPS endpoint for production."
 msgstr "NVI public servisi Eylül 2025 sonrası programatik erişime kapalı olabilir. Yerel geliştirmede \"algoritma\" modunu kullanın; prod için kurumsal KPS endpoint tanımlayın."
 
-msgid "The imported products could not be updated."
-msgstr "İthal ürünler güncellenemedi."
+msgid "The current product will be detached from the order."
+msgstr "Mevcut ürün siparişten ayrılacak."
 
 msgid "The listing will leave the sale queue without being deleted."
 msgstr "Listing silinmeden satış sırasından çıkacak."
@@ -2871,9 +3384,6 @@ msgstr "Aradığınız ürün bulunamadı"
 
 msgid "The product’s original release year (e.g. 2024)."
 msgstr "Ürünün orijinal çıkış yılı (ör. 2024)."
-
-msgid "The return / dispute window has not ended yet."
-msgstr "İade / itiraz penceresi henüz sona ermedi."
 
 msgid "The shipping deadline has passed. Contact Sutore to avoid suspension."
 msgstr "Kargo süresi doldu. Askıya alınmamak için Sutore ile iletişime geçin."
@@ -2896,8 +3406,14 @@ msgstr "Bu listing zaten sipariş sürecinde."
 msgid "This account cannot be converted to a merchant via self-service registration."
 msgstr "Bu hesap self-service kayıt yoluyla satıcı hesabına dönüştürülemez."
 
+msgid "This action cannot be applied to every selected product."
+msgstr "Bu işlem seçili tüm ürünlere uygulanamaz."
+
 msgid "This campaign will cover %1$d products (%2$d merchants)."
 msgstr "Bu kampanya %1$d ürünü (%2$d satıcı) kapsayacak."
+
+msgid "This cannot be undone for the selected listings."
+msgstr "Seçili listing’ler için bu işlem geri alınamaz."
 
 msgid "This email address is already registered."
 msgstr "Bu e-posta adresi zaten kayıtlı."
@@ -2914,6 +3430,9 @@ msgstr "Bu listing şu an satıştan kaldırılamaz."
 msgid "This listing is in a campaign, so you cannot increase the asking price."
 msgstr "Bu listing bir kampanyada olduğu için asking fiyatını yükseltemezsiniz."
 
+msgid "This listing will be taken off sale and marked as not for sale."
+msgstr "Bu listing satıştan kaldırılacak ve satışta değil olarak işaretlenecek."
+
 msgid "This listing will go on sale below the product’s starting price (≈ %s TL)."
 msgstr "Bu listing ürünün başlangıç fiyatının altında satışa çıkacak (≈ %s TL)."
 
@@ -2923,38 +3442,50 @@ msgstr "Bu teklif artık kabul edilemez."
 msgid "This offer can no longer be declined."
 msgstr "Bu teklif artık reddedilemez."
 
+msgid "This order cannot receive new products in its current status."
+msgstr "Bu sipariş mevcut durumunda yeni ürün alamaz."
+
 msgid "This phone number is already registered."
 msgstr "Bu telefon numarası zaten kayıtlı."
+
+msgid "This product already has a campaign offer or active campaign."
+msgstr "Bu üründe zaten bir kampanya teklifi veya aktif kampanya var."
 
 msgid "This product can no longer be detached from the order. Use an intervention action instead."
 msgstr "Bu ürün artık siparişten ayrılamaz. Onun yerine bir müdahale işlemi kullanın."
 
+msgid "This product cannot be approved in its current status."
+msgstr "Bu ürün mevcut durumunda onaylanamaz."
+
 msgid "This product cannot be put back on sale in its current status."
 msgstr "Bu ürün mevcut durumunda tekrar satışa çıkarılamaz."
+
+msgid "This product cannot be removed from sale in its current status."
+msgstr "Bu ürün mevcut durumunda satıştan kaldırılamaz."
 
 msgid "This product is not linked to an order."
 msgstr "Bu ürün bir siparişe bağlı değil."
 
+msgid "This product will be unlinked from the order. Continue?"
+msgstr "Bu ürün siparişten ayrılacak. Devam edilsin mi?"
+
 msgid "This sale cannot be confirmed."
 msgstr "Bu satış onaylanamaz."
 
-msgid "This sale lifecycle is complete."
-msgstr "Bu satışın yaşam döngüsü tamamlandı."
-
-msgid "This sale was cancelled."
-msgstr "Bu satış iptal edildi."
-
 msgid "This sale was refunded."
 msgstr "Bu satış iade edildi."
-
-msgid "This sale was suspended."
-msgstr "Bu satış askıya alındı."
 
 msgid "This seller account is disabled and cannot put listings on sale."
 msgstr "Bu satıcı hesabı devre dışı ve listingleri satışa çıkaramaz."
 
 msgid "This seller is restricted from creating or putting listings on sale."
 msgstr "Bu satıcının listing oluşturması veya satışa çıkarması kısıtlanmış."
+
+msgid "This variation is a Sutore Marketplace listing and cannot be deleted from WordPress. Remove the listing in the marketplace UI first."
+msgstr "Bu varyasyon bir Sutore Marketplace listing’idir ve WordPress’ten silinemez. Önce marketplace arayüzünden listing’i kaldırın."
+
+msgid "This variation is a Sutore Marketplace listing and cannot be trashed from WordPress. Remove the listing in the marketplace UI first."
+msgstr "Bu varyasyon bir Sutore Marketplace listing’idir ve WordPress’ten çöpe atılamaz. Önce marketplace arayüzünden listing’i kaldırın."
 
 msgid "This will permanently delete your account and listings. You cannot undo this action."
 msgstr "Bu işlem hesabınızı ve listinglerinizi kalıcı olarak silecektir. Bu işlem geri alınamaz."
@@ -2974,6 +3505,15 @@ msgstr "Satıcı alanına erişmek için aşağıdaki bilgileri eksiksiz dolduru
 msgid "To access the merchant area, you must complete the information below and have your TC identity verified via the NVI service."
 msgstr "Satıcı alanına erişmek için aşağıdaki bilgileri eksiksiz doldurmanız ve TC kimliğinizin NVI servisi ile doğrulanması gerekir."
 
+msgid "To be added"
+msgstr "Eklenecek"
+
+msgid "To be detached"
+msgstr "Ayrılacak"
+
+msgid "To be removed"
+msgstr "Kaldırılacak"
+
 msgid "To be specified in the contract after payment is completed"
 msgstr "Ödeme tamamlandıktan sonra sözleşmede belirtilecek"
 
@@ -2986,8 +3526,20 @@ msgstr "Çok fazla başarısız deneme. Lütfen 15 dakika sonra tekrar deneyin."
 msgid "Too many verification requests. Please try again later."
 msgstr "Çok fazla doğrulama isteği. Lütfen daha sonra tekrar deneyin."
 
+msgid "Total"
+msgstr "Toplam"
+
+msgid "Total (high → low)"
+msgstr "Toplam (yüksek → düşük)"
+
+msgid "Total (low → high)"
+msgstr "Toplam (düşük → yüksek)"
+
 msgid "Total rows"
 msgstr "Toplam satır"
+
+msgid "Track"
+msgstr "Takip Et"
 
 msgid "Tracking"
 msgstr "Takip"
@@ -3006,6 +3558,9 @@ msgstr "Takip: %s"
 
 msgid "Transaction #%d"
 msgstr "İşlem #%d"
+
+msgid "Turkey"
+msgstr "Türkiye"
 
 msgid "Turkish"
 msgstr "Türkçe"
@@ -3028,6 +3583,9 @@ msgstr "Yetkisiz işlem."
 msgid "Unauthorized."
 msgstr "Yetkisiz."
 
+msgid "Undo"
+msgstr "Geri al"
+
 msgid "Update"
 msgstr "Güncelle"
 
@@ -3040,17 +3598,29 @@ msgstr "Güncelleme başarısız."
 msgid "Update level"
 msgstr "Seviye güncelle"
 
+msgid "Update order"
+msgstr "Siparişi güncelle"
+
 msgid "Update password"
 msgstr "Parolayı güncelle"
 
 msgid "Update price"
 msgstr "Fiyat güncelle"
 
+msgid "Update product"
+msgstr "Ürünü güncelle"
+
 msgid "Update restricted."
 msgstr "Güncelleme kısıtlı."
 
 msgid "Update seller level, commission overrides, and account restrictions."
 msgstr "Satıcı seviyesini, komisyon override'larını ve hesap kısıtlarını güncelleyin."
+
+msgid "Update status"
+msgstr "Durumu güncelle"
+
+msgid "Update status for %d orders?"
+msgstr "%d siparişin durumu güncellensin mi?"
 
 msgid "Update your name, email, phone, and marketing preferences."
 msgstr "Adınızı, e-postanızı, telefonunuzu ve pazarlama tercihlerinizi güncelleyin."
@@ -3076,6 +3646,9 @@ msgstr "Birden fazla listing'i tek seferde oluşturmak için bir CSV dosyası y�
 msgid "Upload a CSV file."
 msgstr "Bir CSV dosyası yükleyin."
 
+msgid "Use detach for marketplace listings on this order."
+msgstr "Bu siparişteki marketplace listing için ayırma kullanın."
+
 msgid "Use {code} as the placeholder. Leave empty for the default message."
 msgstr "Yer tutucu olarak {code} kullanın. Varsayılan mesaj için boş bırakın."
 
@@ -3085,8 +3658,14 @@ msgstr "Kullanılmış"
 msgid "Used for commission percent overrides. 0 = no end date."
 msgstr "Komisyon yüzdesi override'ları için kullanılır. 0 = bitiş tarihi yok."
 
+msgid "Used with your national ID to apply the youth discount."
+msgstr "Gençlik indirimini uygulamak için kimlik numaranızla birlikte kullanılır."
+
 msgid "User ID"
 msgstr "Kullanıcı ID"
+
+msgid "Registered"
+msgstr "Kayıt tarihi"
 
 msgid "User code"
 msgstr "Kullanıcı kodu"
@@ -3097,14 +3676,14 @@ msgstr "Kullanıcı bulunamadı."
 msgid "Username"
 msgstr "Kullanıcı adı"
 
+msgid "Variation #%1$d → #%2$d"
+msgstr "Varyasyon #%1$d → #%2$d"
+
 msgid "Variation #%d"
 msgstr "Varyasyon #%d"
 
 msgid "Variation ID"
 msgstr "Varyasyon ID"
-
-msgid "Variation IDs"
-msgstr "Varyasyon kimlikleri"
 
 msgid "Variation could not be created."
 msgstr "Variation oluşturulamadı."
@@ -3127,14 +3706,14 @@ msgstr "Doğrulandı (satıcı)"
 msgid "Verified at Sutore"
 msgstr "Sutore'de doğrulandı"
 
+msgid "Verified customers below the maximum age see an automatic cart fee (not a coupon). Seller asking and seller net (asking minus commission) stay unchanged. The discount is capped by remaining service fee + guarantee fee + commission."
+msgstr "Azami yaşın altındaki doğrulanmış müşteriler sepette otomatik bir ücret satırı görür (kupon değil). Satıcı asking’i ve satıcı neti (asking eksi komisyon) değişmez. İndirim kalan hizmet bedeli + güvence bedeli + komisyon ile tavanlanır."
+
 msgid "Verify"
 msgstr "Doğrula"
 
 msgid "Verify product"
 msgstr "Ürünü doğrula"
-
-msgid "View offer"
-msgstr "Teklifi gör"
 
 msgid "View product"
 msgstr "Ürünü görüntüle"
@@ -3175,8 +3754,14 @@ msgstr "Geri çekildi"
 msgid "WooCommerce is not active."
 msgstr "WooCommerce aktif değil."
 
+msgid "YYYY"
+msgstr "YYYY"
+
 msgid "Year of Birth"
 msgstr "Doğum Yılı"
+
+msgid "Year of birth"
+msgstr "Doğum yılı"
 
 msgid "Yellow zone"
 msgstr "Sarı bölge"
@@ -3190,11 +3775,11 @@ msgstr "Bu ürün ve beden için zaten bir listinginiz var (%1$s, %2$s). Bu list
 msgid "You are not eligible for fast shipping."
 msgstr "Hızlı kargo için uygun değilsiniz."
 
-msgid "You can accept open requests and track the status of pre-orders assigned to you."
-msgstr "Açık talepleri kabul edebilir, üzerinizdeki ön siparişlerin durumunu takip edebilirsiniz."
-
 msgid "You can purchase a maximum of %d items in a single order."
 msgstr "Tek siparişte maksimum %d adet ürün satın alabilirsiniz."
+
+msgid "You can update at most 100 products at once."
+msgstr "Bir seferde en fazla 100 ürün güncelleyebilirsiniz."
 
 msgid "You cannot delete your account while you have active sales or shipments. Please complete them or contact support."
 msgstr "Aktif satışlarınız veya kargolarınız varken hesabınızı silemezsiniz. Lütfen bunları tamamlayın veya destek ile iletişime geçin."
@@ -3219,9 +3804,6 @@ msgstr "Şu indirimi kazandınız:"
 
 msgid "You have a pending payout"
 msgstr "Bekleyen hak edişiniz var"
-
-msgid "You have accepted this pre-order."
-msgstr "Bu ön siparişi kabul ettiniz."
 
 msgid "You have no campaign offers."
 msgstr "Kampanya teklifiniz yok."
@@ -3361,6 +3943,15 @@ msgstr "Sıranız değişti: %s"
 msgid "Yours"
 msgstr "Sizin"
 
+msgid "Youth discount"
+msgstr "Gençlik indirimi"
+
+msgid "Youth discount (%s%%)"
+msgstr "Gençlik indirimi (%%%s)"
+
+msgid "Youth discount is unavailable while TC verification is set to manual approval."
+msgstr "TC doğrulama manuel onaydayken gençlik indirimi kullanılamaz."
+
 msgid "add."
 msgstr "ekleyin."
 
@@ -3396,3 +3987,779 @@ msgstr "sistem"
 
 msgid "unknown seller"
 msgstr "bilinmeyen satıcı"
+
+msgid "After the product is verified, wait this many days, then pick the next payout weekday."
+msgstr "Ürün doğrulandıktan sonra bu kadar gün bekleyin, ardından bir sonraki ödeme gününü seçin."
+
+msgid "At least one day is required. Default is Wednesday. A second day can be added later."
+msgstr "En az bir gün zorunludur. Varsayılan Çarşamba. İleride ikinci bir gün eklenebilir."
+
+msgid "Commission amount"
+msgstr "Komisyon tutarı"
+
+msgid "Due"
+msgstr "Vadesi gelmiş"
+
+msgid "Due for payout"
+msgstr "Ödemeye hazır (vadesi gelen)"
+
+msgid "Export CSV"
+msgstr "CSV dışa aktar"
+
+msgid "Friday"
+msgstr "Cuma"
+
+msgid "Invoice"
+msgstr "Fatura"
+
+msgid "View invoice"
+msgstr "Faturayı görüntüle"
+
+msgid "View customer invoice"
+msgstr "Müşteri faturasını görüntüle"
+
+msgid "View seller invoice"
+msgstr "Satıcı faturasını görüntüle"
+
+msgid "Open PDF"
+msgstr "PDF aç"
+
+msgid "Invoice not found."
+msgstr "Fatura bulunamadı."
+
+msgid "The invoice PDF is not available yet."
+msgstr "Fatura PDF’i henüz hazır değil."
+
+msgid "Minimum hold (days)"
+msgstr "Minimum vade (gün)"
+
+msgid "Monday"
+msgstr "Pazartesi"
+
+msgid "No payout rows to export for this filter."
+msgstr "Bu filtre için dışa aktarılacak ödeme satırı yok."
+
+msgid "Notes"
+msgstr "Notlar"
+
+msgid "Optional. The same payment reference is stored on every selected payout."
+msgstr "İsteğe bağlı. Aynı ödeme referansı seçilen tüm hak edişlere yazılır."
+
+msgid "Payout weekdays"
+msgstr "Ödeme günleri"
+
+msgid "Saturday"
+msgstr "Cumartesi"
+
+msgid "Scheduled payout date"
+msgstr "Planlanan ödeme tarihi"
+
+msgid "Seller level"
+msgstr "Satıcı seviyesi"
+
+msgid "Seller name"
+msgstr "Satıcı adı"
+
+msgid "Sold from"
+msgstr "Satış başlangıç"
+
+msgid "Sold to"
+msgstr "Satış bitiş"
+
+msgid "Sunday"
+msgstr "Pazar"
+
+msgid "Thursday"
+msgstr "Perşembe"
+
+msgid "Tuesday"
+msgstr "Salı"
+
+msgid "Wednesday"
+msgstr "Çarşamba"
+
+msgid "Your payout will be made on %s."
+msgstr "Ödemeniz %s günü yapılacak."
+
+
+msgid "Timed strikethrough campaigns. Create targeting rules, then publish to send product-level offers. Seller and system campaigns use the same accept → sale → revert path."
+msgstr "Üstü çizili zamanlı kampanyalar. Hedefleme kurallarını oluşturun, ardından ürün bazlı teklif göndermek için yayınlayın. Satıcı ve sistem kampanyaları aynı kabul → indirim → geri alma yolunu kullanır."
+
+msgid "Seller discount must be between %1$s%% and %2$s%%."
+msgstr "Satıcı indirimi %%%1$s ile %%%2$s arasında olmalıdır."
+
+msgid "Campaign duration cannot exceed %d days."
+msgstr "Kampanya süresi %d günü aşamaz."
+
+msgid "Respond to the campaign offer before starting a campaign."
+msgstr "Kampanya başlatmadan önce kampanya teklifine yanıt verin."
+
+msgid "This listing is already in a campaign."
+msgstr "Bu listing zaten bir kampanyada."
+
+msgid "Only products that are for sale or in queue can start a campaign."
+msgstr "Yalnızca satışta veya sıradaki ürünler kampanya başlatabilir."
+
+msgid "This listing can join another campaign after %s."
+msgstr "Bu listing başka bir kampanyaya %s sonra katılabilir."
+
+msgid "Suggestion"
+msgstr "Öneri"
+
+msgid "Seller campaign"
+msgstr "Satıcı kampanyası"
+
+msgid "Platform"
+msgstr "Platform"
+
+msgid "%d days unsold."
+msgstr "%d gündür satılmadı."
+
+msgid "This size is on sale at %s today."
+msgstr "Bu beden bugün %s fiyatla satışta."
+
+msgid "Drop %1$s%% to %2$s and you take the lead."
+msgstr "%%%1$s indirimle %2$s’ye inin, öne geçersiniz."
+
+msgid "Drop %1$s%% to %2$s for a timed strikethrough price."
+msgstr "Zamanlı üstü çizili fiyat için %%%1$s indirimle %2$s’ye inin."
+
+msgid "Fees on this product are waived for the campaign."
+msgstr "Bu ürün için kampanya süresince ücretler muaf tutulur."
+
+msgid "Seller campaign: %s"
+msgstr "Satıcı kampanyası: %s"
+
+msgid "Price suggestion: %s"
+msgstr "Fiyat önerisi: %s"
+
+msgid "Put on campaign"
+msgstr "Kampanyaya al"
+
+msgid "Put this listing on campaign"
+msgstr "Bu listingi kampanyaya al"
+
+msgid "Lowering asking is permanent and has no strikethrough. A campaign is timed and shows the previous asking crossed out."
+msgstr "Asking düşürmek kalıcıdır ve üstü çizili fiyat göstermez. Kampanya sürelidir ve önceki asking’i üstü çizili gösterir."
+
+msgid "Asking %1$s TL → %2$s TL for %3$s days. Customers see a strikethrough until it ends."
+msgstr "%1$s TL → %2$s TL, %3$s gün. Bitişe kadar müşteri üstü çizili fiyat görür."
+
+msgid "Campaign started. Customers will see a strikethrough price until it ends."
+msgstr "Kampanya başladı. Bitişe kadar müşteriler üstü çizili fiyat görecek."
+
+msgid "Campaign cooldown until"
+msgstr "Kampanya bekleme süresi bitişi"
+
+msgid "Not now"
+msgstr "Şimdi değil"
+
+msgid "Minimum seller discount (%)"
+msgstr "Minimum satıcı indirimi (%)"
+
+msgid "Maximum seller discount (%)"
+msgstr "Maksimum satıcı indirimi (%)"
+
+msgid "Maximum campaign duration (days)"
+msgstr "Maksimum kampanya süresi (gün)"
+
+msgid "Cooldown after a campaign (days)"
+msgstr "Kampanya sonrası bekleme (gün)"
+
+msgid "Aging suggestion day 1"
+msgstr "Yaşlanma önerisi 1. gün"
+
+msgid "Aging suggestion day 2 (matched)"
+msgstr "Yaşlanma önerisi 2. gün (eşleşmeli)"
+
+msgid "Timed strikethrough discounts only. Permanent markdowns are a silent asking drop. System suggestions waive fees up to service + guarantee."
+msgstr "Yalnızca zamanlı üstü çizili indirimler. Kalıcı fiyat düşüşü sessiz asking indirimidir. Sistem önerileri hizmet + güvence ücretine kadar muafiyet uygular."
+
+msgid "Audience scan is capped at 2000 matching listings; the real audience may be larger."
+msgstr "Kitle taraması 2000 eşleşen listing ile sınırlıdır; gerçek kitle daha büyük olabilir."
+
+msgid "Referral"
+msgstr "Davet"
+
+msgid "Staff"
+msgstr "Staff"
+
+msgid "Referral welcome commission discount"
+msgstr "Davet karşılama komisyon indirimi"
+
+msgid "Referral reward commission discount"
+msgstr "Davet ödülü komisyon indirimi"
+
+msgid "Referral invite accepted"
+msgstr "Davet kodu kabul edildi"
+
+msgid "Referral reward granted"
+msgstr "Davet ödülü işlendi"
+
+msgid "Referral reward period limit reached"
+msgstr "Davet ödülü dönem limiti doldu"
+
+msgid "Invited by seller #%s"
+msgstr "Davet eden satıcı #%s"
+
+msgid "First sale by %1$s — %2$s points off"
+msgstr "%1$s ilk satışı — %2$s puan indirim"
+
+msgid "Period limit %1$s / %2$s"
+msgstr "Dönem limiti %1$s / %2$s"
+
+msgid "Enter a valid invite code."
+msgstr "Geçerli bir davet kodu girin."
+
+msgid "This invite code is not valid."
+msgstr "Bu davet kodu geçerli değil."
+
+msgid "You cannot use your own invite code."
+msgstr "Kendi davet kodunuzu kullanamazsınız."
+
+msgid "A referral code is already attached to this seller."
+msgstr "Bu satıcıya zaten bir davet kodu bağlı."
+
+msgid "Referral reward"
+msgstr "Davet ödülü"
+
+msgid "Referral reward unlocked"
+msgstr "Davet ödülü açıldı"
+
+msgid "%1$s completed a first sale. Your commission is reduced by %2$s points until %3$s."
+msgstr "%1$s ilk satışını tamamladı. Komisyonunuz %3$s tarihine kadar %2$s puan düşürüldü."
+
+msgid "%1$s completed a first sale. Your commission is reduced by %2$s points."
+msgstr "%1$s ilk satışını tamamladı. Komisyonunuz %2$s puan düşürüldü."
+
+msgid "A seller you invited completed their first sale. Your referral commission discount is now active."
+msgstr "Davet ettiğiniz satıcı ilk satışını tamamladı. Davet komisyon indiriminiz artık aktif."
+
+msgid "Seller referral"
+msgstr "Satıcı daveti"
+
+msgid "Invite codes grant a time-limited commission discount (points off the seller level). The invited seller receives it at registration; the inviter receives it when that seller’s first sale is confirmed."
+msgstr "Davet kodları satıcı seviyesinden puan düşüren süreli komisyon indirimi verir. Davet edilen kayıtta alır; davet eden, o satıcının ilk satışı onaylanınca alır."
+
+msgid "Invitee points off"
+msgstr "Davet edilen puan indirimi"
+
+msgid "Commission points subtracted from the invited seller’s level rate at registration."
+msgstr "Kayıtta davet edilen satıcının seviye komisyonundan düşülen puan."
+
+msgid "Invitee duration (days)"
+msgstr "Davet edilen süre (gün)"
+
+msgid "Inviter points off"
+msgstr "Davet eden puan indirimi"
+
+msgid "Commission points subtracted from the inviting seller’s level rate after the invitee’s first confirmed sale."
+msgstr "Davet edilenin ilk onaylı satışından sonra davet edenin seviye komisyonundan düşülen puan."
+
+msgid "Inviter duration (days)"
+msgstr "Davet eden süre (gün)"
+
+msgid "Inviter reward cap per period"
+msgstr "Dönem başına davet eden ödül limiti"
+
+msgid "Maximum inviter rewards per rolling period. 0 blocks inviter rewards."
+msgstr "Yuvarlanan dönem başına maksimum davet eden ödülü. 0 davet eden ödüllerini kapatır."
+
+msgid "Reward period (days)"
+msgstr "Ödül dönemi (gün)"
+
+msgid "Invite code (optional)"
+msgstr "Davet kodu (isteğe bağlı)"
+
+msgid "Invite sellers"
+msgstr "Satıcı davet et"
+
+msgid "Your invite code"
+msgstr "Davet kodunuz"
+
+msgid "Copy link"
+msgstr "Bağlantıyı kopyala"
+
+msgid "Invite code"
+msgstr "Davet kodu"
+
+msgid "Referred by"
+msgstr "Davet eden"
+
+msgid "Referral rewarded"
+msgstr "Davet ödülü işlendi"
+
+msgid "Task"
+msgstr "Görev"
+
+msgid "Added to catalog"
+msgstr "Katalogya eklendi"
+
+msgid "Catalog product request levels"
+msgstr "Katalog ürün talebi seviyeleri"
+
+msgid "Comma-separated seller levels that may request a missing catalog product (SKU or link) from the listing form. Default: verified,premium"
+msgstr "Listing formundan katalogda olmayan ürün (SKU veya link) talep edebilecek satıcı seviyeleri, virgülle. Varsayılan: verified,premium"
+
+msgid "Catalog requests"
+msgstr "Katalog talepleri"
+
+msgid "Request this product"
+msgstr "Bu ürünü talep et"
+
+msgid "Leave the SKU or a product link, the size, and a short note. We will notify you when it is added to the catalog."
+msgstr "SKU veya ürün linki, beden ve kısa bir not bırakın. Ürün katalogya eklenince sizi bilgilendireceğiz."
+
+msgid "SKU or product link"
+msgstr "SKU veya ürün linki"
+
+msgid "Short note"
+msgstr "Kısa not"
+
+msgid "Send request"
+msgstr "Talep gönder"
+
+msgid "Catalog product requests require Confirmed seller level."
+msgstr "Katalog ürün talebi için Onaylı satıcı seviyesi gerekir."
+
+msgid "Enter a product SKU or link."
+msgstr "Ürün SKU’su veya linki girin."
+
+msgid "Enter a size."
+msgstr "Beden girin."
+
+msgid "You already have the maximum number of pending catalog requests."
+msgstr "Bekleyen katalog talebi limitine ulaştınız."
+
+msgid "You already have a pending request for this product."
+msgstr "Bu ürün için zaten bekleyen bir talebiniz var."
+
+msgid "The catalog request could not be submitted."
+msgstr "Katalog talebi gönderilemedi."
+
+msgid "Request submitted. We will notify you when the product is added to the catalog."
+msgstr "Talep gönderildi. Ürün katalogya eklenince sizi bilgilendireceğiz."
+
+msgid "Catalog request not found."
+msgstr "Katalog talebi bulunamadı."
+
+msgid "Only pending catalog requests can be cancelled."
+msgstr "Yalnızca bekleyen katalog talepleri iptal edilebilir."
+
+msgid "Catalog request cancelled."
+msgstr "Katalog talebi iptal edildi."
+
+msgid "This catalog request is no longer pending."
+msgstr "Bu katalog talebi artık beklemede değil."
+
+msgid "Catalog product not found."
+msgstr "Katalog ürünü bulunamadı."
+
+msgid "Link a published variable catalog product."
+msgstr "Yayımlanmış variable bir katalog ürünü bağlayın."
+
+msgid "Seller notified that the product was added to the catalog."
+msgstr "Satıcıya ürünün katalogya eklendiği bildirildi."
+
+msgid "Catalog request declined."
+msgstr "Katalog talebi reddedildi."
+
+msgid "Catalog product added"
+msgstr "Katalog ürünü eklendi"
+
+msgid "Catalog request declined"
+msgstr "Katalog talebi reddedildi"
+
+msgid "Your product was added to the catalog"
+msgstr "Ürününüz katalogya eklendi"
+
+msgid "%s was added to the catalog. You can open a listing now."
+msgstr "%s katalogya eklendi. Artık listing açabilirsiniz."
+
+msgid "The product you requested was added to the catalog. You can open a listing now."
+msgstr "Talep ettiğiniz ürün katalogya eklendi. Artık listing açabilirsiniz."
+
+msgid "Your request for %s was declined."
+msgstr "%s talebiniz reddedildi."
+
+msgid "Your catalog product request was declined."
+msgstr "Katalog ürün talebiniz reddedildi."
+
+msgid "Sellers request products that are not in the catalog. Add the product in WooCommerce, then mark the request as added so the seller can open a listing."
+msgstr "Satıcılar katalogda olmayan ürünleri talep eder. Ürünü WooCommerce’e ekleyin, ardından talebi eklendi olarak işaretleyin; satıcı listing açabilir."
+
+msgid "SKU, link, size, note…"
+msgstr "SKU, link, beden, not…"
+
+msgid "Mark added"
+msgstr "Eklendi işaretle"
+
+msgid "Mark this product as added to the catalog?"
+msgstr "Bu ürün katalogya eklendi olarak işaretlensin mi?"
+
+msgid "The seller will be notified that they can open a listing. Optionally link the WooCommerce parent product ID."
+msgstr "Satıcıya listing açabileceği bildirilir. İsterseniz WooCommerce parent ürün kimliğini bağlayın."
+
+msgid "Catalog product ID (optional)"
+msgstr "Katalog ürün kimliği (isteğe bağlı)"
+
+msgid "Decline this catalog request?"
+msgstr "Bu katalog talebi reddedilsin mi?"
+
+msgid "The seller will be notified. You can include a short reason."
+msgstr "Satıcıya bildirim gider. Kısa bir neden ekleyebilirsiniz."
+
+msgid "Note to seller (optional)"
+msgstr "Satıcıya not (isteğe bağlı)"
+
+msgid "No catalog requests."
+msgstr "Katalog talebi yok."
+
+msgid "Outlet"
+msgstr "Outlet"
+
+msgid "Manual outlet windows. Add product + size with a customer sale price and seller asking. Sellers opt in from My Account. Listings are created when the window opens and unsold ones expire when it ends."
+msgstr "Elle yönetilen outlet pencereleri. Ürün + beden, müşteri satış fiyatı ve satıcı asking ekleyin. Satıcılar My Account’tan katılır. Listing pencere açılınca oluşur, satılmayanlar bitince düşer."
+
+msgid "No outlet window."
+msgstr "Outlet penceresi yok."
+
+msgid "New outlet window"
+msgstr "Yeni outlet penceresi"
+
+msgid "Add outlet item"
+msgstr "Outlet kalemi ekle"
+
+msgid "Create a draft window first."
+msgstr "Önce taslak pencere oluşturun."
+
+msgid "Customer sale (TL)"
+msgstr "Müşteri satış fiyatı (TL)"
+
+msgid "Seller asking (TL)"
+msgstr "Satıcı asking (TL)"
+
+msgid "Price the customer pays during the window."
+msgstr "Pencere boyunca müşterinin ödeyeceği fiyat."
+
+msgid "Listing asking. Commission is still applied on payout."
+msgstr "Listing asking. Payout’ta komisyon ayrıca kesilir."
+
+msgid "Join an outlet window at the listed asking. A listing is created when the window opens and unsold listings expire when it ends."
+msgstr "Belirlenen asking ile outlet penceresine katılın. Listing pencere açılınca oluşur, satılmayanlar bitince düşer."
+
+msgid "There is no open outlet window right now."
+msgstr "Şu anda açık outlet penceresi yok."
+
+msgid "Join at this asking"
+msgstr "Bu asking ile katıl"
+
+msgid "Join this outlet item at the listed asking?"
+msgstr "Bu outlet kalemine belirtilen asking ile katılmak istiyor musunuz?"
+
+msgid "Cancel this outlet opt-in?"
+msgstr "Bu outlet katılımı iptal edilsin mi?"
+
+msgid "Customer sale"
+msgstr "Müşteri satışı"
+
+msgid "Your asking"
+msgstr "Asking’iniz"
+
+msgid "Waiting for window"
+msgstr "Pencere bekleniyor"
+
+msgid "Outlet window name is required."
+msgstr "Outlet penceresi adı zorunludur."
+
+msgid "Outlet window not found."
+msgstr "Outlet penceresi bulunamadı."
+
+msgid "Items cannot be added to an ended outlet window."
+msgstr "Bitmiş outlet penceresine kalem eklenemez."
+
+msgid "This product and size are already on this outlet window."
+msgstr "Bu ürün ve beden zaten bu outlet penceresinde."
+
+msgid "This item already has live outlet listings, so it cannot be removed."
+msgstr "Bu kalemde canlı outlet listing’leri var, kaldırılamaz."
+
+msgid "Only draft or scheduled outlet windows can be published."
+msgstr "Yalnızca taslak veya planlanmış outlet pencereleri yayınlanabilir."
+
+msgid "Add at least one product before publishing this outlet window."
+msgstr "Bu outlet penceresini yayınlamadan önce en az bir ürün ekleyin."
+
+msgid "Outlet window has already ended."
+msgstr "Outlet penceresi zaten bitmiş."
+
+msgid "This outlet window is not open for opt-in."
+msgstr "Bu outlet penceresi katılıma açık değil."
+
+msgid "You have already joined this outlet item."
+msgstr "Bu outlet kalemine zaten katıldınız."
+
+msgid "Only a waiting opt-in can be cancelled."
+msgstr "Yalnızca bekleyen katılım iptal edilebilir."
+
+msgid "This listing is in an outlet window, so it cannot be changed until the window ends."
+msgstr "Bu listing bir outlet penceresinde; pencere bitene kadar değiştirilemez."
+
+msgid "Customer sale price cannot be lower than the seller asking."
+msgstr "Müşteri satış fiyatı satıcı asking’inden düşük olamaz."
+
+msgid "Outlet start and end dates are required."
+msgstr "Outlet başlangıç ve bitiş tarihleri zorunludur."
+
+msgid "Outlet end must be after start."
+msgstr "Outlet bitişi başlangıçtan sonra olmalıdır."
+
+msgid "Outlet window cannot exceed 90 days."
+msgstr "Outlet penceresi 90 günü geçemez."
+
+msgid "Outlet window published."
+msgstr "Outlet penceresi yayınlandı."
+
+msgid "Outlet window ended. Unsold listings were taken off sale."
+msgstr "Outlet penceresi bitti. Satılmayan listing’ler satıştan alındı."
+
+msgid "Outlet item added."
+msgstr "Outlet kalemi eklendi."
+
+msgid "Outlet item removed."
+msgstr "Outlet kalemi kaldırıldı."
+
+msgid "You joined this outlet item. Your listing is now on sale at the committed asking."
+msgstr "Bu outlet kalemine katıldınız. Listing’iniz taahhüt edilen asking ile satışta."
+
+msgid "You joined this outlet item. A listing will be created when the window opens."
+msgstr "Bu outlet kalemine katıldınız. Listing pencere açılınca oluşturulacak."
+
+msgid "Outlet opt-in cancelled."
+msgstr "Outlet katılımı iptal edildi."
+
+msgid "Outlet listing is live"
+msgstr "Outlet listing yayında"
+
+msgid "Outlet listing is live: %s"
+msgstr "Outlet listing yayında: %s"
+
+msgid "Your outlet listing is now on sale at the committed asking until the window ends."
+msgstr "Outlet listing’iniz pencere bitene kadar taahhüt edilen asking ile satışta."
+
+msgid "Outlet opt-in accepted"
+msgstr "Outlet katılımı kabul edildi"
+
+msgid "Outlet opt-in cancelled"
+msgstr "Outlet katılımı iptal edildi"
+
+msgid "Outlet listing created"
+msgstr "Outlet listing oluşturuldu"
+
+msgid "End this outlet window and expire unsold listings?"
+msgstr "Bu outlet penceresi bitsin ve satılmayan listing’ler düşsün mü?"
+
+msgid "Remove this outlet item?"
+msgstr "Bu outlet kalemi kaldırılsın mı?"
+
+msgid "%1$d waiting / %2$d live"
+msgstr "%1$d bekliyor / %2$d canlı"
+
+msgid "WooCommerce variable product ID."
+msgstr "WooCommerce değişken ürün kimliği."
+
+msgid "Invoices"
+msgstr "Faturalar"
+
+msgid "Customer platform fees"
+msgstr "Müşteri platform ücretleri"
+
+msgid "Seller commission"
+msgstr "Satıcı komisyonu"
+
+msgid "Queued"
+msgstr "Kuyrukta"
+
+msgid "Processing"
+msgstr "İşleniyor"
+
+msgid "Waiting for e-Archive"
+msgstr "e-Arşiv bekleniyor"
+
+msgid "Waiting for PDF"
+msgstr "PDF bekleniyor"
+
+msgid "Sent"
+msgstr "Gönderildi"
+
+msgid "Skipped (zero amount)"
+msgstr "Atlandı (sıfır tutar)"
+
+msgid "Waiting until all remaining order items are verified or removed."
+msgstr "Kalan sipariş kalemleri doğrulanana veya düşünceye kadar bekleniyor."
+
+msgid "Paraşüt is not authenticated."
+msgstr "Paraşüt kimliği doğrulanamadı."
+
+msgid "e-Archive PDF is not ready yet."
+msgstr "e-Arşiv PDF’i henüz hazır değil."
+
+msgid "PDF download failed (%d)."
+msgstr "PDF indirme başarısız (%d)."
+
+msgid "PDF download was empty."
+msgstr "PDF indirme boş döndü."
+
+msgid "Paraşüt request failed (%d)."
+msgstr "Paraşüt isteği başarısız (%d)."
+
+msgid "Sutore service fee"
+msgstr "Sutore hizmet bedeli"
+
+msgid "Sutore guarantee fee"
+msgstr "Sutore güvence bedeli"
+
+msgid "Sutore commission"
+msgstr "Sutore komisyonu"
+
+msgid "Unknown invoice product."
+msgstr "Bilinmeyen fatura ürünü."
+
+msgid "Could not create Paraşüt product."
+msgstr "Paraşüt ürünü oluşturulamadı."
+
+msgid "Could not create Paraşüt contact."
+msgstr "Paraşüt cari hesabı oluşturulamadı."
+
+msgid "Invoice recipient email is missing."
+msgstr "Fatura alıcı e-postası yok."
+
+msgid "Invoice PDF is not available to attach."
+msgstr "Eklenecek fatura PDF’i yok."
+
+msgid "Your Sutore invoice %s"
+msgstr "Sutore faturanız %s"
+
+msgid "Please find attached the e-Archive invoice for the marketplace commission on your sale."
+msgstr "Satışınıza ait pazaryeri komisyon e-Arşiv faturası ekte."
+
+msgid "Please find attached the e-Archive invoice for the marketplace service and guarantee fees on your order."
+msgstr "Siparişinize ait pazaryeri hizmet ve güvence e-Arşiv faturası ekte."
+
+msgid "Invoice number: %s"
+msgstr "Fatura no: %s"
+
+msgid "The invoice email could not be sent."
+msgstr "Fatura e-postası gönderilemedi."
+
+msgid "Order not found for this invoice."
+msgstr "Bu fatura için sipariş bulunamadı."
+
+msgid "Invoice has no billable lines."
+msgstr "Faturada kesilecek satır yok."
+
+msgid "%1$s — %2$s"
+msgstr "%1$s — %2$s"
+
+msgid "Sutore marketplace — %1$s (order #%2$d)"
+msgstr "Sutore pazaryeri — %1$s (sipariş #%2$d)"
+
+msgid "Could not create the Paraşüt sales invoice."
+msgstr "Paraşüt satış faturası oluşturulamadı."
+
+msgid "Paraşüt invoice id is missing."
+msgstr "Paraşüt fatura kimliği yok."
+
+msgid "Could not create the e-Archive document."
+msgstr "e-Arşiv belgesi oluşturulamadı."
+
+msgid "Could not read the e-Archive job."
+msgstr "e-Arşiv işi okunamadı."
+
+msgid "e-Archive is still being issued."
+msgstr "e-Arşiv hâlâ kesiliyor."
+
+msgid "e-Archive job failed."
+msgstr "e-Arşiv işi başarısız."
+
+msgid "Could not load the Paraşüt invoice."
+msgstr "Paraşüt faturası yüklenemedi."
+
+msgid "e-Archive document is not ready yet."
+msgstr "e-Arşiv belgesi henüz hazır değil."
+
+msgid "e-Archive id is missing."
+msgstr "e-Arşiv kimliği yok."
+
+msgid "Could not create the invoice storage folder."
+msgstr "Fatura klasörü oluşturulamadı."
+
+msgid "Could not save the invoice PDF."
+msgstr "Fatura PDF’i kaydedilemedi."
+
+msgid "Paraşüt did not return a PDF URL."
+msgstr "Paraşüt PDF adresi döndürmedi."
+
+msgid "Every minute (Sutore invoices)"
+msgstr "Her dakika (Sutore faturaları)"
+
+msgid "Issues Paraşüt e-Archive sales invoices (not credit or return invoices). The customer invoice is created once every remaining item on the order is verified or removed: Hizmet Bedeli and Güvence Bedeli lines per product. Seller commission (Komisyon Bedeli) is issued when payout is marked paid. Failures are queued and retried; they do not block the sale or payout."
+msgstr "Paraşüt e-Arşiv satış faturası keser (iade/credit faturası yok). Müşteri faturası, siparişteki kalan her kalem doğrulanınca veya düşünce kesilir: ürün başına Hizmet Bedeli ve Güvence Bedeli. Satıcı komisyonu (Komisyon Bedeli) ödeme işaretlenince kesilir. Hatalar kuyruğa alınır ve yeniden denenir; satış veya ödeme durmaz."
+
+msgid "Enable invoicing"
+msgstr "Faturalamayı aç"
+
+msgid "Create e-Archive invoices through Paraşüt"
+msgstr "Paraşüt üzerinden e-Arşiv faturası kes"
+
+msgid "Configured and enabled"
+msgstr "Yapılandırıldı ve açık"
+
+msgid "Credentials are saved. Enable invoicing to start issuing documents."
+msgstr "Kimlik bilgileri kayıtlı. Belge kesmek için faturalamayı açın."
+
+msgid "Not configured — invoices will not be issued."
+msgstr "Yapılandırılmadı — fatura kesilmez."
+
+msgid "Company ID"
+msgstr "Şirket ID"
+
+msgid "Client ID"
+msgstr "İstemci ID"
+
+msgid "Client secret"
+msgstr "İstemci gizli anahtarı"
+
+msgid "VAT rate (%)"
+msgstr "KDV oranı (%)"
+
+msgid "Stored fees are treated as VAT-inclusive. Line unit prices are sent net of this rate."
+msgstr "Saklanan ücretler KDV dahil kabul edilir. Satır birim fiyatları bu oranın netidir."
+
+msgid "Shop URL (internet sale)"
+msgstr "Mağaza URL’si (internet satışı)"
+
+msgid "Used on the e-Archive internet sale record. Leave blank to use the site home URL."
+msgstr "e-Arşiv internet satışı kaydında kullanılır. Boşsa site ana sayfası kullanılır."
+
+msgid "Invoice error"
+msgstr "Fatura hatası"
+
+msgid "Customer invoice"
+msgstr "Müşteri faturası"
+
+msgid "Customer invoice date"
+msgstr "Müşteri fatura tarihi"
+
+msgid "Customer invoice status"
+msgstr "Müşteri fatura durumu"
+
+msgid "Seller invoice"
+msgstr "Satıcı faturası"
+
+msgid "Seller invoice date"
+msgstr "Satıcı fatura tarihi"
+
+msgid "Seller invoice status"
+msgstr "Satıcı fatura durumu"
+

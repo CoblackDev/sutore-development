@@ -1,0 +1,31 @@
+---
+description: Marketplace davranış değişince demo seeder senaryolarını da güncelle
+alwaysApply: true
+---
+
+# Demo seeder senaryoları
+
+Davranış, ayar, durum, fiyat, checkout veya panel senaryosu değişince **aynı değişiklikle** tıklanabilir demo verisini güncelle.
+
+## Kaynak
+
+Ana seeder: `wp-content/plugins/sutore-marketplace/tools/seed-scenarios.php`  
+(`--force` purge + reseed). Alan dar ise ilgili `tools/seed-*-demo.php`.
+
+## Ne zaman güncelle
+
+- Yeni ayar / varsayılan (ör. Operations toggle) → seeder `Settings::update` ile demo değerini yazar
+- Yeni müşteri/satıcı akışı → seed kullanıcı + `TESTING.md` hesap tablosu
+- Sepet/checkout/payout görünür fark → seed notu: hangi hesap, hangi ürün, beklenen UI
+- Listing durum / kampanya / kupon kuralı → `remember_listing` / `$REPORT['notes']`
+
+## Yapma
+
+- Sadece kod yazıp seeder’ı “sonra bakarız” bırakmak
+- Eski senaryoyu kıran sessiz ayar değişikliği (ücret, komisyon, eşik) not düşmeden
+
+```php
+// ✅ Settings + kullanıcı + tıklama notu birlikte
+Settings::update(['youth_discount_enabled' => true, /* … */]);
+$REPORT['notes'][] = 'demo_customer_youth: cart shows Youth discount fee; demo_customer does not.';
+```

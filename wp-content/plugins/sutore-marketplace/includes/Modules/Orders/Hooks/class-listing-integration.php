@@ -9,7 +9,6 @@ use SutoreMarketplace\Modules\Listings\Domain\ListingExpireDisplay;
 use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutStatus;
 use SutoreMarketplace\Modules\Merchants\Repositories\PayoutLineRepository;
-use SutoreMarketplace\Modules\Orders\Services\SourcingBridge;
 use SutoreMarketplace\Modules\Orders\Support\ShipmentTracking;
 
 /**
@@ -23,23 +22,22 @@ final class ListingIntegration
     public function register(): void
     {
         add_filter('sutore_marketplace_listing_query_item', [$this, 'enrichListingItem'], 10, 2);
-        add_action('sutore_marketplace_sourcing_fulfilled', [$this, 'onSourcingFulfilled'], 10, 2);
     }
 
     /** @param list<int> $listingIds */
     public static function primeFulfillmentCache(array $listingIds): void
     {
-        self::$payoutCache = (new PayoutLineRepository())->findByListingIds($listingIds);
+        self::$payoutCache = (new PayoutLineRepository())->findByVariationIds($listingIds);
     }
 
     /** @param array<string, mixed> $item */
     public function enrichListingItem(array $item, Listing $listing): array
     {
-        if (!$listing->id || !ListingStatus::isInSaleLifecycle($listing->listingStatus)) {
+        if (!$listing->variationId || !ListingStatus::isInSaleLifecycle($listing->listingStatus)) {
             return $item;
         }
 
-        $listingId = (int) $listing->id;
+        $listingId = (int) $listing->variationId;
         $status = $listing->listingStatus;
         $confirmDeadline = (string) ($listing->confirmDeadlineAt ?? '');
         $cargoDeadline = (string) ($listing->cargoDeadlineAt ?? '');
@@ -87,10 +85,11 @@ final class ListingIntegration
         if (self::$payoutCache !== null) {
             $payout = self::$payoutCache[$listingId] ?? null;
         } else {
-            $payout = (new PayoutLineRepository())->findByListingId($listingId);
+            $payout = (new PayoutLineRepository())->findByVariationId($listingId);
         }
         if ($payout) {
             $paidAt = (string) ($payout->paid_at ?? '');
+            $scheduled = \SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule::normalizeDate($payout->scheduled_payout_date ?? '');
             $payoutPayload = [
                 'payout_status' => (string) $payout->payout_status,
                 'payout_status_label' => PayoutStatus::label((string) $payout->payout_status),
@@ -98,6 +97,11 @@ final class ListingIntegration
                 'net_amount' => (float) $payout->net_amount,
                 'net_amount_display' => number_format((float) $payout->net_amount, 0, ',', '.') . ' TL',
                 'paid_at' => $paidAt !== '' ? self::formatMerchantDatetime($paidAt) : '',
+                'scheduled_payout_date' => $scheduled,
+                'scheduled_payout_date_display' => \SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule::formatDateWithWeekday($scheduled),
+                'scheduled_message' => (string) $payout->payout_status === PayoutStatus::PENDING
+                    ? \SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule::merchantPendingMessage($scheduled)
+                    : '',
             ];
         }
 
@@ -166,9 +170,5 @@ final class ListingIntegration
             $ts
         );
     }
-
-    public function onSourcingFulfilled(int $requestId, object $row): void
-    {
-        (new SourcingBridge())->onFulfilled($requestId, $row);
-    }
 }
+

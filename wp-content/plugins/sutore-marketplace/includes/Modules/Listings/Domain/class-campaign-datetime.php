@@ -88,4 +88,18 @@ final class CampaignDatetime
     {
         return current_time('mysql');
     }
+
+    public static function plusDays(int $days, ?int $fromTimestamp = null): string
+    {
+        $from = $fromTimestamp ?? (int) current_time('timestamp');
+
+        return wp_date('Y-m-d H:i:s', $from + (max(0, $days) * DAY_IN_SECONDS));
+    }
+
+    public static function plusHours(int $hours, ?int $fromTimestamp = null): string
+    {
+        $from = $fromTimestamp ?? (int) current_time('timestamp');
+
+        return wp_date('Y-m-d H:i:s', $from + (max(0, $hours) * HOUR_IN_SECONDS));
+    }
 }

@@ -20,6 +20,8 @@ final class ListingExpireDisplay
         if (
             ListingStatus::isInSaleLifecycle($listingStatus)
             || $listingStatus === ListingStatus::NOT_SALE
+            || $listingStatus === ListingStatus::ORDER_DETACHED
+            || $listingStatus === ListingStatus::PRE_ORDER
         ) {
             return null;
         }

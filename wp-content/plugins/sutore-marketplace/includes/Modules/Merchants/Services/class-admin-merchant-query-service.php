@@ -8,6 +8,7 @@ use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutStatus;
 use SutoreMarketplace\Modules\Merchants\Repositories\MerchantProfileRepository;
 use SutoreMarketplace\Modules\Merchants\Repositories\RestrictionsRepository;
+use SutoreMarketplace\Modules\Merchants\Services\CommissionResolver;
 use SutoreMarketplace\Modules\Merchants\Support\MerchantMeta;
 use SutoreMarketplace\Shared\Database\Schema;
 use SutoreMarketplace\Shared\Domain\MarketplacePricing;
@@ -253,6 +254,7 @@ final class AdminMerchantQueryService
                 MerchantLevels::VERIFIED => MerchantLevels::labelForStatus(MerchantLevels::VERIFIED),
                 MerchantLevels::PREMIUM => MerchantLevels::labelForStatus(MerchantLevels::PREMIUM),
             ],
+            'platform_overrides' => (new CommissionResolver())->visiblePlatformOverrides(),
             'filters' => [
                 'search' => $search,
                 'level' => $status,
@@ -304,16 +306,7 @@ final class AdminMerchantQueryService
 
         $recent = [];
         foreach ($balance['recent'] as $line) {
-            $recent[] = [
-                'id' => (int) ($line->id ?? 0),
-                'product_title' => (string) ($line->product_title ?? ''),
-                'listing_id' => (int) ($line->listing_id ?? 0),
-                'net_amount' => (float) ($line->net_amount ?? 0),
-                'formatted_net' => MarketplacePricing::formatTl((float) ($line->net_amount ?? 0)),
-                'payout_status' => (string) ($line->payout_status ?? ''),
-                'payout_status_label' => PayoutStatus::label((string) ($line->payout_status ?? '')),
-                'created_at' => (string) ($line->created_at ?? ''),
-            ];
+            $recent[] = PayoutLineService::presentLine($line);
         }
         unset($balance['recent']);
 
@@ -335,13 +328,20 @@ final class AdminMerchantQueryService
             $name = $user->display_name ?: $user->user_login;
         }
 
+        $registeredRaw = (string) $user->user_registered;
+        $registeredTs = $registeredRaw !== '' ? (int) strtotime($registeredRaw . ' UTC') : 0;
+        $registeredLabel = $registeredTs > 0
+            ? (string) wp_date(get_option('date_format') . ' ' . get_option('time_format'), $registeredTs)
+            : '';
+
         return [
             'id' => $merchantId,
             'display_name' => $name,
             'user' => [
                 'login' => $user->user_login,
                 'email' => $user->user_email,
-                'registered' => $user->user_registered,
+                'registered' => $registeredRaw,
+                'registered_label' => $registeredLabel,
                 'roles' => array_values((array) $user->roles),
             ],
             'profile' => $profile,
@@ -366,6 +366,7 @@ final class AdminMerchantQueryService
                 MerchantLevels::VERIFIED => MerchantLevels::labelForStatus(MerchantLevels::VERIFIED),
                 MerchantLevels::PREMIUM => MerchantLevels::labelForStatus(MerchantLevels::PREMIUM),
             ],
+            'referral' => $this->referralBlock($merchantId, $row),
         ];
     }
 
@@ -375,7 +376,9 @@ final class AdminMerchantQueryService
      *   level_percent: float,
      *   is_overridden: bool,
      *   expires_at: ?string,
+     *   starts_at: ?string,
      *   source: string,
+     *   raises_level: bool,
      *   active_overrides: list<array<string, mixed>>
      * }
      */
@@ -387,9 +390,36 @@ final class AdminMerchantQueryService
             'effective_percent' => (float) $resolved['percent'],
             'level_percent' => (float) $resolved['level_percent'],
             'is_overridden' => (bool) $resolved['is_overridden'],
+            'raises_level' => (bool) $resolved['raises_level'],
             'expires_at' => $resolved['expires_at'],
+            'starts_at' => $resolved['starts_at'],
             'source' => (string) $resolved['source'],
-            'active_overrides' => $resolved['active_overrides'],
+            'active_overrides' => (new CommissionResolver())->visibleOverridesForMerchant($merchantId),
+        ];
+    }
+
+    /**
+     * @param array<string, string>|null $row
+     * @return array{code: string, link: string, referred_by_user_id: int, referred_by_login: string, rewarded_at: ?string}
+     */
+    private function referralBlock(int $merchantId, ?array $row): array
+    {
+        $referral = (new ReferralService())->snapshotForUser($merchantId, true);
+        $referredBy = (int) ($referral['referred_by_user_id'] ?? 0);
+        $referredLogin = '';
+        if ($referredBy > 0) {
+            $inviter = get_userdata($referredBy);
+            $referredLogin = $inviter ? (string) $inviter->user_login : '#' . $referredBy;
+        }
+
+        $rewardedAt = trim((string) ($row['referral_rewarded_at'] ?? ''));
+
+        return [
+            'code' => (string) ($referral['code'] ?? ''),
+            'link' => (string) ($referral['link'] ?? ''),
+            'referred_by_user_id' => $referredBy,
+            'referred_by_login' => $referredLogin,
+            'rewarded_at' => $rewardedAt !== '' ? $rewardedAt : null,
         ];
     }
 

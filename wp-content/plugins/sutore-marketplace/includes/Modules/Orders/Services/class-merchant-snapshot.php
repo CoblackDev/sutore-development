@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Modules\Orders\Services;
 
 use SutoreMarketplace\Modules\Merchants\Support\MerchantMeta;
+use SutoreMarketplace\Shared\Domain\MerchantLevels;
 
 /**
  * Merchant profile snapshot frozen at sale time (fulfillment.merchant_snapshot).
@@ -24,6 +25,7 @@ final class MerchantSnapshot
      *   email: string,
      *   city: string,
      *   state: string,
+     *   merchant_level: string,
      *   captured_at: string
      * }
      */
@@ -45,6 +47,7 @@ final class MerchantSnapshot
             'email' => $profile[MerchantMeta::ACCOUNT_EMAIL],
             'city' => $profile[MerchantMeta::ACCOUNT_CITY],
             'state' => $profile[MerchantMeta::ACCOUNT_STATE],
+            'merchant_level' => MerchantLevels::statusForUser($merchantId),
             'captured_at' => current_time('mysql'),
         ];
     }

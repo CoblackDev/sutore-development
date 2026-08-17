@@ -54,11 +54,11 @@
       (attrs.required ? '&nbsp;<abbr class="required" title="required">*</abbr>' : '') +
       '</label>';
     if (type === 'select') {
-      html += '<select name="' + esc(name) + '" id="' + esc(id) + '" class="select"';
+      html += '<select name="' + esc(name) + '" id="' + esc(id) + '" class="select sutore-mp-input"';
       if (attrs.required) html += ' required';
       html += '></select>';
     } else {
-      html += '<input type="' + esc(type || 'text') + '" class="input-text" name="' +
+      html += '<input type="' + esc(type || 'text') + '" class="woocommerce-Input input-text sutore-mp-input" name="' +
         esc(name) + '" id="' + esc(id) + '"';
       Object.keys(attrs).forEach(function (key) {
         if (key === 'required' && attrs[key]) {
@@ -86,7 +86,22 @@
         '<div class="sutore-mp-merchant-profile__stats">' +
         '<div class="sutore-mp-merchant-profile__stat"><span class="sutore-mp-merchant-profile__stat-label">' +
         esc(t('level', 'Level')) + '</span><strong>' + esc(profileData.level_label || profileData.level || '') +
-        '</strong></div>' +
+        '</strong></div>';
+
+      if (profileData.behavior && profileData.behavior.score != null) {
+        html +=
+          '<div class="sutore-mp-merchant-profile__stat sutore-mp-merchant-profile__stat--behavior">' +
+          '<span class="sutore-mp-merchant-profile__stat-label">' +
+          esc(t('behaviorScore', 'Behavior score')) + '</span><strong>' +
+          esc(String(profileData.behavior.score)) + ' / ' +
+          esc(String(profileData.behavior.score_max || 5)) + '</strong>';
+        if (profileData.behavior.summary) {
+          html += '<small>' + esc(profileData.behavior.summary) + '</small>';
+        }
+        html += '</div>';
+      }
+
+      html +=
         '<div class="sutore-mp-merchant-profile__stat"><span class="sutore-mp-merchant-profile__stat-label">' +
         esc(t('commission', 'Commission')) + '</span><strong>' +
         esc(String(profileData.commission_percent || 0)) + '%</strong>';
@@ -131,6 +146,7 @@
           '</small></div>';
       }
       html += '</div>';
+      html += renderReferral(profileData);
 
       if (balance && balance.recent && balance.recent.length) {
         html +=
@@ -143,11 +159,22 @@
           '<th>' + esc(t('payment', 'Payment')) + '</th>' +
           '</tr></thead><tbody>';
         balance.recent.forEach(function (line) {
+          var statusText = line.scheduled_message || '';
+          if (!statusText && line.payout_status === 'paid') {
+            statusText = line.paid_at_display
+              ? (line.payout_status_label || t('paidPayout', 'Paid payout')) +
+                ' · ' +
+                line.paid_at_display
+              : (line.payout_status_label || t('paidPayout', 'Paid payout'));
+          }
+          if (!statusText) {
+            statusText = line.payout_status_label || line.payout_status || '';
+          }
           html +=
             '<tr><td>' + esc(line.product_title || '') + '</td><td>#' +
-            esc(String(line.listing_id || 0)) + ' / ' + esc(String(line.variation_id || 0)) +
+            esc(String(line.variation_id || 0)) +
             '</td><td>' + esc(line.formatted_net || '') + '</td><td>' +
-            esc(line.payout_status_label || line.payout_status || '') + '</td></tr>';
+            esc(statusText) + '</td></tr>';
         });
         html += '</tbody></table></div>';
       }
@@ -166,6 +193,34 @@
         '</p>';
     }
     return html;
+  }
+
+  function renderReferral(profileData) {
+    var referral = profileData.referral || {};
+    if (!referral.code) {
+      return '';
+    }
+    return (
+      '<div class="sutore-mp-merchant-profile__referral">' +
+      '<h3>' +
+      esc(t('inviteSellers', 'Invite sellers')) +
+      '</h3>' +
+      '<p class="sutore-mp-merchant-profile__referral-code"><span class="sutore-mp-merchant-profile__stat-label">' +
+      esc(t('yourInviteCode', 'Your invite code')) +
+      '</span><strong>' +
+      esc(referral.code) +
+      '</strong></p>' +
+      (referral.link
+        ? '<p class="sutore-mp-merchant-profile__referral-link"><input type="text" readonly class="sutore-mp-input" value="' +
+          esc(referral.link) +
+          '" /><button type="button" class="wp-element-button is-style-outline sutore-mp-copy-referral" data-copy="' +
+          esc(referral.link) +
+          '">' +
+          esc(t('copyLink', 'Copy link')) +
+          '</button></p>'
+        : '') +
+      '</div>'
+    );
   }
 
   function renderBilling(profileData) {
@@ -212,9 +267,18 @@
         required: true,
         pattern: '[0-9]{10,11}',
         inputmode: 'numeric'
-      }, 'form-row-first') +
+      }, 'form-row-wide') +
       fieldRow('account_city', t('city', 'City'), 'select', { required: true }, 'form-row-first') +
-      fieldRow('account_state', t('district', 'District / Neighborhood'), 'select', { required: true }, 'form-row-last') +
+      fieldRow('account_state', t('district', 'District'), 'select', { required: true }, 'form-row-last');
+
+    if (profileData.referral && profileData.referral.can_enter_code) {
+      html += fieldRow('invite_code', t('inviteCode', 'Invite code (optional)'), 'text', {
+        maxlength: '16',
+        autocomplete: 'off'
+      }, 'form-row-wide');
+    }
+
+    html +=
       fieldRow('current_password', t('currentPassword', 'Your current password'), 'password', {
         required: true,
         autocomplete: 'current-password'
@@ -255,6 +319,16 @@
     $('#account_state').empty().append($('<option>').val('').text(t('pickDistrict', 'Select')));
     if (p.account_city) {
       loadDistricts(p.account_city, p.account_state || '');
+    }
+
+    if ($('#invite_code').length) {
+      var fromUrl = '';
+      try {
+        fromUrl = String(new URLSearchParams(window.location.search).get('ref') || '').trim();
+      } catch (e) {
+        fromUrl = '';
+      }
+      $('#invite_code').val(fromUrl);
     }
   }
 
@@ -344,6 +418,14 @@
       );
     });
   }
+
+  $(document).on('click', '.sutore-mp-copy-referral', function () {
+    var value = String($(this).attr('data-copy') || '');
+    if (!value || !navigator.clipboard || !navigator.clipboard.writeText) {
+      return;
+    }
+    navigator.clipboard.writeText(value);
+  });
 
   $(function () {
     bootProfile($('.sutore-mp-merchant-profile[data-rest-boot="1"]'));

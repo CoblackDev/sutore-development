@@ -6,6 +6,7 @@ namespace SutoreMarketplace\Modules\Merchants\Rest;
 
 use SutoreMarketplace\Modules\Merchants\Services\AdminMerchantQueryService;
 use SutoreMarketplace\Modules\Merchants\Services\CommissionOverrideService;
+use SutoreMarketplace\Modules\Merchants\Services\CommissionResolver;
 use SutoreMarketplace\Modules\Merchants\Services\MerchantProfileService;
 use SutoreMarketplace\Modules\Merchants\Services\RestrictionService;
 use SutoreMarketplace\Shared\Domain\MerchantLevels;
@@ -66,6 +67,13 @@ final class AdminMerchantsController
             [
                 'methods' => 'POST',
                 'callback' => [$this, 'createCommissionOverride'],
+                'permission_callback' => [AdminPermission::class, 'canManage'],
+            ],
+        ]);
+        register_rest_route($ns, '/admin/commission-overrides', [
+            [
+                'methods' => 'POST',
+                'callback' => [$this, 'createPlatformCommissionOverride'],
                 'permission_callback' => [AdminPermission::class, 'canManage'],
             ],
         ]);
@@ -180,6 +188,8 @@ final class AdminMerchantsController
 
         $result = (new CommissionOverrideService())->create((int) $req['id'], [
             'commission_percent' => $params['commission_percent'] ?? null,
+            'adjustment' => $params['adjustment'] ?? null,
+            'starts_at' => $params['starts_at'] ?? null,
             'expires_at' => $params['expires_at'] ?? null,
             'note' => $params['note'] ?? '',
             'source' => 'staff',
@@ -195,7 +205,37 @@ final class AdminMerchantsController
         return RestResponse::success([
             'message' => __('Commission override saved.', 'sutore-marketplace'),
             'id' => (int) $result['id'],
+            'raises_level' => !empty($result['raises_level']),
             'merchant' => $detail instanceof \WP_Error ? null : $detail,
+        ]);
+    }
+
+    public function createPlatformCommissionOverride(\WP_REST_Request $req): \WP_REST_Response
+    {
+        $params = $req->get_json_params();
+        if (!is_array($params)) {
+            $params = $req->get_params();
+        }
+        $params = is_array($params) ? $params : [];
+
+        $result = (new CommissionOverrideService())->create(CommissionOverrideService::PLATFORM_MERCHANT_ID, [
+            'commission_percent' => $params['commission_percent'] ?? null,
+            'adjustment' => $params['adjustment'] ?? 'percent_off',
+            'starts_at' => $params['starts_at'] ?? null,
+            'expires_at' => $params['expires_at'] ?? null,
+            'note' => $params['note'] ?? '',
+            'source' => 'campaign',
+            'created_by' => get_current_user_id(),
+        ]);
+
+        if ($result instanceof \WP_Error) {
+            return RestResponse::fromWpError($result);
+        }
+
+        return RestResponse::success([
+            'message' => __('Commission override saved.', 'sutore-marketplace'),
+            'id' => (int) $result['id'],
+            'platform_overrides' => (new CommissionResolver())->visiblePlatformOverrides(),
         ]);
     }
 

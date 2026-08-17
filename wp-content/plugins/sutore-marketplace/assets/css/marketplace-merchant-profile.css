@@ -83,6 +83,36 @@
   color: #166534;
 }
 
+.sutore-mp-merchant-profile__referral {
+  margin: 1rem 0 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 0.35rem;
+}
+
+.sutore-mp-merchant-profile__referral h3 {
+  margin: 0 0 0.5rem;
+}
+
+.sutore-mp-merchant-profile__referral-code {
+  margin: 0 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.sutore-mp-merchant-profile__referral-link {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0;
+}
+
+.sutore-mp-merchant-profile__referral-link .sutore-mp-input {
+  flex: 1;
+  min-width: 0;
+}
+
 .sutore-mp-merchant-profile__form.is-loading {
   opacity: 0.7;
   pointer-events: none;
@@ -90,4 +120,62 @@
 
 .sutore-mp-merchant-profile .wp-element-button {
   margin-top: 0.25rem;
+}
+
+.sutore-mp-merchant-profile__form::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+.sutore-mp-merchant-profile__form .form-row {
+  margin: 0 0 0.85rem;
+  padding: 0;
+  float: none;
+  width: 100%;
+}
+
+.sutore-mp-merchant-profile__form .form-row label {
+  display: block;
+  margin: 0 0 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.sutore-mp-merchant-profile__form .form-row .required {
+  text-decoration: none;
+}
+
+.sutore-mp-merchant-profile__form .input-text,
+.sutore-mp-merchant-profile__form .select,
+.sutore-mp-merchant-profile__form .sutore-mp-input {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 600px) {
+  .sutore-mp-merchant-profile__form .form-row-first,
+  .sutore-mp-merchant-profile__form .form-row-last {
+    float: left;
+    width: 48%;
+  }
+
+  .sutore-mp-merchant-profile__form .form-row-first {
+    margin-right: 4%;
+    clear: both;
+  }
+
+  .sutore-mp-merchant-profile__form .form-row-last {
+    float: right;
+    margin-right: 0;
+  }
+
+  .sutore-mp-merchant-profile__form .form-row-wide {
+    float: none;
+    clear: both;
+    width: 100%;
+  }
 }

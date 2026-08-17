@@ -7,8 +7,14 @@
  *   docker compose exec -T wordpress php wp-content/plugins/sutore-marketplace/tools/seed-sourcing-demo.php
  *
  * Optional:
- *   --minutes=5   confirm deadline minutes until suspend + open sourcing (default 5)
+ *   --minutes=5   confirm deadline minutes until auto-open (confirm_deadline) (default 5)
  *   --force       recreate demo product / listings even if previous seed exists
+ *
+ * Seeds:
+ *   - staff-opened board item (immediate; Confirmed sellers can see it)
+ *   - sold listing that auto-opens after --minutes (or --expire-now)
+ *   - acceptor listing with a different asking (accept equalizes price)
+ *   - demo_seller_normal (no Pre-order menu — Confirmed+ required)
  */
 
 declare(strict_types=1);
@@ -24,6 +30,12 @@ if (!is_file($root . '/wp-load.php')) {
 }
 require $root . '/wp-load.php';
 
+if (!defined('SUTORE_MARKETPLACE_SEEDING')) {
+    define('SUTORE_MARKETPLACE_SEEDING', true);
+}
+
+require __DIR__ . '/seed-catalog-helpers.php';
+
 if (!class_exists('WooCommerce')) {
     fwrite(STDERR, "WooCommerce is required.\n");
     exit(1);
@@ -34,6 +46,7 @@ if (!class_exists(\SutoreMarketplace\Modules\Listings\Services\ListingService::c
     exit(1);
 }
 
+use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 use SutoreMarketplace\Modules\Listings\Services\ListingService;
 use SutoreMarketplace\Modules\Orders\Hooks\CronHooks;
@@ -56,7 +69,7 @@ foreach (array_slice($argv, 1) as $arg) {
 }
 
 const SEED_META = '_sutore_marketplace_sourcing_demo';
-const PASSWORD = 'SutoreDemo123!';
+const PASSWORD = 'password123';
 
 function seed_log(string $msg): void
 {
@@ -74,7 +87,7 @@ function ensure_merchant_role(): void
     }
 }
 
-function upsert_user(string $login, string $email, string $display, string $role): int
+function upsert_user(string $login, string $email, string $display, string $role, string $level = MerchantLevels::VERIFIED): int
 {
     $existing = get_user_by('login', $login);
     if ($existing) {
@@ -95,6 +108,7 @@ function upsert_user(string $login, string $email, string $display, string $role
         }
     }
 
+    $verified = $level !== MerchantLevels::NORMAL;
     MerchantMeta::writeProfile($userId, [
         MerchantMeta::ACCOUNT_PHONE => '555000' . str_pad((string) ($userId % 10000), 4, '0', STR_PAD_LEFT),
         MerchantMeta::ACCOUNT_NAME => $display,
@@ -106,10 +120,10 @@ function upsert_user(string $login, string $email, string $display, string $role
         MerchantMeta::ACCOUNT_TCKNO => '10000000146',
         MerchantMeta::ACCOUNT_BIRTH_YEAR => '1990',
     ], [
-        'merchant_status' => MerchantLevels::VERIFIED,
-        'tckno_verified' => 1,
-        'tckno_verified_at' => time(),
-        'tckno_verify_method' => 'seed',
+        'merchant_status' => $level,
+        'tckno_verified' => $verified ? 1 : 0,
+        'tckno_verified_at' => $verified ? time() : 0,
+        'tckno_verify_method' => $verified ? 'seed' : '',
     ]);
     update_user_meta($userId, SEED_META, '1');
 
@@ -118,103 +132,47 @@ function upsert_user(string $login, string $email, string $display, string $role
 
 function ensure_size_term(): WP_Term
 {
-    $taxonomy = 'pa_beden-numara';
-    if (!taxonomy_exists($taxonomy)) {
-        register_taxonomy($taxonomy, 'product', [
-            'label' => 'Size',
-            'hierarchical' => false,
-            'show_ui' => false,
-            'query_var' => true,
-            'rewrite' => false,
-        ]);
-    }
-
-    if (!function_exists('wc_create_attribute')) {
-        throw new RuntimeException('wc_create_attribute missing');
-    }
-
-    $attrs = wc_get_attribute_taxonomies();
-    $has = false;
-    foreach ($attrs as $attr) {
-        if ($attr->attribute_name === 'beden-numara') {
-            $has = true;
-            break;
-        }
-    }
-    if (!$has) {
-        wc_create_attribute([
-            'name' => 'Beden / Numara',
-            'slug' => 'beden-numara',
-            'type' => 'select',
-            'order_by' => 'menu_order',
-            'has_archives' => false,
-        ]);
-        delete_transient('wc_attribute_taxonomies');
-        if (!taxonomy_exists($taxonomy)) {
-            register_taxonomy($taxonomy, 'product', [
-                'label' => 'Size',
-                'hierarchical' => false,
-                'show_ui' => false,
-                'query_var' => true,
-                'rewrite' => false,
-            ]);
-        }
-    }
-
-    $term = term_exists('42', $taxonomy);
-    if (!$term) {
-        $created = wp_insert_term('42', $taxonomy, ['slug' => '42']);
-        if (is_wp_error($created)) {
-            throw new RuntimeException('Size term failed: ' . $created->get_error_message());
-        }
-        $termId = (int) $created['term_id'];
-    } else {
-        $termId = (int) (is_array($term) ? $term['term_id'] : $term);
-    }
-
-    $obj = get_term($termId, $taxonomy);
-    if (!$obj || is_wp_error($obj)) {
-        throw new RuntimeException('Size term missing after create');
-    }
-
-    return $obj;
+    return seed_catalog_ensure_size_term('42', '42');
 }
 
-function ensure_parent_product(WP_Term $sizeTerm, bool $force): int
+/**
+ * @param list<WP_Term> $sizeTerms
+ */
+function ensure_parent_product(array $sizeTerms, bool $force): int
 {
     $existingId = (int) get_option('sutore_marketplace_sourcing_demo_parent_id', 0);
     if ($existingId && get_post($existingId) && !$force) {
-        return $existingId;
+        $hasAll = true;
+        $taxonomy = seed_catalog_primary_taxonomy();
+        foreach ($sizeTerms as $term) {
+            if (!has_term((int) $term->term_id, $taxonomy, $existingId)) {
+                $hasAll = false;
+                break;
+            }
+        }
+        if ($hasAll) {
+            return $existingId;
+        }
     }
 
-    $product = new WC_Product_Variable();
-    $product->set_name('Sourcing Demo Nike AF1');
-    $product->set_status('publish');
-    $product->set_catalog_visibility('visible');
-    $product->set_description('Local demo product for pre-order / sourcing flow tests.');
-    $product->set_sku('SOURCING-DEMO-' . wp_generate_password(6, false));
-    $product->set_manage_stock(false);
-    $product->set_stock_status('instock');
-
-    $attribute = new WC_Product_Attribute();
-    $attribute->set_id(wc_attribute_taxonomy_id_by_name('pa_beden-numara'));
-    $attribute->set_name('pa_beden-numara');
-    $attribute->set_options([$sizeTerm->term_id]);
-    $attribute->set_visible(true);
-    $attribute->set_variation(true);
-    $product->set_attributes([$attribute]);
-    $product->set_sku('DEMO-AF1-42');
-
-    $parentId = $product->save();
-    if (!$parentId) {
-        throw new RuntimeException('Parent product create failed');
-    }
-
-    wp_set_object_terms($parentId, [$sizeTerm->term_id], 'pa_beden-numara');
-    update_post_meta($parentId, SEED_META, '1');
+    $parentId = seed_catalog_create_variable_parent(
+        'Sourcing Demo Nike AF1',
+        'DEMO-AF1',
+        seed_catalog_primary_taxonomy(),
+        $sizeTerms,
+        SEED_META
+    );
     update_option('sutore_marketplace_sourcing_demo_parent_id', $parentId, false);
 
-    return (int) $parentId;
+    return $parentId;
+}
+
+function seed_mysql_offset(int $seconds): string
+{
+    $base = strtotime(current_time('mysql'));
+    $ts = ($base !== false ? $base : time()) + $seconds;
+
+    return wp_date('Y-m-d H:i:s', $ts);
 }
 
 function create_listing_for(int $merchantId, int $parentId, int $sizeTermId, int $asking): int
@@ -231,7 +189,6 @@ function create_listing_for(int $merchantId, int $parentId, int $sizeTermId, int
         'box_damaged' => 0,
         'missing_accessory' => 0,
         'damaged' => 0,
-        'used' => 0,
     ], $merchantId);
 
     if (is_wp_error($result)) {
@@ -240,64 +197,72 @@ function create_listing_for(int $merchantId, int $parentId, int $sizeTermId, int
 
     update_post_meta($result->variationId, SEED_META, '1');
 
-    return (int) $result->id;
+    return (int) $result->variationId;
 }
 
 try {
     ensure_merchant_role();
 
-    // Fast path into sold + auto open sourcing on not_sale.
+    // Fast path into sold + pre-order on confirm deadline.
     OrderSettings::update([
         'require_admin_payment_confirm' => false,
-        'auto_sourcing_on_suspend' => true,
-        'auto_sourcing_on_split' => true,
         'sms_enabled' => false,
         'confirm_deadline_hours' => 24,
         'confirm_grace_hours' => 24,
     ]);
-    seed_log('Settings: require_admin_payment_confirm=off, auto_sourcing_on_suspend=on, sms=off');
+    seed_log('Settings: require_admin_payment_confirm=off, sms=off');
 
-    $size = ensure_size_term();
-    seed_log('Size term: #' . $size->term_id . ' (' . $size->name . ')');
+    $size42 = ensure_size_term();
+    $size43 = seed_catalog_ensure_size_term('43', '43');
+    seed_log('Size terms: #' . $size42->term_id . ' (42), #' . $size43->term_id . ' (43)');
 
     $sellerId = upsert_user('demo_seller_fail', 'demo_seller_fail@example.com', 'Demo Seller Fail', 'merchant');
     $acceptorId = upsert_user('demo_seller_accept', 'demo_seller_accept@example.com', 'Demo Seller Accept', 'merchant');
+    $normalId = upsert_user(
+        'demo_seller_sourcing_normal',
+        'demo_seller_sourcing_normal@example.com',
+        'Demo Seller Sourcing Normal',
+        'merchant',
+        MerchantLevels::NORMAL
+    );
     $customerId = upsert_user('demo_customer', 'demo_customer@example.com', 'Demo Customer', 'customer');
-    seed_log('Users ready: seller_fail=#' . $sellerId . ' acceptor=#' . $acceptorId . ' customer=#' . $customerId);
+    seed_log('Users ready: seller_fail=#' . $sellerId . ' acceptor=#' . $acceptorId
+        . ' normal=#' . $normalId . ' customer=#' . $customerId);
 
-    $parentId = ensure_parent_product($size, $force);
+    $parentId = ensure_parent_product([$size42, $size43], $force);
     seed_log('Parent product: #' . $parentId);
 
-    // Clean previous open demo fulfillments / sourcing if force.
+    // Clean previous demo pre-order listings if force.
     if ($force) {
         global $wpdb;
-        $wpdb->query("DELETE FROM {$wpdb->prefix}sutore_marketplace_sourcing_requests WHERE notes LIKE 'SOURCING-DEMO%'");
+        $listingsTable = $wpdb->prefix . 'sutore_marketplace_listings';
+        $wpdb->query("DELETE FROM {$listingsTable} WHERE listing_status = 'pre_order'");
     }
 
     $repo = new ListingRepository();
     $existingSellerListings = $repo->query([
         'merchant_id' => $sellerId,
         'parent_product_id' => $parentId,
-        'size_term_id' => (int) $size->term_id,
+        'size_term_id' => (int) $size42->term_id,
         'per_page' => 5,
     ]);
     $existingAcceptorListings = $repo->query([
         'merchant_id' => $acceptorId,
         'parent_product_id' => $parentId,
-        'size_term_id' => (int) $size->term_id,
+        'size_term_id' => (int) $size42->term_id,
         'per_page' => 5,
     ]);
 
     if ($force || !$existingSellerListings['items']) {
-        $sellerListingId = create_listing_for($sellerId, $parentId, (int) $size->term_id, 2500);
+        $sellerListingId = create_listing_for($sellerId, $parentId, (int) $size42->term_id, 2500);
     } else {
-        $sellerListingId = (int) $existingSellerListings['items'][0]->id;
+        $sellerListingId = (int) $existingSellerListings['items'][0]->variationId;
     }
 
     if ($force || !$existingAcceptorListings['items']) {
-        $acceptorListingId = create_listing_for($acceptorId, $parentId, (int) $size->term_id, 2600);
+        $acceptorListingId = create_listing_for($acceptorId, $parentId, (int) $size42->term_id, 2600);
     } else {
-        $acceptorListingId = (int) $existingAcceptorListings['items'][0]->id;
+        $acceptorListingId = (int) $existingAcceptorListings['items'][0]->variationId;
     }
 
     // Make failing seller the cheaper winner / active listing.
@@ -336,9 +301,64 @@ try {
         $acceptorProduct->save();
     }
 
-    seed_log('Listings: seller=#' . $sellerListingId . ' (active/winner) acceptor=#' . $acceptorListingId . ' (queued)');
+    seed_log('Listings (auto-open size 42): seller=#' . $sellerListingId . ' (winner 2500) acceptor=#' . $acceptorListingId . ' (queued 2600 — accept equalizes to 2500)');
 
-    // Create paid order for winner variation.
+    // Staff-opened board item (size 43) — visible immediately to Confirmed sellers.
+    $staffSellerId = create_listing_for($sellerId, $parentId, (int) $size43->term_id, 2400);
+    $staffAcceptorId = create_listing_for($acceptorId, $parentId, (int) $size43->term_id, 2700);
+    $repo->update($staffSellerId, [
+        'asking' => 2400,
+        'listing_status' => 'publish',
+        'is_winner' => 1,
+    ]);
+    $repo->update($staffAcceptorId, [
+        'asking' => 2700,
+        'listing_status' => 'queued',
+        'is_winner' => 0,
+    ]);
+    $staffSellerProduct = wc_get_product($staffSellerId);
+    if ($staffSellerProduct) {
+        $staffSellerProduct->set_status('publish');
+        $staffSellerProduct->set_stock_status('instock');
+        $staffSellerProduct->set_stock_quantity(1);
+        $staffSellerProduct->set_regular_price('2400');
+        $staffSellerProduct->set_price('2400');
+        $staffSellerProduct->save();
+    }
+
+    $staffOrder = wc_create_order(['customer_id' => $customerId]);
+    $staffOrder->set_billing_first_name('Demo');
+    $staffOrder->set_billing_last_name('Customer');
+    $staffOrder->set_billing_email('demo_customer@example.com');
+    $staffOrder->set_billing_phone('5551112233');
+    $staffOrder->set_billing_address_1('Demo Street 1');
+    $staffOrder->set_billing_city('Istanbul');
+    $staffOrder->set_billing_country('TR');
+    $staffOrder->set_payment_method('cod');
+    $staffOrder->set_payment_method_title('Cash on delivery (demo)');
+    $staffOrder->update_meta_data(ShipmentMeta::TYPE, 'standard');
+    $staffOrder->update_meta_data(SEED_META, '1');
+    $staffOrder->add_product(wc_get_product($staffSellerId), 1);
+    $staffOrder->calculate_totals();
+    $staffOrder->save();
+    $staffOrder->update_status('processing', 'Sourcing demo staff-open order');
+    (new \SutoreMarketplace\Modules\Orders\Services\PaymentHandler())->onPaymentComplete((int) $staffOrder->get_id());
+
+    $staffMarked = (new FulfillmentService())->markAsPreOrder($staffSellerId, 'staff');
+    if (is_wp_error($staffMarked)) {
+        throw new RuntimeException('Staff markAsPreOrder: ' . $staffMarked->get_error_message());
+    }
+    $repo->update($staffSellerId, [
+        'created_at' => seed_mysql_offset(-26 * HOUR_IN_SECONDS),
+    ]);
+    $staffListing = $repo->find($staffSellerId);
+    if (!$staffListing || $staffListing->listingStatus !== ListingStatus::PRE_ORDER) {
+        throw new RuntimeException('Staff-opened listing did not enter pre_order.');
+    }
+    seed_log('Staff-opened board (size 43): #' . $staffSellerId . ' order=#' . $staffOrder->get_id()
+        . ' acceptor=#' . $staffAcceptorId . ' (2700 → 2400 on accept)');
+
+    // Create paid order for winner variation (size 42 — auto-open after deadline).
     $order = wc_create_order(['customer_id' => $customerId]);
     $order->set_billing_first_name('Demo');
     $order->set_billing_last_name('Customer');
@@ -361,10 +381,10 @@ try {
     (new \SutoreMarketplace\Modules\Orders\Services\PaymentHandler())->onPaymentComplete((int) $order->get_id());
 
     $fulfillmentRepo = new FulfillmentRepository();
-    // Post-refactor: sale row IS the listing row; findActiveByListingId returns
-    // the listing shaped like a fulfillment (id = listing_id).
-    $fulfillment = $fulfillmentRepo->findActiveByListingId($sellerListingId)
-        ?: $fulfillmentRepo->findByListingId($sellerListingId);
+    // Post-refactor: sale row IS the listing row; findActiveByVariationId returns
+    // the listing shaped like a fulfillment (id = variation_id).
+    $fulfillment = $fulfillmentRepo->findActiveByVariationId($sellerListingId)
+        ?: $fulfillmentRepo->findByVariationId($sellerListingId);
     if (!$fulfillment) {
         throw new RuntimeException('Sale row not found for demo order #' . $order->get_id());
     }
@@ -390,16 +410,19 @@ try {
         'minutes' => $minutes,
         'deadline_at' => $deadlineLocal,
         'order_id' => (int) $order->get_id(),
-        'listing_id' => (int) $fulfillment->id,
+        'variation_id' => (int) $fulfillment->id,
         'parent_product_id' => $parentId,
-        'size_term_id' => (int) $size->term_id,
+        'size_term_id' => (int) $size42->term_id,
         'seller_user_id' => $sellerId,
         'acceptor_user_id' => $acceptorId,
+        'normal_user_id' => $normalId,
         'customer_user_id' => $customerId,
-        'seller_listing_id' => $sellerListingId,
-        'acceptor_listing_id' => $acceptorListingId,
         'seller_variation_id' => (int) $sellerListing->variationId,
         'acceptor_variation_id' => (int) $acceptorListing->variationId,
+        'staff_board_variation_id' => $staffSellerId,
+        'staff_order_id' => (int) $staffOrder->get_id(),
+        'staff_acceptor_variation_id' => $staffAcceptorId,
+        'staff_size_term_id' => (int) $size43->term_id,
     ], false);
 
     $base = home_url('/');
@@ -408,15 +431,17 @@ try {
     seed_log('');
     seed_log('=== SOURCING DEMO READY ===');
     seed_log('Site: ' . $base);
-    seed_log('Order: #' . $order->get_id());
-    seed_log('Listing (sale row): #' . $fulfillment->id . ' (sold)');
-    seed_log('Confirm deadline: ' . $deadlineLocal . ' (~' . $minutes . ' min)');
-    seed_log('NOTE: reminder phase skipped (confirm_notice_sent=1) so first deadline hit opens pre-order.');
+    seed_log('Staff-opened (now on board): #' . $staffSellerId . ' order=#' . $staffOrder->get_id());
+    seed_log('  Accept as demo_seller_accept → price 2700 → 2400, instant swap, sourcing_fulfilled logged');
+    seed_log('Auto-open (sold, waiting): #' . $fulfillment->id . ' order=#' . $order->get_id());
+    seed_log('  Confirm deadline: ' . $deadlineLocal . ' (~' . $minutes . ' min)');
+    seed_log('  NOTE: reminder skipped (confirm_notice_sent=1) so first deadline hit opens pre-order.');
     seed_log('');
     seed_log('Logins (password for all: ' . PASSWORD . ')');
-    seed_log('  Failing seller : demo_seller_fail');
-    seed_log('  Accepting seller: demo_seller_accept');
-    seed_log('  Customer       : demo_customer');
+    seed_log('  Failing seller  : demo_seller_fail');
+    seed_log('  Accepting seller: demo_seller_accept  (Confirmed — sees staff-opened now)');
+    seed_log('  Normal seller   : demo_seller_sourcing_normal  (no Pre-order menu)');
+    seed_log('  Customer        : demo_customer');
     seed_log('');
     seed_log('Pages:');
     seed_log('  Staff Manage Products : ' . (function_exists('wc_get_account_endpoint_url')
@@ -428,13 +453,16 @@ try {
     seed_log('  Merchant Pre-order: ' . trailingslashit($account) . 'sourcing/');
     seed_log('  Merchant Listings : ' . trailingslashit($account) . 'listings/');
     seed_log('');
-    seed_log('After ~' . $minutes . ' minutes:');
+    seed_log('Now:');
+    seed_log('  1) demo_seller_accept → Pre-order → staff-opened size 43 → Accept (price change confirm)');
+    seed_log('  2) demo_seller_sourcing_normal → no Pre-order menu (New seller level)');
+    seed_log('');
+    seed_log('After ~' . $minutes . ' minutes (auto-open size 42):');
     seed_log('  1) WP-Cron will run deadline check (or force it):');
     seed_log('     docker compose exec -T wordpress php wp-content/plugins/sutore-marketplace/tools/run-fulfillment-deadlines.php');
-    seed_log('  2) Check Admin → Pre-order for an open request');
-    seed_log('  3) Login as demo_seller_accept → My Account → Pre-order → Accept');
-    seed_log('  4) Admin → Pre-order → Complete (fulfilled)');
-    seed_log('  5) Order Flow should show new fulfillment for acceptor listing');
+    seed_log('  2) Listing moves to pre_order on the board');
+    seed_log('  3) Login as demo_seller_accept → Accept (instant swap; asking 2600 → 2500)');
+    seed_log('  4) Order should show acceptor listing in sold pipeline');
     seed_log('');
     seed_log('Force deadline NOW (do not wait):');
     seed_log('  docker compose exec -T wordpress php wp-content/plugins/sutore-marketplace/tools/run-fulfillment-deadlines.php --expire-now');

@@ -20,6 +20,22 @@ final class ImportedProductService
         return (int) get_post_meta($variationId, self::META_KEY, true) === 1;
     }
 
+    /** Variation meta is the source of truth read by shipping / checkout / deadline code. */
+    public static function setVariationImported(int $variationId, bool $imported): void
+    {
+        if ($variationId <= 0) {
+            return;
+        }
+
+        if ($imported) {
+            update_post_meta($variationId, self::META_KEY, 1);
+
+            return;
+        }
+
+        delete_post_meta($variationId, self::META_KEY);
+    }
+
     /**
      * @param list<int> $variationIds
      * @return array{marked: int, skipped: list<string>}
@@ -31,7 +47,7 @@ final class ImportedProductService
         $listings = new ListingRepository();
         $expireAt = wp_date(
             'Y-m-d H:i:s',
-            current_time('timestamp') + Settings::expireDays() * DAY_IN_SECONDS
+            current_time('timestamp') + Settings::defaultListingDurationDays() * DAY_IN_SECONDS
         );
 
         foreach (array_unique($variationIds) as $variationId) {
@@ -50,12 +66,13 @@ final class ImportedProductService
                 continue;
             }
 
-            update_post_meta($variationId, self::META_KEY, 1);
+            self::setVariationImported($variationId, true);
 
             $listing = $listings->findByVariationId($variationId);
-            if ($listing && $listing->id) {
-                $listings->update((int) $listing->id, [
+            if ($listing && $listing->variationId) {
+                $listings->update((int) $listing->variationId, [
                     'is_imported' => 1,
+                    'listing_duration_days' => Settings::defaultListingDurationDays(),
                     'expire_at' => $expireAt,
                 ]);
             }
@@ -64,5 +81,46 @@ final class ImportedProductService
         }
 
         return ['marked' => $marked, 'skipped' => $skipped];
+    }
+
+    /**
+     * @param list<int> $variationIds
+     * @return array{unmarked: int, skipped: list<string>}
+     */
+    public function unmarkVariationsImported(array $variationIds): array
+    {
+        $unmarked = 0;
+        $skipped = [];
+        $listings = new ListingRepository();
+
+        foreach (array_unique($variationIds) as $variationId) {
+            $variationId = absint($variationId);
+            if ($variationId <= 0) {
+                continue;
+            }
+
+            $product = wc_get_product($variationId);
+            if (!$product instanceof \WC_Product || !$product->is_type('variation')) {
+                $skipped[] = sprintf(
+                    /* translators: %d: product ID */
+                    __('%d is not a product variation.', 'sutore-marketplace'),
+                    $variationId
+                );
+                continue;
+            }
+
+            self::setVariationImported($variationId, false);
+
+            $listing = $listings->findByVariationId($variationId);
+            if ($listing && $listing->variationId) {
+                $listings->update((int) $listing->variationId, [
+                    'is_imported' => 0,
+                ]);
+            }
+
+            ++$unmarked;
+        }
+
+        return ['unmarked' => $unmarked, 'skipped' => $skipped];
     }
 }

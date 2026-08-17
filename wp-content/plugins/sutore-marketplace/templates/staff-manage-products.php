@@ -7,6 +7,7 @@ use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutStatus;
 use SutoreMarketplace\Modules\Orders\Domain\StaffQueueFilter;
 use SutoreMarketplace\Modules\Shipping\Domain\ShipmentType;
+use SutoreMarketplace\Shared\Settings\Settings;
 
 /**
  * Staff manage-products shell. List loads via REST; detail opens in manage modal.
@@ -41,10 +42,13 @@ $campaignFilter = (string) ($view['campaign'] ?? '');
 $sourcingFilter = (string) ($view['is_sourcing'] ?? '');
 $shipmentTypeFilter = (string) ($view['shipment_type'] ?? '');
 $importedFilter = (string) ($view['is_imported'] ?? '');
+$payoutDue = (string) ($view['payout_due'] ?? '');
+$soldFrom = (string) ($view['sold_from'] ?? '');
+$soldTo = (string) ($view['sold_to'] ?? '');
 ?>
 <div
     class="sutore-mp sutore-mp-account-panel sutore-mp-staff-manage"
-    data-open-listing-id="<?php echo esc_attr((string) $detailId); ?>"
+    data-open-variation-id="<?php echo esc_attr((string) $detailId); ?>"
 >
     <div class="sutore-mp-listings-header sutore-mp-list-chrome" hidden>
         <h2><?php esc_html_e('Manage Products', 'sutore-marketplace'); ?></h2>
@@ -53,7 +57,9 @@ $importedFilter = (string) ($view['is_imported'] ?? '');
             $id = 'sutore-mp-staff-manage-search';
             $input_class = 'sutore-mp-staff-manage-search';
             $value = $search;
-            $placeholder = __('Product, seller, order, listing ID…', 'sutore-marketplace');
+            $placeholder = __('Product, seller, order, variation ID…', 'sutore-marketplace');
+            $show_listing_actions = true;
+            $show_export = true;
             include SUTORE_MARKETPLACE_PATH . 'templates/partials/list-controls-row.php';
             ?>
         </div>
@@ -70,6 +76,9 @@ $importedFilter = (string) ($view['is_imported'] ?? '');
         data-is-sourcing="<?php echo esc_attr($sourcingFilter); ?>"
         data-shipment-type="<?php echo esc_attr($shipmentTypeFilter); ?>"
         data-is-imported="<?php echo esc_attr($importedFilter); ?>"
+        data-payout-due="<?php echo esc_attr($payoutDue); ?>"
+        data-sold-from="<?php echo esc_attr($soldFrom); ?>"
+        data-sold-to="<?php echo esc_attr($soldTo); ?>"
         data-orderby="<?php echo esc_attr($orderby); ?>"
         data-page="<?php echo esc_attr((string) $page); ?>"
         data-per-page="30"
@@ -139,7 +148,7 @@ $importedFilter = (string) ($view['is_imported'] ?? '');
                     <option value="no" <?php selected($sourcingFilter, 'no'); ?>><?php esc_html_e('Regular products', 'sutore-marketplace'); ?></option>
                 </select>
 
-                <label class="sutore-mp-field-label" for="sutore-mp-staff-manage-shipment-type"><?php esc_html_e('Shipment type', 'sutore-marketplace'); ?></label>
+                <label class="sutore-mp-field-label" for="sutore-mp-staff-manage-shipment-type"><?php esc_html_e('Customer shipping', 'sutore-marketplace'); ?></label>
                 <select id="sutore-mp-staff-manage-shipment-type" name="shipment_type" class="sutore-mp-input">
                     <option value=""><?php esc_html_e('All shipment types', 'sutore-marketplace'); ?></option>
                     <option value="none" <?php selected($shipmentTypeFilter, 'none'); ?>><?php esc_html_e('Not set', 'sutore-marketplace'); ?></option>
@@ -156,6 +165,30 @@ $importedFilter = (string) ($view['is_imported'] ?? '');
                     <option value="yes" <?php selected($importedFilter, 'yes'); ?>><?php esc_html_e('Imported products', 'sutore-marketplace'); ?></option>
                     <option value="no" <?php selected($importedFilter, 'no'); ?>><?php esc_html_e('Non-imported products', 'sutore-marketplace'); ?></option>
                 </select>
+
+                <label class="sutore-mp-field-label" for="sutore-mp-staff-manage-payout-due"><?php esc_html_e('Due for payout', 'sutore-marketplace'); ?></label>
+                <select id="sutore-mp-staff-manage-payout-due" name="payout_due" class="sutore-mp-input">
+                    <option value=""><?php esc_html_e('All', 'sutore-marketplace'); ?></option>
+                    <option value="1" <?php selected($payoutDue, '1'); ?>><?php esc_html_e('Due for payout', 'sutore-marketplace'); ?></option>
+                </select>
+
+                <label class="sutore-mp-field-label" for="sutore-mp-staff-manage-sold-from"><?php esc_html_e('Sold from', 'sutore-marketplace'); ?></label>
+                <input
+                    type="date"
+                    id="sutore-mp-staff-manage-sold-from"
+                    name="sold_from"
+                    class="sutore-mp-input"
+                    value="<?php echo esc_attr($soldFrom); ?>"
+                />
+
+                <label class="sutore-mp-field-label" for="sutore-mp-staff-manage-sold-to"><?php esc_html_e('Sold to', 'sutore-marketplace'); ?></label>
+                <input
+                    type="date"
+                    id="sutore-mp-staff-manage-sold-to"
+                    name="sold_to"
+                    class="sutore-mp-input"
+                    value="<?php echo esc_attr($soldTo); ?>"
+                />
             </div>
             <?php
             $clear_class = 'sutore-mp-staff-manage-filter-clear';
@@ -176,6 +209,8 @@ $importedFilter = (string) ($view['is_imported'] ?? '');
                 <select id="sutore-mp-staff-manage-orderby" name="orderby" class="sutore-mp-input">
                     <option value="id_desc" <?php selected($orderby, 'id_desc'); ?>><?php esc_html_e('Newest first', 'sutore-marketplace'); ?></option>
                     <option value="id_asc" <?php selected($orderby, 'id_asc'); ?>><?php esc_html_e('Oldest first', 'sutore-marketplace'); ?></option>
+                    <option value="asking_asc" <?php selected($orderby, 'asking_asc'); ?>><?php esc_html_e('Price (low to high)', 'sutore-marketplace'); ?></option>
+                    <option value="asking_desc" <?php selected($orderby, 'asking_desc'); ?>><?php esc_html_e('Price (high to low)', 'sutore-marketplace'); ?></option>
                     <option value="deadline_asc" <?php selected($orderby, 'deadline_asc'); ?>><?php esc_html_e('Deadline soonest', 'sutore-marketplace'); ?></option>
                     <option value="deadline_desc" <?php selected($orderby, 'deadline_desc'); ?>><?php esc_html_e('Deadline latest', 'sutore-marketplace'); ?></option>
                     <option value="sold_at_desc" <?php selected($orderby, 'sold_at_desc'); ?>><?php esc_html_e('Sold date (newest)', 'sutore-marketplace'); ?></option>
@@ -191,69 +226,20 @@ $importedFilter = (string) ($view['is_imported'] ?? '');
         </form>
     </div>
 
-    <div class="sutore-mp-manage-overlay sutore-mp-staff-manage-overlay" hidden>
-        <div
-            class="sutore-mp-manage-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="sutore-mp-staff-manage-title"
-        >
-            <div class="sutore-mp-manage-modal__handle" aria-hidden="true"><span></span></div>
-            <div class="sutore-mp-manage-modal__head">
-                <div class="sutore-mp-manage-modal__media sutore-mp-staff-detail-media" hidden></div>
-                <div class="sutore-mp-manage-modal__titles">
-                    <h2 id="sutore-mp-staff-manage-title" class="sutore-mp-manage-modal__title sutore-mp-staff-detail-title"></h2>
-                    <p class="sutore-mp-manage-modal__sub sutore-mp-staff-detail-sub"></p>
-                </div>
-                <span class="sutore-mp-manage-modal__badge sutore-mp-staff-detail-badge" hidden></span>
-                <button
-                    type="button"
-                    class="sutore-mp-manage-modal__close sutore-mp-staff-manage-close"
-                    aria-label="<?php esc_attr_e('Close', 'sutore-marketplace'); ?>"
-                >×</button>
-            </div>
-
-            <div class="sutore-mp-manage-modal__tabs sutore-mp-staff-detail-tabs" role="tablist">
-                <button type="button" class="sutore-mp-manage-tab" role="tab" data-tab="details" aria-selected="true">
-                    <?php esc_html_e('Details', 'sutore-marketplace'); ?>
-                </button>
-                <button type="button" class="sutore-mp-manage-tab" role="tab" data-tab="shipping" aria-selected="false">
-                    <?php esc_html_e('Shipping', 'sutore-marketplace'); ?>
-                </button>
-                <button type="button" class="sutore-mp-manage-tab" role="tab" data-tab="payment" aria-selected="false">
-                    <?php esc_html_e('Payment', 'sutore-marketplace'); ?>
-                </button>
-                <button type="button" class="sutore-mp-manage-tab" role="tab" data-tab="activity" aria-selected="false">
-                    <?php esc_html_e('Activity', 'sutore-marketplace'); ?>
-                </button>
-            </div>
-
-            <div class="sutore-mp-manage-modal__body sutore-mp-staff-detail-root" aria-busy="false">
-                <div class="sutore-mp-manage-modal__loading sutore-mp-staff-manage-loading" role="status" aria-live="polite" hidden>
-                    <span class="sutore-mp-list-spinner" aria-hidden="true"></span>
-                    <span class="screen-reader-text"><?php esc_html_e('Loading…', 'sutore-marketplace'); ?></span>
-                </div>
-                <div class="sutore-mp-staff-detail-panels"></div>
-            </div>
-
-            <div class="sutore-mp-manage-modal__foot sutore-mp-staff-manage-foot" hidden>
-                <div class="sutore-mp-staff-action-form" hidden></div>
-                <div class="sutore-mp-staff-foot-bar">
-                    <div class="sutore-mp-staff-foot-primary"></div>
-                    <div class="sutore-mp-staff-more">
-                        <button
-                            type="button"
-                            class="wp-element-button is-style-outline sutore-mp-staff-more-toggle"
-                            aria-expanded="false"
-                            aria-haspopup="true"
-                            hidden
-                        >
-                            <?php esc_html_e('More actions', 'sutore-marketplace'); ?>
-                        </button>
-                        <div class="sutore-mp-staff-more-menu" role="menu" hidden></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div
+        class="sutore-mp-listings sutore-mp-staff-listing-create"
+        data-staff-create="1"
+        data-price-step="<?php echo esc_attr((string) Settings::listingPriceStep()); ?>"
+    >
+        <?php
+        $step = Settings::listingPriceStep();
+        $staff_create = true;
+        include SUTORE_MARKETPLACE_PATH . 'templates/partials/listing-create-modals.php';
+        ?>
     </div>
 </div>
+<?php
+include SUTORE_MARKETPLACE_PATH . 'templates/partials/staff-order-detail-modals.php';
+include SUTORE_MARKETPLACE_PATH . 'templates/partials/staff-product-detail-modal.php';
+include SUTORE_MARKETPLACE_PATH . 'templates/partials/staff-merchant-detail-modal.php';
+?>

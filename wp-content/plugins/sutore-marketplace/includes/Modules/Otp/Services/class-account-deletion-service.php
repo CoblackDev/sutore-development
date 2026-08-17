@@ -10,13 +10,32 @@ use SutoreMarketplace\Modules\Orders\Repositories\FulfillmentRepository;
 
 final class AccountDeletionService
 {
+    /**
+     * Payout lines and listing events keep merchant_id after the WP user is
+     * removed so the accounting trail survives account deletion.
+     */
     public function assertCanDelete(int $userId): true|\WP_Error
     {
-        $activeSales = (new FulfillmentRepository())->countActiveForMerchant($userId);
-        if ($activeSales > 0) {
+        $blocks = (new FulfillmentRepository())->countAccountDeletionBlocks($userId);
+
+        if ($blocks['in_progress'] > 0) {
             return new \WP_Error(
                 'sutore_account_delete_active_sales',
                 __('You cannot delete your account while you have active sales or shipments. Please complete them or contact support.', 'sutore-marketplace')
+            );
+        }
+
+        if ($blocks['pre_order'] > 0) {
+            return new \WP_Error(
+                'sutore_account_delete_pre_order',
+                __('You cannot delete your account while a pre-order is still waiting to be sourced. Please contact support.', 'sutore-marketplace')
+            );
+        }
+
+        if ($blocks['unpaid_delivered'] > 0) {
+            return new \WP_Error(
+                'sutore_account_delete_unpaid_payout',
+                __('You cannot delete your account until payouts for delivered sales have been paid. Please contact support.', 'sutore-marketplace')
             );
         }
 

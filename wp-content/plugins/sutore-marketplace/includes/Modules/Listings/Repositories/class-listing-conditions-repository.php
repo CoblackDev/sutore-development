@@ -14,53 +14,53 @@ final class ListingConditionsRepository
     }
 
     /** @return array<string, bool> */
-    public function forListing(int $listingId): array
+    public function forListing(int $variationId): array
     {
-        $map = $this->forListings([$listingId]);
+        $map = $this->forListings([$variationId]);
 
-        return $map[$listingId] ?? [];
+        return $map[$variationId] ?? [];
     }
 
     /**
-     * @param list<int> $listingIds
+     * @param list<int> $variationIds
      * @return array<int, array<string, bool>>
      */
-    public function forListings(array $listingIds): array
+    public function forListings(array $variationIds): array
     {
-        $listingIds = array_values(array_unique(array_filter(array_map('intval', $listingIds))));
-        if ($listingIds === []) {
+        $variationIds = array_values(array_unique(array_filter(array_map('intval', $variationIds))));
+        if ($variationIds === []) {
             return [];
         }
 
         global $wpdb;
-        $placeholders = implode(',', array_fill(0, count($listingIds), '%d'));
+        $placeholders = implode(',', array_fill(0, count($variationIds), '%d'));
         $rows = $wpdb->get_results($wpdb->prepare(
-            'SELECT listing_id, condition_key, condition_value FROM ' . $this->table()
-            . " WHERE listing_id IN ({$placeholders})",
-            ...$listingIds
+            'SELECT variation_id, condition_key, condition_value FROM ' . $this->table()
+            . " WHERE variation_id IN ({$placeholders})",
+            ...$variationIds
         ));
 
         $out = [];
-        foreach ($listingIds as $id) {
-            $out[$id] = [];
+        foreach ($variationIds as $variationId) {
+            $out[$variationId] = [];
         }
         foreach ($rows ?: [] as $row) {
-            $out[(int) $row->listing_id][(string) $row->condition_key] = (int) $row->condition_value === 1;
+            $out[(int) $row->variation_id][(string) $row->condition_key] = (int) $row->condition_value === 1;
         }
 
         return $out;
     }
 
-    public function deleteForListing(int $listingId): void
+    public function deleteForListing(int $variationId): void
     {
         global $wpdb;
-        $wpdb->delete($this->table(), ['listing_id' => $listingId]);
+        $wpdb->delete($this->table(), ['variation_id' => $variationId]);
     }
 
-    public function sync(int $listingId, array $conditions): void
+    public function sync(int $variationId, array $conditions): void
     {
         global $wpdb;
-        $wpdb->delete($this->table(), ['listing_id' => $listingId]);
+        $wpdb->delete($this->table(), ['variation_id' => $variationId]);
 
         foreach ($conditions as $key => $value) {
             if (is_int($key)) {
@@ -71,7 +71,7 @@ final class ListingConditionsRepository
                 continue;
             }
             $wpdb->insert($this->table(), [
-                'listing_id' => $listingId,
+                'variation_id' => $variationId,
                 'condition_key' => sanitize_key((string) $key),
                 'condition_value' => 1,
             ]);

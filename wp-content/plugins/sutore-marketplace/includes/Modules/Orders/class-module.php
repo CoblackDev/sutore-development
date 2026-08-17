@@ -10,6 +10,7 @@ use SutoreMarketplace\Modules\Orders\Hooks\ListingIntegration;
 use SutoreMarketplace\Modules\Orders\Hooks\OrderItemPricingMetaHooks;
 use SutoreMarketplace\Modules\Orders\Hooks\WooCommerceHooks;
 use SutoreMarketplace\Modules\Orders\Rest\FulfillmentsController;
+use SutoreMarketplace\Modules\Orders\Rest\StaffOrdersController;
 use SutoreMarketplace\Modules\Orders\Settings\Settings;
 
 final class Module
@@ -24,6 +25,7 @@ final class Module
         (new ListingIntegration())->register();
         (new OrderItemPricingMetaHooks())->register();
         (new FulfillmentsController())->register();
+        (new StaffOrdersController())->register();
     }
 
     public static function activate(): void

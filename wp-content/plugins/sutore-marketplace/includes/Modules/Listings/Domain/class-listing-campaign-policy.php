@@ -33,6 +33,61 @@ final class ListingCampaignPolicy
         return !self::isActiveCampaign($listing);
     }
 
+    public static function isCoolingDown(Listing $listing): bool
+    {
+        $until = $listing->campaignCooledUntil;
+        if ($until === null || $until === '') {
+            return false;
+        }
+
+        return !CampaignDatetime::isPast($until);
+    }
+
+    public static function canStart(Listing $listing): bool
+    {
+        return !is_wp_error(self::assertCanStart($listing));
+    }
+
+    /**
+     * @return true|\WP_Error
+     */
+    public static function assertCanStart(Listing $listing): true|\WP_Error
+    {
+        if (self::isPendingOffer($listing)) {
+            return new \WP_Error(
+                'sutore_marketplace_campaign_offer_pending',
+                __('Respond to the campaign offer before starting a campaign.', 'sutore-marketplace')
+            );
+        }
+
+        if (self::isActiveCampaign($listing)) {
+            return new \WP_Error(
+                'sutore_marketplace_campaign_active',
+                __('This listing is already in a campaign.', 'sutore-marketplace')
+            );
+        }
+
+        if (!in_array($listing->listingStatus, [ListingStatus::PUBLISH, ListingStatus::QUEUED], true)) {
+            return new \WP_Error(
+                'sutore_campaign_listing_status',
+                __('Only products that are for sale or in queue can start a campaign.', 'sutore-marketplace')
+            );
+        }
+
+        if (self::isCoolingDown($listing)) {
+            return new \WP_Error(
+                'sutore_campaign_cooldown',
+                sprintf(
+                    /* translators: %s: cooldown end datetime */
+                    __('This listing can join another campaign after %s.', 'sutore-marketplace'),
+                    CampaignDatetime::formatLabel((string) $listing->campaignCooledUntil)
+                )
+            );
+        }
+
+        return true;
+    }
+
     /**
      * @return true|\WP_Error
      */

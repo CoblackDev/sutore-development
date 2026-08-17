@@ -63,7 +63,7 @@ final class PaymentHandler
                 $variationId = (int) $item->get_product_id();
             }
             $listing = $this->listings->findByVariationId($variationId);
-            if (!$listing || !$listing->id) {
+            if (!$listing || !$listing->variationId) {
                 continue;
             }
 

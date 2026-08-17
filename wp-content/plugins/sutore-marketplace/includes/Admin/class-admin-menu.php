@@ -6,6 +6,7 @@ namespace SutoreMarketplace\Admin;
 
 use SutoreMarketplace\Modules\Listings\Admin\CampaignsPage;
 use SutoreMarketplace\Modules\Listings\Admin\EventsTable;
+use SutoreMarketplace\Modules\Listings\Admin\OutletPage;
 use SutoreMarketplace\Modules\Tasks\Admin\TasksPage;
 
 final class AdminMenu
@@ -35,8 +36,8 @@ final class AdminMenu
         $pages = [
             [self::PARENT, __('Settings', 'sutore-marketplace'), __('Settings', 'sutore-marketplace'), [new SettingsPage(), 'render']],
             ['sutore-marketplace-campaigns', __('Campaigns', 'sutore-marketplace'), __('Campaigns', 'sutore-marketplace'), [new CampaignsPage(), 'render']],
-            ['sutore-marketplace-imported', __('Imported products', 'sutore-marketplace'), __('Imported products', 'sutore-marketplace'), [new ImportedProductsPage(), 'render']],
-            ['sutore-marketplace-tasks', __('Tasks', 'sutore-marketplace'), __('Tasks & Rewards', 'sutore-marketplace'), [new TasksPage(), 'render']],
+            ['sutore-marketplace-outlet', __('Outlet', 'sutore-marketplace'), __('Outlet', 'sutore-marketplace'), [new OutletPage(), 'render']],
+            ['sutore-marketplace-tasks', __('Opportunities', 'sutore-marketplace'), __('Opportunity templates', 'sutore-marketplace'), [new TasksPage(), 'render']],
             ['sutore-marketplace-events', __('Events', 'sutore-marketplace'), __('Events', 'sutore-marketplace'), [$this, 'renderEvents']],
         ];
 

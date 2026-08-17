@@ -22,7 +22,7 @@ final class MerchantBalanceService
         return array_merge($summary, [
             'formatted_paid' => MarketplacePricing::formatTl($summary['paid_total']),
             'formatted_pending' => MarketplacePricing::formatTl($summary['pending_total']),
-            'recent' => $this->payouts->recentForMerchant($merchantId, 8),
+            'recent' => $this->payouts->recentForMerchant($merchantId, 20),
         ]);
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Frontend;
 
+use SutoreMarketplace\Modules\Listings\Domain\CampaignGuardrails;
 use SutoreMarketplace\Modules\Orders\Module as FulfillmentModule;
 use SutoreMarketplace\Modules\Otp\Settings\OtpSettings;
 use SutoreMarketplace\Shared\Settings\Settings;
@@ -20,6 +21,9 @@ final class Assets
     public const SCRIPT_LISTINGS_BULK = 'sutore-marketplace-listings-bulk';
     public const SCRIPT_SOURCING = 'sutore-marketplace-sourcing';
     public const SCRIPT_CAMPAIGN_OFFERS = 'sutore-marketplace-campaign-offers';
+    public const SCRIPT_PRICE_OFFERS = 'sutore-marketplace-price-offers';
+    public const SCRIPT_MY_OFFERS = 'sutore-marketplace-my-offers';
+    public const SCRIPT_OUTLET = 'sutore-marketplace-outlet';
     public const SCRIPT_MERCHANT_PROFILE = 'sutore-marketplace-merchant-profile';
     public const SCRIPT_ACCOUNT = 'sutore-marketplace-account';
     public const SCRIPT_TASKS = 'sutore-marketplace-tasks';
@@ -29,6 +33,9 @@ final class Assets
     public const SCRIPT_STAFF_MANAGE = 'sutore-marketplace-staff-manage';
     public const STYLE_STAFF_MERCHANTS = 'sutore-marketplace-staff-merchants';
     public const SCRIPT_STAFF_MERCHANTS = 'sutore-marketplace-staff-merchants';
+    public const STYLE_STAFF_ORDERS = 'sutore-marketplace-staff-orders';
+    public const SCRIPT_STAFF_ORDERS = 'sutore-marketplace-staff-orders';
+    public const SCRIPT_STAFF_CATALOG_REQUESTS = 'sutore-marketplace-staff-catalog-requests';
 
     public function register(): void
     {
@@ -64,7 +71,7 @@ final class Assets
             self::STYLE_MERCHANT_PROFILE,
             SUTORE_MARKETPLACE_URL . 'assets/css/marketplace-merchant-profile.css',
             [self::STYLE_CORE],
-            SUTORE_MARKETPLACE_VERSION
+            self::assetVersion('assets/css/marketplace-merchant-profile.css')
         );
 
         wp_register_style(
@@ -122,6 +129,30 @@ final class Assets
         );
 
         wp_register_script(
+            self::SCRIPT_PRICE_OFFERS,
+            SUTORE_MARKETPLACE_URL . 'assets/js/marketplace-price-offers.js',
+            ['jquery', self::SCRIPT_CORE],
+            self::assetVersion('assets/js/marketplace-price-offers.js'),
+            true
+        );
+
+        wp_register_script(
+            self::SCRIPT_MY_OFFERS,
+            SUTORE_MARKETPLACE_URL . 'assets/js/marketplace-my-offers.js',
+            ['jquery', self::SCRIPT_CORE],
+            self::assetVersion('assets/js/marketplace-my-offers.js'),
+            true
+        );
+
+        wp_register_script(
+            self::SCRIPT_OUTLET,
+            SUTORE_MARKETPLACE_URL . 'assets/js/marketplace-outlet.js',
+            ['jquery', self::SCRIPT_CORE],
+            self::assetVersion('assets/js/marketplace-outlet.js'),
+            true
+        );
+
+        wp_register_script(
             self::SCRIPT_MERCHANT_PROFILE,
             SUTORE_MARKETPLACE_URL . 'assets/js/marketplace-merchant-profile.js',
             ['jquery', self::SCRIPT_CORE],
@@ -170,7 +201,7 @@ final class Assets
         wp_register_script(
             self::SCRIPT_STAFF_MANAGE,
             SUTORE_MARKETPLACE_URL . 'assets/js/marketplace-staff-manage.js',
-            ['jquery', self::SCRIPT_CORE],
+            ['jquery', self::SCRIPT_CORE, self::SCRIPT_LISTINGS, self::SCRIPT_LISTINGS_BULK],
             self::assetVersion('assets/js/marketplace-staff-manage.js'),
             true
         );
@@ -187,6 +218,29 @@ final class Assets
             SUTORE_MARKETPLACE_URL . 'assets/js/marketplace-staff-merchants.js',
             ['jquery', self::SCRIPT_CORE],
             self::assetVersion('assets/js/marketplace-staff-merchants.js'),
+            true
+        );
+
+        wp_register_style(
+            self::STYLE_STAFF_ORDERS,
+            SUTORE_MARKETPLACE_URL . 'assets/css/marketplace-staff-orders.css',
+            [self::STYLE_STAFF_MANAGE],
+            self::assetVersion('assets/css/marketplace-staff-orders.css')
+        );
+
+        wp_register_script(
+            self::SCRIPT_STAFF_ORDERS,
+            SUTORE_MARKETPLACE_URL . 'assets/js/marketplace-staff-orders.js',
+            ['jquery', self::SCRIPT_CORE],
+            self::assetVersion('assets/js/marketplace-staff-orders.js'),
+            true
+        );
+
+        wp_register_script(
+            self::SCRIPT_STAFF_CATALOG_REQUESTS,
+            SUTORE_MARKETPLACE_URL . 'assets/js/marketplace-staff-catalog-requests.js',
+            ['jquery', self::SCRIPT_CORE],
+            self::assetVersion('assets/js/marketplace-staff-catalog-requests.js'),
             true
         );
 
@@ -224,6 +278,30 @@ final class Assets
         wp_enqueue_script(self::SCRIPT_CAMPAIGN_OFFERS);
     }
 
+    public function enqueuePriceOffers(): void
+    {
+        wp_enqueue_style(self::STYLE_LISTINGS);
+        wp_enqueue_script(self::SCRIPT_CORE);
+        $this->localizeCore($this->priceOffersI18n());
+        wp_enqueue_script(self::SCRIPT_PRICE_OFFERS);
+    }
+
+    public function enqueueMyOffers(): void
+    {
+        wp_enqueue_style(self::STYLE_LISTINGS);
+        wp_enqueue_script(self::SCRIPT_CORE);
+        $this->localizeCore($this->myOffersI18n());
+        wp_enqueue_script(self::SCRIPT_MY_OFFERS);
+    }
+
+    public function enqueueOutlet(): void
+    {
+        wp_enqueue_style(self::STYLE_LISTINGS);
+        wp_enqueue_script(self::SCRIPT_CORE);
+        $this->localizeCore($this->outletI18n());
+        wp_enqueue_script(self::SCRIPT_OUTLET);
+    }
+
     public function enqueueMerchantProfile(): void
     {
         wp_enqueue_style(self::STYLE_MERCHANT_PROFILE);
@@ -256,7 +334,157 @@ final class Assets
         wp_enqueue_script(self::SCRIPT_NOTIFICATIONS);
     }
 
-    public function enqueueStaffMerchants(): void
+    public function enqueueStaffOrders(): void
+    {
+        $this->enqueueStaffOrderDetail();
+        $this->enqueueStaffMerchantDetail();
+        $this->enqueueStaffProductDetail();
+    }
+
+    /**
+     * Order detail modal (shared by Manage Orders and Manage Products).
+     * Opens in-place over the current staff page without navigation.
+     */
+    public function enqueueStaffOrderDetail(): void
+    {
+        if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
+            return;
+        }
+
+        if (!wp_script_is(self::SCRIPT_STAFF_ORDERS, 'registered')) {
+            $this->registerAssets();
+        }
+
+        if (wp_script_is(self::SCRIPT_STAFF_ORDERS, 'enqueued')) {
+            return;
+        }
+
+        wp_enqueue_style(self::STYLE_STAFF_ORDERS);
+        if (!wp_script_is(self::SCRIPT_CORE, 'enqueued')) {
+            wp_enqueue_script(self::SCRIPT_CORE);
+            $this->localizeCore([
+                'cancel' => __('Cancel', 'sutore-marketplace'),
+                'close' => __('Close', 'sutore-marketplace'),
+                'error' => __('Error', 'sutore-marketplace'),
+                'ok' => __('OK', 'sutore-marketplace'),
+                'yes' => __('Yes', 'sutore-marketplace'),
+            ]);
+        } else {
+            wp_enqueue_script(self::SCRIPT_CORE);
+        }
+        wp_enqueue_script(self::SCRIPT_STAFF_ORDERS);
+        wp_localize_script(self::SCRIPT_STAFF_ORDERS, 'SutoreMarketplaceStaffOrders', [
+            'restUrl' => esc_url_raw(rest_url('sutore-marketplace/v1/')),
+            'restNonce' => wp_create_nonce('wp_rest'),
+            'manageOrdersUrl' => esc_url_raw(wc_get_account_endpoint_url(StaffAccount::ENDPOINT_MANAGE_ORDERS)),
+            'manageProductsUrl' => esc_url_raw(wc_get_account_endpoint_url(StaffAccount::ENDPOINT_MANAGE_PRODUCTS)),
+            'merchantsUrl' => esc_url_raw(wc_get_account_endpoint_url(StaffAccount::ENDPOINT_MERCHANTS)),
+            'i18n' => [
+                'loading' => __('Loading…', 'sutore-marketplace'),
+                'error' => __('Error', 'sutore-marketplace'),
+                'noRecords' => __('No orders found.', 'sutore-marketplace'),
+                'order' => __('Order', 'sutore-marketplace'),
+                'orderTitle' => __('Order #%s', 'sutore-marketplace'),
+                'date' => __('Date', 'sutore-marketplace'),
+                'status' => __('Status', 'sutore-marketplace'),
+                'sellers' => __('Sellers', 'sutore-marketplace'),
+                'sellerOne' => __('1 seller', 'sutore-marketplace'),
+                'sellerMany' => __('%d sellers', 'sutore-marketplace'),
+                'items' => __('Items', 'sutore-marketplace'),
+                'shipmentType' => __('Shipment type', 'sutore-marketplace'),
+                'deliveryDeadline' => __('Delivery deadline', 'sutore-marketplace'),
+                'total' => __('Total', 'sutore-marketplace'),
+                'customerPrice' => __('Customer', 'sutore-marketplace'),
+                'sellerPrice' => __('Seller', 'sutore-marketplace'),
+                'serviceFee' => __('Service fee', 'sutore-marketplace'),
+                'guaranteeFee' => __('Guarantee fee', 'sutore-marketplace'),
+                'priceDifference' => __('Price difference', 'sutore-marketplace'),
+                'selectedProduct' => __('Selected product', 'sutore-marketplace'),
+                'confirmChange' => __('Confirm change', 'sutore-marketplace'),
+                'subtotal' => __('Subtotal', 'sutore-marketplace'),
+                'shipping' => __('Shipping', 'sutore-marketplace'),
+                'discount' => __('Discount', 'sutore-marketplace'),
+                'paymentMethod' => __('Payment method', 'sutore-marketplace'),
+                'customerNote' => __('Customer note', 'sutore-marketplace'),
+                'detail' => __('Detail', 'sutore-marketplace'),
+                'details' => __('Details', 'sutore-marketplace'),
+                'products' => __('Products', 'sutore-marketplace'),
+                'customer' => __('Customer', 'sutore-marketplace'),
+                'billing' => __('Billing', 'sutore-marketplace'),
+                'shippingAddress' => __('Shipping', 'sutore-marketplace'),
+                'billingShippingAddress' => __('Billing & shipping address', 'sutore-marketplace'),
+                'noAddress' => __('No address.', 'sutore-marketplace'),
+                'noProducts' => __('No products on this order.', 'sutore-marketplace'),
+                'noListing' => __('Not a marketplace listing', 'sutore-marketplace'),
+                'viewCustomerInvoice' => __('View customer invoice', 'sutore-marketplace'),
+                'viewSellerInvoice' => __('View seller invoice', 'sutore-marketplace'),
+                'openListingDetail' => __('Open listing detail', 'sutore-marketplace'),
+                'openSellerDetail' => __('Open seller detail', 'sutore-marketplace'),
+                'updateStatus' => __('Update status', 'sutore-marketplace'),
+                'updateOrder' => __('Update order', 'sutore-marketplace'),
+                'doneEditing' => __('Done', 'sutore-marketplace'),
+                'addProduct' => __('Add product', 'sutore-marketplace'),
+                'searchListing' => __('Search listing', 'sutore-marketplace'),
+                'searchReplacement' => __('Search replacement', 'sutore-marketplace'),
+                'searchListingPlaceholder' => __('Product, seller, variation ID…', 'sutore-marketplace'),
+                'removeFromOrder' => __('Remove', 'sutore-marketplace'),
+                'replacedByStaff' => __('Replaced by staff.', 'sutore-marketplace'),
+                'confirmRemoveItem' => __('Remove this product from the order?', 'sutore-marketplace'),
+                'confirmOrderUpdate' => __('Confirm order update', 'sutore-marketplace'),
+                'confirmUpdate' => __('Confirm update', 'sutore-marketplace'),
+                'noPendingChanges' => __('No changes to apply.', 'sutore-marketplace'),
+                'willAddOne' => __('%d product will be added', 'sutore-marketplace'),
+                'willAddMany' => __('%d products will be added', 'sutore-marketplace'),
+                'willDetachOne' => __('%d product will be detached', 'sutore-marketplace'),
+                'willDetachMany' => __('%d products will be detached', 'sutore-marketplace'),
+                'willRemoveOne' => __('%d product will be removed', 'sutore-marketplace'),
+                'willRemoveMany' => __('%d products will be removed', 'sutore-marketplace'),
+                'willChangeStatus' => __('Status will change to %s', 'sutore-marketplace'),
+                'pendingAdd' => __('To be added', 'sutore-marketplace'),
+                'pendingDetach' => __('To be detached', 'sutore-marketplace'),
+                'pendingRemove' => __('To be removed', 'sutore-marketplace'),
+                'updateProduct' => __('Update product', 'sutore-marketplace'),
+                'replacesProduct' => __('Replaces: %s', 'sutore-marketplace'),
+                'undo' => __('Undo', 'sutore-marketplace'),
+                'orderTotals' => __('Order totals', 'sutore-marketplace'),
+                'estimatedTotals' => __('Estimated', 'sutore-marketplace'),
+                'coupon' => __('Coupon', 'sutore-marketplace'),
+                'fee' => __('Fee', 'sutore-marketplace'),
+                'tax' => __('Tax', 'sutore-marketplace'),
+                'changeStatus' => __('Change status', 'sutore-marketplace'),
+                'changeProduct' => __('Change', 'sutore-marketplace'),
+                'detach' => __('Detach from order', 'sutore-marketplace'),
+                'actions' => __('Actions', 'sutore-marketplace'),
+                'selectReplacement' => __('Select a replacement listing.', 'sutore-marketplace'),
+                'noCandidates' => __('No eligible listings found.', 'sutore-marketplace'),
+                'noPriceDiff' => __('No price difference.', 'sutore-marketplace'),
+                'priceHigher' => __('Replacement is %s higher.', 'sutore-marketplace'),
+                'priceLower' => __('Replacement is %s lower.', 'sutore-marketplace'),
+                'differentProductNoteRequired' => __('A staff note is required when replacing with a different product.', 'sutore-marketplace'),
+                'staffNoteRequired' => __('A staff note is required for this action.', 'sutore-marketplace'),
+                'returnToQueue' => __('Return detached product to the sale queue', 'sutore-marketplace'),
+                'returnToQueueHint' => __('If eligible, the winner algorithm may put it back on sale.', 'sutore-marketplace'),
+                'replaceDetachHint' => __('The current product will be detached from the order.', 'sutore-marketplace'),
+                'confirmAction' => __('Confirm', 'sutore-marketplace'),
+                'orderUpdated' => __('Order updated.', 'sutore-marketplace'),
+                'bulkActions' => __('Bulk actions', 'sutore-marketplace'),
+                'bulkConfirm' => __('Update status for %d orders?', 'sutore-marketplace'),
+                'apply' => __('Apply', 'sutore-marketplace'),
+                'selectAll' => __('Select all', 'sutore-marketplace'),
+                'selectedCount' => __('%d selected', 'sutore-marketplace'),
+                'pagination' => __('Pagination', 'sutore-marketplace'),
+                'previous' => __('Previous', 'sutore-marketplace'),
+                'next' => __('Next', 'sutore-marketplace'),
+                'pageOf' => __('Page %1$d / %2$d', 'sutore-marketplace'),
+            ],
+        ]);
+    }
+
+    /**
+     * Seller detail modal (shared by Sellers, Manage Orders, Manage Products).
+     * Opens in-place over the current staff page without navigation.
+     */
+    public function enqueueStaffMerchantDetail(): void
     {
         if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
             return;
@@ -266,19 +494,40 @@ final class Assets
             $this->registerAssets();
         }
 
+        if (wp_script_is(self::SCRIPT_STAFF_MERCHANTS, 'enqueued')) {
+            return;
+        }
+
         wp_enqueue_style(self::STYLE_STAFF_MERCHANTS);
-        wp_enqueue_script(self::SCRIPT_CORE);
+        if (!wp_script_is(self::SCRIPT_CORE, 'enqueued')) {
+            wp_enqueue_script(self::SCRIPT_CORE);
+            $this->localizeCore([
+                'cancel' => __('Cancel', 'sutore-marketplace'),
+                'close' => __('Close', 'sutore-marketplace'),
+                'error' => __('Error', 'sutore-marketplace'),
+                'ok' => __('OK', 'sutore-marketplace'),
+                'yes' => __('Yes', 'sutore-marketplace'),
+            ]);
+        } else {
+            wp_enqueue_script(self::SCRIPT_CORE);
+        }
         wp_enqueue_script(self::SCRIPT_STAFF_MERCHANTS);
         wp_localize_script(self::SCRIPT_STAFF_MERCHANTS, 'SutoreMarketplaceStaffMerchants', [
             'restUrl' => esc_url_raw(rest_url('sutore-marketplace/v1/')),
             'restNonce' => wp_create_nonce('wp_rest'),
+            'merchantsUrl' => esc_url_raw(wc_get_account_endpoint_url(StaffAccount::ENDPOINT_MERCHANTS)),
+            'manageProductsUrl' => esc_url_raw(wc_get_account_endpoint_url(StaffAccount::ENDPOINT_MANAGE_PRODUCTS)),
             'i18n' => [
                 'loading' => __('Loading…', 'sutore-marketplace'),
                 'error' => __('Error', 'sutore-marketplace'),
+                'ok' => __('OK', 'sutore-marketplace'),
+                'confirm' => __('Confirm', 'sutore-marketplace'),
+                'close' => __('Close', 'sutore-marketplace'),
                 'notFound' => __('Seller not found.', 'sutore-marketplace'),
                 'noRecords' => __('No sellers found.', 'sutore-marketplace'),
                 'search' => __('Search', 'sutore-marketplace'),
                 'searchPlaceholder' => __('First name, last name, email, phone, ID…', 'sutore-marketplace'),
+                'openListingDetail' => __('Open listing detail', 'sutore-marketplace'),
                 'level' => __('Level', 'sutore-marketplace'),
                 'allLevels' => __('All levels', 'sutore-marketplace'),
                 'filter' => __('Filter', 'sutore-marketplace'),
@@ -340,7 +589,7 @@ final class Assets
                 'tckno' => __('TC Identity Number', 'sutore-marketplace'),
                 'birthYear' => __('Year of Birth', 'sutore-marketplace'),
                 'city' => __('City', 'sutore-marketplace'),
-                'district' => __('District / Neighborhood', 'sutore-marketplace'),
+                'district' => __('District', 'sutore-marketplace'),
                 'pickDistrict' => __('Select', 'sutore-marketplace'),
                 'emailAddress' => __('Email Address', 'sutore-marketplace'),
                 'phoneNumber' => __('Phone Number', 'sutore-marketplace'),
@@ -354,6 +603,21 @@ final class Assets
                 'key' => __('Key', 'sutore-marketplace'),
                 'expiresAt' => __('Expires at', 'sutore-marketplace'),
                 'expiresAtHelp' => __('Optional. Leave empty for no end date.', 'sutore-marketplace'),
+                'startsAt' => __('Starts at', 'sutore-marketplace'),
+                'startsAtHelp' => __('Optional. Leave empty to start immediately.', 'sutore-marketplace'),
+                'noExpiry' => __('No end date', 'sutore-marketplace'),
+                'scheduled' => __('Scheduled', 'sutore-marketplace'),
+                'adjustment' => __('Rate type', 'sutore-marketplace'),
+                'adjustmentAbsolute' => __('Absolute rate', 'sutore-marketplace'),
+                'adjustmentPercentOff' => __('Percent off current rate', 'sutore-marketplace'),
+                'adjustmentPointsOff' => __('Points off current rate', 'sutore-marketplace'),
+                'raisesLevelWarn' => __('This rate is higher than the seller level and will increase commission.', 'sutore-marketplace'),
+                'platformCampaigns' => __('Platform commission campaigns', 'sutore-marketplace'),
+                'platformCampaignsHelp' => __('One record applies to every seller. Relative discounts follow each seller’s level rate.', 'sutore-marketplace'),
+                'noPlatformCampaigns' => __('No platform commission campaigns.', 'sutore-marketplace'),
+                'addPlatformCampaign' => __('Set platform commission campaign', 'sutore-marketplace'),
+                'allSellers' => __('All sellers', 'sutore-marketplace'),
+                'commissionValue' => __('Value', 'sutore-marketplace'),
                 'noExpiry' => __('No end date', 'sutore-marketplace'),
                 'active' => __('Active', 'sutore-marketplace'),
                 'inactive' => __('Inactive', 'sutore-marketplace'),
@@ -374,9 +638,13 @@ final class Assets
                 'deleteOverrideConfirm' => __('Delete this commission override?', 'sutore-marketplace'),
                 'deleting' => __('Deleting…', 'sutore-marketplace'),
                 'source' => __('Source', 'sutore-marketplace'),
+                'inviteCode' => __('Invite code', 'sutore-marketplace'),
+                'referredBy' => __('Referred by', 'sutore-marketplace'),
+                'referralRewarded' => __('Referral rewarded', 'sutore-marketplace'),
                 'note' => __('Note', 'sutore-marketplace'),
                 'login' => __('Username', 'sutore-marketplace'),
                 'userId' => __('User ID', 'sutore-marketplace'),
+                'registered' => __('Registered', 'sutore-marketplace'),
                 'product' => __('Product', 'sutore-marketplace'),
                 'amount' => __('Amount', 'sutore-marketplace'),
                 'status' => __('Status', 'sutore-marketplace'),
@@ -386,6 +654,47 @@ final class Assets
                 'disabledAccount' => __('Disable account', 'sutore-marketplace'),
             ],
         ]);
+    }
+
+    public function enqueueStaffMerchants(): void
+    {
+        $this->enqueueStaffMerchantDetail();
+        $this->enqueueStaffProductDetail();
+    }
+
+    public function enqueueStaffCatalogRequests(): void
+    {
+        if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
+            return;
+        }
+
+        if (!wp_script_is(self::SCRIPT_STAFF_CATALOG_REQUESTS, 'registered')) {
+            $this->registerAssets();
+        }
+
+        wp_enqueue_style(self::STYLE_STAFF_MANAGE);
+        wp_enqueue_style(self::STYLE_LISTINGS);
+        wp_enqueue_script(self::SCRIPT_CORE);
+        $this->localizeCore(array_merge($this->commonI18n(), [
+            'noRecords' => __('No catalog requests.', 'sutore-marketplace'),
+            'previous' => __('Previous', 'sutore-marketplace'),
+            'next' => __('Next', 'sutore-marketplace'),
+            'pageOf' => __('Page %1$d / %2$d', 'sutore-marketplace'),
+            'seller' => __('Seller', 'sutore-marketplace'),
+            'size' => __('Size', 'sutore-marketplace'),
+            'catalogRequestSku' => __('SKU or product link', 'sutore-marketplace'),
+            'catalogRequestNote' => __('Note', 'sutore-marketplace'),
+            'catalogRequestFulfill' => __('Mark added', 'sutore-marketplace'),
+            'catalogRequestReject' => __('Decline', 'sutore-marketplace'),
+            'catalogRequestFulfillTitle' => __('Mark this product as added to the catalog?', 'sutore-marketplace'),
+            'catalogRequestFulfillText' => __('The seller will be notified that they can open a listing. Optionally link the WooCommerce parent product ID.', 'sutore-marketplace'),
+            'catalogRequestParentId' => __('Catalog product ID (optional)', 'sutore-marketplace'),
+            'catalogRequestRejectTitle' => __('Decline this catalog request?', 'sutore-marketplace'),
+            'catalogRequestRejectText' => __('The seller will be notified. You can include a short reason.', 'sutore-marketplace'),
+            'catalogRequestStaffNote' => __('Note to seller (optional)', 'sutore-marketplace'),
+            'updated' => __('Updated.', 'sutore-marketplace'),
+        ]));
+        wp_enqueue_script(self::SCRIPT_STAFF_CATALOG_REQUESTS);
     }
 
     public function enqueueStaffManageProducts(): void
@@ -400,14 +709,64 @@ final class Assets
 
         wp_enqueue_style(self::STYLE_STAFF_MANAGE);
         wp_enqueue_script(self::SCRIPT_CORE);
+        $this->localizeCore(array_merge(
+            $this->listingsI18n(),
+            $this->bulkListingsI18n(),
+            [
+                'selectSeller' => __('Select a seller.', 'sutore-marketplace'),
+                'sellerRequired' => __('Select a seller before continuing.', 'sutore-marketplace'),
+                'searchSeller' => __('Search seller by name, email, ID…', 'sutore-marketplace'),
+                'selectedSeller' => __('Selected seller: %s', 'sutore-marketplace'),
+                'noSellersFound' => __('No sellers found.', 'sutore-marketplace'),
+                'seller' => __('Seller', 'sutore-marketplace'),
+            ]
+        ));
+        wp_enqueue_script(self::SCRIPT_LISTINGS);
+        wp_enqueue_script(self::SCRIPT_LISTINGS_BULK);
+        $this->enqueueStaffMerchantDetail();
+        $this->enqueueStaffProductDetail();
+        $this->enqueueStaffOrderDetail();
+    }
+
+    /**
+     * Product (fulfillment) detail modal — shared by Manage Products and Manage Orders.
+     */
+    public function enqueueStaffProductDetail(): void
+    {
+        if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
+            return;
+        }
+
+        if (!wp_script_is(self::SCRIPT_STAFF_MANAGE, 'registered')) {
+            $this->registerAssets();
+        }
+
+        if (wp_script_is(self::SCRIPT_STAFF_MANAGE, 'enqueued')) {
+            return;
+        }
+
+        wp_enqueue_style(self::STYLE_STAFF_MANAGE);
+        wp_enqueue_script(self::SCRIPT_CORE);
+        if (!wp_script_is(self::SCRIPT_LISTINGS, 'enqueued')) {
+            wp_enqueue_script(self::SCRIPT_LISTINGS);
+        }
+        if (!wp_script_is(self::SCRIPT_LISTINGS_BULK, 'enqueued')) {
+            wp_enqueue_script(self::SCRIPT_LISTINGS_BULK);
+        }
         wp_enqueue_script(self::SCRIPT_STAFF_MANAGE);
         wp_localize_script(self::SCRIPT_STAFF_MANAGE, 'SutoreMarketplaceStaff', [
             'restUrl' => esc_url_raw(rest_url('sutore-marketplace/v1/')),
             'restNonce' => wp_create_nonce('wp_rest'),
+            'manageProductsUrl' => esc_url_raw(wc_get_account_endpoint_url(StaffAccount::ENDPOINT_MANAGE_PRODUCTS)),
+            'manageOrdersUrl' => esc_url_raw(wc_get_account_endpoint_url(StaffAccount::ENDPOINT_MANAGE_ORDERS)),
+            'merchantsUrl' => esc_url_raw(wc_get_account_endpoint_url(StaffAccount::ENDPOINT_MERCHANTS)),
             'i18n' => [
                 'loading' => __('Loading…', 'sutore-marketplace'),
                 'error' => __('Error', 'sutore-marketplace'),
                 'notFound' => __('Record not found.', 'sutore-marketplace'),
+                'openSellerDetail' => __('Open seller detail', 'sutore-marketplace'),
+                'openListingDetail' => __('Open listing detail', 'sutore-marketplace'),
+                'openOrderDetail' => __('Open order detail', 'sutore-marketplace'),
                 'confirmPayment' => __('Are you sure you want to confirm this sale? The seller will be notified.', 'sutore-marketplace'),
                 'confirmDelete' => __('Are you sure you want to permanently remove this product Listing?', 'sutore-marketplace'),
                 'confirmDetach' => __('Will be unlinked from the order. Continue?', 'sutore-marketplace'),
@@ -420,15 +779,26 @@ final class Assets
                 'listing' => __('Listing', 'sutore-marketplace'),
                 'variationId' => __('Variation ID', 'sutore-marketplace'),
                 'parentProductId' => __('Parent product ID', 'sutore-marketplace'),
+                'createdAt' => __('Created at', 'sutore-marketplace'),
                 'price' => __('Price', 'sutore-marketplace'),
                 'paymentStatus' => __('Payment status', 'sutore-marketplace'),
                 'payoutNotCreated' => __('Not created yet', 'sutore-marketplace'),
+                'invoice' => __('Invoice', 'sutore-marketplace'),
+                'invoiceError' => __('Invoice error', 'sutore-marketplace'),
+                'viewInvoice' => __('View invoice', 'sutore-marketplace'),
+                'viewCustomerInvoice' => __('View customer invoice', 'sutore-marketplace'),
+                'viewSellerInvoice' => __('View seller invoice', 'sutore-marketplace'),
+                'openPdf' => __('Open PDF', 'sutore-marketplace'),
                 'campaign' => __('Campaign', 'sutore-marketplace'),
                 'campaignActiveTag' => __('On campaign', 'sutore-marketplace'),
                 'campaignOfferTag' => __('Campaign offer', 'sutore-marketplace'),
                 'preOrder' => __('Pre-order', 'sutore-marketplace'),
                 'preOrderProduct' => __('Pre-order', 'sutore-marketplace'),
                 'shipmentType' => __('Shipment type', 'sutore-marketplace'),
+                'customerShipping' => __('Customer shipping', 'sutore-marketplace'),
+                'shippingStandard' => __('Standard', 'sutore-marketplace'),
+                'expressShipping' => __('Fast / Express', 'sutore-marketplace'),
+                'internationalShipping' => __('International', 'sutore-marketplace'),
                 'imported' => __('Imported', 'sutore-marketplace'),
                 'importedProduct' => __('Imported', 'sutore-marketplace'),
                 'close' => __('Close', 'sutore-marketplace'),
@@ -444,6 +814,7 @@ final class Assets
                 'accountHolder' => __('Account holder', 'sutore-marketplace'),
                 'iban' => __('IBAN', 'sutore-marketplace'),
                 'tc' => __('TC Identity Number', 'sutore-marketplace'),
+                'city' => __('City', 'sutore-marketplace'),
                 'birthYear' => __('Year of Birth', 'sutore-marketplace'),
                 'phone' => __('Phone Number', 'sutore-marketplace'),
                 'email' => __('Email Address', 'sutore-marketplace'),
@@ -453,28 +824,68 @@ final class Assets
                 'staffNote' => __('Staff note (visible to merchant)', 'sutore-marketplace'),
                 'staffNotePlaceholder' => __('Explain why this action is taken…', 'sutore-marketplace'),
                 'staffNoteRequired' => __('A staff note is required for this action.', 'sutore-marketplace'),
+                'returnToQueue' => __('Return detached product to the sale queue', 'sutore-marketplace'),
+                'returnToQueueHint' => __('If eligible, the winner algorithm may put it back on sale.', 'sutore-marketplace'),
                 'putOnSale' => __('Put on sale', 'sutore-marketplace'),
+                'approveListing' => __('Approve & put on sale', 'sutore-marketplace'),
+                'approveListingConfirm' => __('Approve this listing and put it on sale for customers?', 'sutore-marketplace'),
+                'sendCampaignOffer' => __('Send campaign offer', 'sutore-marketplace'),
+                'sendCampaignOfferConfirm' => __('Choose a campaign to send an offer to this seller for this product.', 'sutore-marketplace'),
+                'sendCampaignOfferBulkConfirm' => __('Choose a campaign to send an offer to the selected products.', 'sutore-marketplace'),
+                'selectCampaign' => __('Campaign', 'sutore-marketplace'),
+                'selectCampaignPlaceholder' => __('Select a campaign…', 'sutore-marketplace'),
+                'noSendableCampaigns' => __('No sendable campaigns found. Create one with start and end dates first.', 'sutore-marketplace'),
+                'campaignOfferSent' => __('Campaign offer sent.', 'sutore-marketplace'),
                 'delete' => __('Delete', 'sutore-marketplace'),
                 'confirmSale' => __('Confirm Sale', 'sutore-marketplace'),
                 'newListingId' => __('New listing ID (swap)', 'sutore-marketplace'),
+                'replacementListing' => __('Replacement listing', 'sutore-marketplace'),
+                'selectReplacementListing' => __('Select a replacement listing…', 'sutore-marketplace'),
                 'changeSeller' => __('Change Seller', 'sutore-marketplace'),
+                'changeSellerConfirm' => __('Replace this sale with another eligible listing. Same product is listed by default; search to pick a different product.', 'sutore-marketplace'),
+                'searchDifferentProduct' => __('Search a different product…', 'sutore-marketplace'),
+                'searchOtherOrder' => __('Search another order…', 'sutore-marketplace'),
+                'showDefaultMatches' => __('Show default matches', 'sutore-marketplace'),
+                'enterSearchTerm' => __('Enter a search term.', 'sutore-marketplace'),
+                'noSwapCandidates' => __('No eligible replacement listings found.', 'sutore-marketplace'),
+                'differentProductNoteRequired' => __('A staff note is required when replacing with a different product.', 'sutore-marketplace'),
                 'attachToOrder' => __('Add to order', 'sutore-marketplace'),
-                'attachToOrderConfirm' => __('Add this listing to a processing order and start the sale as sold (awaiting merchant confirmation).', 'sutore-marketplace'),
+                'attachToOrderConfirm' => __('Add this listing to an order. Paid orders start as sold (seller is notified). Unpaid pending/on-hold orders wait for payment confirmation — no sold SMS.', 'sutore-marketplace'),
                 'selectOrder' => __('Processing order', 'sutore-marketplace'),
                 'selectOrderPlaceholder' => __('Select a processing order…', 'sutore-marketplace'),
                 'noProcessingOrders' => __('No processing orders found.', 'sutore-marketplace'),
                 'detach' => __('Detach from Order', 'sutore-marketplace'),
+                'markPreOrder' => __('Mark as pre-order', 'sutore-marketplace'),
+                'markPreOrderConfirm' => __('Open this sale on the pre-order board for other merchants. Continue?', 'sutore-marketplace'),
+                'closePreOrder' => __('Could not be sourced', 'sutore-marketplace'),
+                'closePreOrderConfirm' => __('Mark this pre-order as could not be sourced, detach it from the order, and refund the line if the order is paid. Continue?', 'sutore-marketplace'),
                 'sutoreShippingCode' => __('Sutore shipping code', 'sutore-marketplace'),
                 'paymentRef' => __('Payment reference (EFT/receipt)', 'sutore-marketplace'),
+                'payoutPaidAt' => __('Paid at', 'sutore-marketplace'),
                 'markPaid' => __('Mark as Paid to Seller', 'sutore-marketplace'),
                 'markPaidConfirm' => __('Record that the seller has been paid for this sale. Optional payment reference is stored on the payout line.', 'sutore-marketplace'),
+                'adjustCommission' => __('Adjust commission', 'sutore-marketplace'),
+                'adjustCommissionConfirm' => __('Set a new commission percent for this pending payout only. Net amount is recalculated from the sale asking price.', 'sutore-marketplace'),
+                'commissionPercent' => __('Commission %', 'sutore-marketplace'),
+                'save' => __('Save', 'sutore-marketplace'),
+                'saved' => __('Saved', 'sutore-marketplace'),
+                'saving' => __('Saving…', 'sutore-marketplace'),
+                'listingCommission' => __('Listing commission %', 'sutore-marketplace'),
+                'listingCommissionHelp' => __('Optional. Leave empty for the normal seller rate. 0 means no commission on this listing.', 'sutore-marketplace'),
+                'listingCommissionClear' => __('Clear listing rate', 'sutore-marketplace'),
+                'saleLockedCommission' => __('Locked at sale', 'sutore-marketplace'),
+                'liveCommission' => __('Live rate', 'sutore-marketplace'),
+                'payoutCommission' => __('Payout commission', 'sutore-marketplace'),
+                'levelCommission' => __('Level', 'sutore-marketplace'),
+                'markImported' => __('Mark as imported', 'sutore-marketplace'),
+                'unmarkImported' => __('Mark as not imported', 'sutore-marketplace'),
                 'markArrived' => __('Arrived at Sutore', 'sutore-marketplace'),
                 'markVerified' => __('Verify product', 'sutore-marketplace'),
                 'markReady' => __('Ready to ship', 'sutore-marketplace'),
                 'markShippedCustomer' => __('Ship to customer', 'sutore-marketplace'),
                 'markDelivered' => __('Delivered to customer', 'sutore-marketplace'),
                 'markNotForSale' => __('Not for sale', 'sutore-marketplace'),
-                'markNotForSaleConfirm' => __('This sale will be taken off the order and the listing will become not for sale.', 'sutore-marketplace'),
+                'markNotForSaleConfirm' => __('This sale will be taken off the order and the listing will be marked as detached from order.', 'sutore-marketplace'),
                 'chargeback' => __('Refund / chargeback', 'sutore-marketplace'),
                 'chargebackConfirm' => __('This sale will be marked as refunded and any seller payout will be reversed.', 'sutore-marketplace'),
                 'cancel' => __('Cancel', 'sutore-marketplace'),
@@ -496,11 +907,32 @@ final class Assets
                 'filter' => __('Filter', 'sutore-marketplace'),
                 'manage' => __('Detail', 'sutore-marketplace'),
                 'detail' => __('Detail', 'sutore-marketplace'),
+                'viewCustomerInvoice' => __('View customer invoice', 'sutore-marketplace'),
+                'viewSellerInvoice' => __('View seller invoice', 'sutore-marketplace'),
                 'noRecords' => __('No records.', 'sutore-marketplace'),
                 'previous' => __('Previous', 'sutore-marketplace'),
                 'next' => __('Next', 'sutore-marketplace'),
                 'pageOf' => __('Page %1$d / %2$d', 'sutore-marketplace'),
                 'pagination' => __('Pagination', 'sutore-marketplace'),
+                'bulkActions' => __('Bulk actions', 'sutore-marketplace'),
+                'apply' => __('Apply', 'sutore-marketplace'),
+                'selectAll' => __('Select all', 'sutore-marketplace'),
+                'selectedCount' => __('%d selected', 'sutore-marketplace'),
+                'noCommonBulkActions' => __('No common actions for this selection', 'sutore-marketplace'),
+                'bulkConfirm' => __('Apply “%1$s” to %2$d selected products?', 'sutore-marketplace'),
+                'bulkConfirmCount' => __('%d products will be updated.', 'sutore-marketplace'),
+                'removeFromSale' => __('Remove from sale', 'sutore-marketplace'),
+                'removeFromSaleConfirm' => __('This listing will be taken off sale and marked as not for sale.', 'sutore-marketplace'),
+                'updated' => __('Updated.', 'sutore-marketplace'),
+                'exportCsv' => __('Export CSV', 'sutore-marketplace'),
+                'exportEmpty' => __('No payout rows to export for this filter.', 'sutore-marketplace'),
+                'dueForPayout' => __('Due for payout', 'sutore-marketplace'),
+                'soldFrom' => __('Sold from', 'sutore-marketplace'),
+                'soldTo' => __('Sold to', 'sutore-marketplace'),
+                'scheduledPayoutDate' => __('Scheduled payout date', 'sutore-marketplace'),
+                'due' => __('Due', 'sutore-marketplace'),
+                'sellerLevel' => __('Seller level', 'sutore-marketplace'),
+                'bulkMarkPaidRef' => __('Optional. The same payment reference is stored on every selected payout.', 'sutore-marketplace'),
             ],
         ]);
     }
@@ -521,7 +953,14 @@ final class Assets
             'campaignOffersUrl' => function_exists('wc_get_account_endpoint_url')
                 ? esc_url_raw(wc_get_account_endpoint_url('campaign-offers'))
                 : '',
+            'priceOffersUrl' => function_exists('wc_get_account_endpoint_url')
+                ? esc_url_raw(wc_get_account_endpoint_url('price-offers'))
+                : '',
+            'myOffersUrl' => function_exists('wc_get_account_endpoint_url')
+                ? esc_url_raw(wc_get_account_endpoint_url('my-offers'))
+                : '',
             'priceStep' => Settings::listingPriceStep(),
+            'campaignStart' => CampaignGuardrails::toArray(),
             'otpEnabled' => OtpSettings::isEnabled(),
             'otpUiTimer' => OtpSettings::uiTimerSeconds(),
             'i18n' => $i18n,
@@ -541,6 +980,8 @@ final class Assets
             'emptyResponse' => __('Empty response', 'sutore-marketplace'),
             'restRouteMissing' => __('REST route missing', 'sutore-marketplace'),
             'size' => __('Size', 'sutore-marketplace'),
+            'color' => __('Color', 'sutore-marketplace'),
+            'variation' => __('Variation', 'sutore-marketplace'),
             'otpTitle' => __('SMS verification', 'sutore-marketplace'),
             'otpPromptPrefix' => __('Enter the verification code sent to your phone. Time remaining:', 'sutore-marketplace'),
             'otpSecondsSuffix' => __('sec.', 'sutore-marketplace'),
@@ -560,9 +1001,22 @@ final class Assets
             'deleteTitle' => __('Delete this Listing?', 'sutore-marketplace'),
             'cannotDelete' => __('This listing cannot be deleted right now. (In order or payment process.)', 'sutore-marketplace'),
             'notFound' => __('The product you searched for was not found', 'sutore-marketplace'),
+            'catalogRequestTitle' => __('Request this product', 'sutore-marketplace'),
+            'catalogRequestLead' => __('Leave the SKU or a product link, the size, and a short note. We will notify you when it is added to the catalog.', 'sutore-marketplace'),
+            'catalogRequestSku' => __('SKU or product link', 'sutore-marketplace'),
+            'catalogRequestSize' => __('Size', 'sutore-marketplace'),
+            'catalogRequestNote' => __('Short note', 'sutore-marketplace'),
+            'catalogRequestSubmit' => __('Send request', 'sutore-marketplace'),
+            'catalogRequestSending' => __('Sending…', 'sutore-marketplace'),
+            'catalogRequestLevel' => __('Catalog product requests require Confirmed seller level.', 'sutore-marketplace'),
+            'catalogRequestSkuRequired' => __('Enter a product SKU or link.', 'sutore-marketplace'),
+            'catalogRequestSizeRequired' => __('Enter a size.', 'sutore-marketplace'),
             'emptyListings' => __('You have not added a product yet.', 'sutore-marketplace'),
             'noResults' => __('No results found.', 'sutore-marketplace'),
-            'manage' => __('Manage', 'sutore-marketplace'),
+            'manage' => __('Detail', 'sutore-marketplace'),
+            'viewSellerInvoice' => __('View seller invoice', 'sutore-marketplace'),
+            'viewCustomerInvoice' => __('View customer invoice', 'sutore-marketplace'),
+            'moreActions' => __('More actions', 'sutore-marketplace'),
             'delete' => __('Delete', 'sutore-marketplace'),
             'addTitle' => __('Add Product', 'sutore-marketplace'),
             'editTitle' => __('Edit Listing', 'sutore-marketplace'),
@@ -577,13 +1031,20 @@ final class Assets
             'wizardStepOf' => __('Step %1$d of %2$d', 'sutore-marketplace'),
             'wizardStepProduct' => __('Product', 'sutore-marketplace'),
             'wizardStepSize' => __('Size', 'sutore-marketplace'),
+            'wizardStepVariation' => __('Variation', 'sutore-marketplace'),
             'wizardStepDetails' => __('Details', 'sutore-marketplace'),
             'wizardStepPrice' => __('Price', 'sutore-marketplace'),
+            'listingDuration' => __('Listing duration', 'sutore-marketplace'),
+            'durationPreview' => __('Expires in about %d days if saved now.', 'sutore-marketplace'),
+            'durationDay' => __('%d day', 'sutore-marketplace'),
+            'durationDays' => __('%d days', 'sutore-marketplace'),
             'saved' => __('Saved', 'sutore-marketplace'),
             'savedTitle' => __('Listing updated', 'sutore-marketplace'),
             'editListing' => __('Edit listing', 'sutore-marketplace'),
             'pickProduct' => __('Select a product to continue.', 'sutore-marketplace'),
             'pickSize' => __('Select a size to continue.', 'sutore-marketplace'),
+            'pickAxis' => __('Select a %s to continue.', 'sutore-marketplace'),
+            'chooseAxisHint' => __('Choose the %s for this listing.', 'sutore-marketplace'),
             'priceStepError' => __('Price must be in multiples of %d TL. Decimal prices are not allowed.', 'sutore-marketplace'),
             'priceRequired' => __('Enter a price.', 'sutore-marketplace'),
             'belowRetailWarn' => __('This listing will go on sale below the product’s starting price (≈ %s TL).', 'sutore-marketplace'),
@@ -595,28 +1056,53 @@ final class Assets
             'sizePriceListEmpty' => __('No other Listing for sale or in queue for this size.', 'sutore-marketplace'),
             'firstPlaceAlertForSale' => __('At this price you will move to #1 — the product will be for sale.', 'sutore-marketplace'),
             'firstPlaceAlertAwaitingApproval' => __('At this price you will move to #1 — awaiting approval before going on sale.', 'sutore-marketplace'),
-            'blockedByFlawlessWarn' => __('Defective products cannot go for sale until undamaged products are sold — they wait in queue regardless of price.', 'sutore-marketplace'),
             'statusPublish' => __('For sale', 'sutore-marketplace'),
             'statusQueued' => __('In queue', 'sutore-marketplace'),
             'statusPending' => __('Awaiting approval', 'sutore-marketplace'),
             'statusExpired' => __('Expired', 'sutore-marketplace'),
             'statusNotSale' => __('Not for sale', 'sutore-marketplace'),
+            'statusOrderDetached' => __('Detached from order / Could not be sourced', 'sutore-marketplace'),
+            'statusSourcing' => __('Pre-order — awaiting order', 'sutore-marketplace'),
             'statusPayment' => __('Awaiting payment confirmation', 'sutore-marketplace'),
             'statusSold' => __('Awaiting merchant confirmation', 'sutore-marketplace'),
             'putOnSale' => __('Put on sale', 'sutore-marketplace'),
             'putOnSaleTitle' => __('Put this listing back on sale?', 'sutore-marketplace'),
             'putOnSaleConfirm' => __('The listing will re-enter the sale queue with a fresh expiry window.', 'sutore-marketplace'),
             'putOnSaleFailed' => __('This listing cannot be put back on sale right now.', 'sutore-marketplace'),
+            'putOnCampaign' => __('Put on campaign', 'sutore-marketplace'),
+            'putOnCampaignTitle' => __('Put this listing on campaign', 'sutore-marketplace'),
+            'putOnCampaignHint' => __('Lowering asking is permanent and has no strikethrough. A campaign is timed and shows the previous asking crossed out.', 'sutore-marketplace'),
+            'putOnCampaignPercent' => __('Discount', 'sutore-marketplace'),
+            'putOnCampaignDuration' => __('Duration', 'sutore-marketplace'),
+            'putOnCampaignPreview' => __('Asking %1$s TL → %2$s TL for %3$s days. Customers see a strikethrough until it ends.', 'sutore-marketplace'),
+            'putOnCampaignSuccess' => __('Campaign started. Customers will see a strikethrough price until it ends.', 'sutore-marketplace'),
+            'campaignCooldownUntil' => __('Campaign cooldown until', 'sutore-marketplace'),
+            'campaignSource' => __('Source', 'sutore-marketplace'),
             'removeFromSale' => __('Remove from sale', 'sutore-marketplace'),
             'removeFromSaleTitle' => __('Remove this listing from sale?', 'sutore-marketplace'),
             'removeFromSaleConfirm' => __('The listing will leave the sale queue without being deleted.', 'sutore-marketplace'),
             'removeFromSaleFailed' => __('This listing cannot be removed from sale right now.', 'sutore-marketplace'),
+            'bulkActions' => __('Bulk actions', 'sutore-marketplace'),
+            'apply' => __('Apply', 'sutore-marketplace'),
+            'selectAll' => __('Select all', 'sutore-marketplace'),
+            'selectListing' => __('Select listing', 'sutore-marketplace'),
+            'selectedCount' => __('%d selected', 'sutore-marketplace'),
+            'noCommonBulkActions' => __('No common actions for this selection', 'sutore-marketplace'),
+            'bulkUpdated' => __('%d products updated.', 'sutore-marketplace'),
+            'bulkPutOnSaleTitle' => __('Put selected listings on sale?', 'sutore-marketplace'),
+            'bulkPutOnSaleConfirm' => __('Selected listings will re-enter the sale queue with a fresh expiry window.', 'sutore-marketplace'),
+            'bulkRemoveFromSaleTitle' => __('Remove selected listings from sale?', 'sutore-marketplace'),
+            'bulkRemoveFromSaleConfirm' => __('Selected listings will leave the sale queue without being deleted.', 'sutore-marketplace'),
+            'bulkDeleteTitle' => __('Delete selected listings?', 'sutore-marketplace'),
+            'bulkDeleteConfirm' => __('This cannot be undone for the selected listings.', 'sutore-marketplace'),
+            'bulkConfirmSaleTitle' => __('Confirm selected sales?', 'sutore-marketplace'),
+            'bulkConfirmSaleConfirm' => __('Selected sales will be confirmed and shipping deadlines will start.', 'sutore-marketplace'),
+            'confirmSale' => __('Confirm Sale', 'sutore-marketplace'),
             'returnWindowEnds' => __('Return / dispute window ends', 'sutore-marketplace'),
             'condNoBox' => __('No box', 'sutore-marketplace'),
             'condBoxDamaged' => __('Box damaged', 'sutore-marketplace'),
             'condMissingAccessory' => __('Missing accessory', 'sutore-marketplace'),
             'condDamaged' => __('Damaged', 'sutore-marketplace'),
-            'condUsed' => __('Used', 'sutore-marketplace'),
             'expressShipping' => __('Fast / Express', 'sutore-marketplace'),
             'internationalShipping' => __('International', 'sutore-marketplace'),
             'condition' => __('Condition', 'sutore-marketplace'),
@@ -673,9 +1159,11 @@ final class Assets
             'merchantTrackingNumber' => __('Tracking to Sutore', 'sutore-marketplace'),
             'sutoreTrackingNumber' => __('Tracking to customer', 'sutore-marketplace'),
             'soldAt' => __('Sold at', 'sutore-marketplace'),
+            'createdAt' => __('Created at', 'sutore-marketplace'),
             'deliveredAt' => __('Delivered to customer', 'sutore-marketplace'),
             'payoutStatus' => __('Payout status', 'sutore-marketplace'),
             'payoutPaidAt' => __('Paid at', 'sutore-marketplace'),
+            'scheduledPayoutDate' => __('Scheduled payout date', 'sutore-marketplace'),
             'salePosition' => __('Sale position', 'sutore-marketplace'),
             'currentlyFirstForSale' => __('Currently #1 for sale', 'sutore-marketplace'),
             'campaign' => __('Campaign', 'sutore-marketplace'),
@@ -711,6 +1199,7 @@ final class Assets
             'bulkStatusWarning' => __('Warning', 'sutore-marketplace'),
             'bulkStatusError' => __('Error', 'sutore-marketplace'),
             'bulkPickFile' => __('Choose a CSV file.', 'sutore-marketplace'),
+            'bulkPickSeller' => __('Choose a seller to see the queue preview and create the listings.', 'sutore-marketplace'),
             'bulkSummaryTitle' => __('Import preview', 'sutore-marketplace'),
             'bulkSummaryTotal' => __('Total rows', 'sutore-marketplace'),
             'bulkSummaryReady' => __('Ready', 'sutore-marketplace'),
@@ -726,7 +1215,6 @@ final class Assets
             'bulkWillBeFirstForSale' => __('Will be #1 (for sale)', 'sutore-marketplace'),
             'bulkWillBeFirstAwaitingApproval' => __('Will be #1 (awaiting approval)', 'sutore-marketplace'),
             'bulkWillBeQueued' => __('Queued (#%1$d of %2$d)', 'sutore-marketplace'),
-            'bulkBlockedByFlawless' => __('Blocked by undamaged listings ahead in queue', 'sutore-marketplace'),
             'bulkMoveToFirstPlace' => __('Move to First Place', 'sutore-marketplace'),
             'bulkDeleteRow' => __('Remove row', 'sutore-marketplace'),
             'bulkUpdatingPrice' => __('Updating price…', 'sutore-marketplace'),
@@ -747,11 +1235,7 @@ final class Assets
     {
         return array_merge($this->commonI18n(), [
             'sourcingOpen' => __('Open', 'sutore-marketplace'),
-            'sourcingAccepted' => __('Accepted', 'sutore-marketplace'),
-            'sourcingFulfilled' => __('Completed', 'sutore-marketplace'),
-            'sourcingCancelled' => __('Cancel', 'sutore-marketplace'),
             'sourcingEmpty' => __('There are no open pre-orders at the moment.', 'sutore-marketplace'),
-            'sourcingViewOffer' => __('View offer', 'sutore-marketplace'),
             'sourcingConfirmAccept' => __('Accept sale', 'sutore-marketplace'),
             'sourcingAcceptConfirmCreate' => __('A new listing will be created for this pre-order. Continue?', 'sutore-marketplace'),
             /* translators: 1: variation label, 2: existing listing price */
@@ -761,7 +1245,6 @@ final class Assets
             /* translators: 1: variation label, 2: existing price, 3: pre-order price */
             'sourcingAcceptConfirmReusePriceChange' => __('Your existing listing (%1$s) will be used for this pre-order, and its price will be updated from %2$s to %3$s. Continue?', 'sutore-marketplace'),
             'sourcingNotFound' => __('Pre-order not found.', 'sutore-marketplace'),
-            'sourcingAcceptedMine' => __('You have accepted this pre-order.', 'sutore-marketplace'),
             'sourcingProduct' => __('Product', 'sutore-marketplace'),
             'sourcingOffer' => __('Pre-order', 'sutore-marketplace'),
             /* translators: 1: linked variation label, 2: existing listing price */
@@ -798,6 +1281,9 @@ final class Assets
             'campaignOfferDecline' => __('Decline', 'sutore-marketplace'),
             'campaignOfferAcceptConfirm' => __('Accept this campaign offer? Your listing price will be updated for the campaign period.', 'sutore-marketplace'),
             'campaignOfferDeclineConfirm' => __('Decline this campaign offer?', 'sutore-marketplace'),
+            'campaignNotNow' => __('Not now', 'sutore-marketplace'),
+            'campaignSource' => __('Source', 'sutore-marketplace'),
+            'campaignHeadline' => __('Suggestion', 'sutore-marketplace'),
             'campaignSellerDiscount' => __('Your discount', 'sutore-marketplace'),
             'campaignPlatformDiscount' => __('Platform discount', 'sutore-marketplace'),
             'campaignAskingBefore' => __('Current asking', 'sutore-marketplace'),
@@ -816,15 +1302,70 @@ final class Assets
     }
 
     /** @return array<string, string> */
+    private function priceOffersI18n(): array
+    {
+        return array_merge($this->commonI18n(), [
+            'priceOffersEmpty' => __('You have no customer offers.', 'sutore-marketplace'),
+            'priceOfferTitle' => __('Customer offer', 'sutore-marketplace'),
+            'priceOfferTag' => __('Customer offer', 'sutore-marketplace'),
+            'reviewPriceOffer' => __('Review offer', 'sutore-marketplace'),
+            'priceOfferAccept' => __('Accept', 'sutore-marketplace'),
+            'priceOfferDecline' => __('Decline', 'sutore-marketplace'),
+            'priceOfferAcceptConfirm' => __('Accept this offer? A personal coupon will be issued. Your public asking price will not change.', 'sutore-marketplace'),
+            'priceOfferDeclineConfirm' => __('Decline this offer? It may be sent to the next seller in the queue.', 'sutore-marketplace'),
+            'priceOfferBid' => __('Customer bid (asking)', 'sutore-marketplace'),
+            'priceOfferAsking' => __('Your asking', 'sutore-marketplace'),
+            'priceOfferPay' => __('Customer would pay', 'sutore-marketplace'),
+            'priceOfferForwarded' => __('Forwarded from the previous seller', 'sutore-marketplace'),
+            'productCode' => __('Product code', 'sutore-marketplace'),
+            'size' => __('Size', 'sutore-marketplace'),
+        ]);
+    }
+
+    /** @return array<string, string> */
+    private function myOffersI18n(): array
+    {
+        return array_merge($this->commonI18n(), [
+            'myOffersEmpty' => __('You have not sent any offers yet.', 'sutore-marketplace'),
+            'myOfferTitle' => __('My offer', 'sutore-marketplace'),
+            'myOfferCancel' => __('Cancel offer', 'sutore-marketplace'),
+            'myOfferCancelConfirm' => __('Cancel this pending offer?', 'sutore-marketplace'),
+            'myOfferBid' => __('Your bid', 'sutore-marketplace'),
+            'myOfferCoupon' => __('Coupon', 'sutore-marketplace'),
+            'myOfferAddToCart' => __('Add to cart', 'sutore-marketplace'),
+            'copied' => __('Copied', 'sutore-marketplace'),
+            'productCode' => __('Product code', 'sutore-marketplace'),
+            'size' => __('Size', 'sutore-marketplace'),
+        ]);
+    }
+
+    /** @return array<string, string> */
+    private function outletI18n(): array
+    {
+        return array_merge($this->commonI18n(), [
+            'outletEmpty' => __('There is no open outlet window right now.', 'sutore-marketplace'),
+            'outletJoin' => __('Join at this asking', 'sutore-marketplace'),
+            'outletCancel' => __('Cancel', 'sutore-marketplace'),
+            'outletJoinConfirm' => __('Join this outlet item at the listed asking?', 'sutore-marketplace'),
+            'outletCancelConfirm' => __('Cancel this outlet opt-in?', 'sutore-marketplace'),
+            'outletCustomerSale' => __('Customer sale', 'sutore-marketplace'),
+            'outletSellerAsking' => __('Your asking', 'sutore-marketplace'),
+            'outletWindow' => __('Window', 'sutore-marketplace'),
+            'size' => __('Size', 'sutore-marketplace'),
+        ]);
+    }
+
+    /** @return array<string, string> */
     private function tasksI18n(): array
     {
         return array_merge($this->commonI18n(), [
             'taskNotStarted' => __('Not started', 'sutore-marketplace'),
             'taskInProgress' => __('In progress', 'sutore-marketplace'),
             'taskCompleted' => __('Completed', 'sutore-marketplace'),
-            'tasksEmpty' => __('No tasks defined yet.', 'sutore-marketplace'),
-            'rewardsEmpty' => __('No rewards yet.', 'sutore-marketplace'),
-            'reward' => __('Reward', 'sutore-marketplace'),
+            'opportunitiesEmpty' => __('No opportunity cards this month yet.', 'sutore-marketplace'),
+            'rewardCommission' => __('Commission discount', 'sutore-marketplace'),
+            'rewardScoreRecovery' => __('Reward: score recovery', 'sutore-marketplace'),
+            'rewardEngagement' => __('Reward: marketplace engagement', 'sutore-marketplace'),
         ]);
     }
 
@@ -836,6 +1377,7 @@ final class Assets
             'pickDistrict' => __('Select', 'sutore-marketplace'),
             'merchantSummary' => __('Merchant summary', 'sutore-marketplace'),
             'level' => __('Level', 'sutore-marketplace'),
+            'behaviorScore' => __('Behavior score', 'sutore-marketplace'),
             'commission' => __('Commission', 'sutore-marketplace'),
             'commissionDiscountActive' => __('Commission discount active', 'sutore-marketplace'),
             'commissionLevelToEffective' => __('Level %1$s%% → Effective %2$s%%', 'sutore-marketplace'),
@@ -849,7 +1391,7 @@ final class Assets
             'listing' => __('Listing', 'sutore-marketplace'),
             'net' => __('Net', 'sutore-marketplace'),
             'payment' => __('Payment', 'sutore-marketplace'),
-            'tcVerified' => __('Your TC identity has been verified — Confirmed seller level', 'sutore-marketplace'),
+            'tcVerified' => __('Your TC identity has been verified.', 'sutore-marketplace'),
             'billing' => __('Billing', 'sutore-marketplace'),
             'accountName' => __('Account Holder First Name', 'sutore-marketplace'),
             'accountLastname' => __('Account Holder Last Name', 'sutore-marketplace'),
@@ -859,9 +1401,13 @@ final class Assets
             'email' => __('Email Address', 'sutore-marketplace'),
             'phone' => __('Phone Number', 'sutore-marketplace'),
             'city' => __('City', 'sutore-marketplace'),
-            'district' => __('District / Neighborhood', 'sutore-marketplace'),
+            'district' => __('District', 'sutore-marketplace'),
             'currentPassword' => __('Your current password', 'sutore-marketplace'),
             'saveInfo' => __('Save My Info', 'sutore-marketplace'),
+            'inviteCode' => __('Invite code (optional)', 'sutore-marketplace'),
+            'inviteSellers' => __('Invite sellers', 'sutore-marketplace'),
+            'yourInviteCode' => __('Your invite code', 'sutore-marketplace'),
+            'copyLink' => __('Copy link', 'sutore-marketplace'),
         ]);
     }
 

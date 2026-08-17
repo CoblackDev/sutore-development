@@ -8,6 +8,8 @@ use SutoreMarketplace\Modules\Listings\Domain\Listing;
 use SutoreMarketplace\Modules\Listings\Domain\ListingPriceValidator;
 use SutoreMarketplace\Modules\Listings\Domain\CampaignDiscountType;
 use SutoreMarketplace\Modules\Listings\Repositories\CampaignOfferRepository;
+use SutoreMarketplace\Modules\Listings\Repositories\OutletItemRepository;
+use SutoreMarketplace\Modules\Listings\Repositories\OutletOptinRepository;
 use SutoreMarketplace\Shared\Settings\Settings;
 
 final class MarketplacePricing
@@ -37,6 +39,11 @@ final class MarketplacePricing
      */
     public static function customerPrice(Listing $listing): float
     {
+        $outletSale = self::outletCustomerSale($listing);
+        if ($outletSale !== null) {
+            return $outletSale;
+        }
+
         $asking = self::activeAsking($listing);
         $breakdown = self::feeBreakdownForListing($listing);
 
@@ -48,8 +55,13 @@ final class MarketplacePricing
      */
     public static function compareAtPrice(Listing $listing): float
     {
-        if ($listing->campaignStatus === 'active' && $listing->id) {
-            $offer = (new CampaignOfferRepository())->findAcceptedForListing((int) $listing->id);
+        $outletSale = self::outletCustomerSale($listing);
+        if ($outletSale !== null) {
+            return $outletSale;
+        }
+
+        if ($listing->campaignStatus === 'active' && $listing->variationId) {
+            $offer = (new CampaignOfferRepository())->findAcceptedForVariation((int) $listing->variationId);
             if ($offer && isset($offer->compare_regular) && (float) $offer->compare_regular > 0) {
                 return self::roundMoney((float) $offer->compare_regular);
             }
@@ -67,11 +79,11 @@ final class MarketplacePricing
      */
     public static function platformWaiverForListing(Listing $listing): float
     {
-        if ($listing->campaignStatus !== 'active' || !$listing->id) {
+        if ($listing->campaignStatus !== 'active' || !$listing->variationId) {
             return 0.0;
         }
 
-        $offer = (new CampaignOfferRepository())->findAcceptedForListing((int) $listing->id);
+        $offer = (new CampaignOfferRepository())->findAcceptedForVariation((int) $listing->variationId);
         if (!$offer) {
             return 0.0;
         }
@@ -213,7 +225,7 @@ final class MarketplacePricing
     {
         $asking = self::activeAsking($listing);
         if ($commissionPercent === null) {
-            $commissionPercent = MerchantLevels::commissionPercentForUser($listing->merchantId);
+            $commissionPercent = (new \SutoreMarketplace\Modules\Merchants\Services\CommissionResolver())->percentForPayout($listing);
         }
 
         return self::netFromAsking($asking, $commissionPercent);
@@ -248,5 +260,30 @@ final class MarketplacePricing
     private static function roundMoney(float $amount): float
     {
         return round($amount, 2);
+    }
+
+    /** @var array<int, float|false> */
+    private static array $outletSaleCache = [];
+
+    private static function outletCustomerSale(Listing $listing): ?float
+    {
+        if (!$listing->variationId) {
+            return null;
+        }
+
+        $variationId = (int) $listing->variationId;
+        if (!array_key_exists($variationId, self::$outletSaleCache)) {
+            $optin = (new OutletOptinRepository())->findLiveByVariationId($variationId);
+            if (!$optin) {
+                self::$outletSaleCache[$variationId] = false;
+            } else {
+                $item = (new OutletItemRepository())->find($optin->itemId);
+                self::$outletSaleCache[$variationId] = $item ? (float) $item->customerSale : false;
+            }
+        }
+
+        $cached = self::$outletSaleCache[$variationId];
+
+        return $cached === false ? null : self::roundMoney($cached);
     }
 }

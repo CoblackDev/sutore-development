@@ -7,6 +7,7 @@ namespace SutoreMarketplace\Modules\Listings\Repositories;
 use SutoreMarketplace\Modules\Listings\Domain\Listing;
 use SutoreMarketplace\Modules\Listings\Domain\ListingConditionRank;
 use SutoreMarketplace\Modules\Listings\Domain\ListingPriceValidator;
+use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
 use SutoreMarketplace\Shared\Database\Schema;
 
 final class ListingRepository
@@ -18,23 +19,26 @@ final class ListingRepository
     public static function listColumns(string $alias = 'l'): string
     {
         $cols = [
-            'id',
             'variation_id',
             'parent_product_id',
             'size_term_id',
             'merchant_id',
             'listing_status',
             'asking',
+            'commission_percent',
+            'sale_commission_percent',
             'condition_fingerprint',
             'campaign_status',
             'campaign_id',
+            'campaign_cooled_until',
+            'campaign_aging_step',
             'expire_at',
+            'listing_duration_days',
             'sold_at',
             'order_id',
             'order_item_id',
             'order_shipment_type',
             'order_shipment_deadline_at',
-            'sourcing_request_id',
             'fast_shipment',
             'has_invoice',
             'is_imported',
@@ -80,36 +84,34 @@ final class ListingRepository
         return Schema::table('listings');
     }
 
-    public function find(int $id): ?Listing
+    public function find(int $variationId): ?Listing
     {
-        $map = $this->findByIds([$id]);
+        $map = $this->findByIds([$variationId]);
 
-        return $map[$id] ?? null;
+        return $map[$variationId] ?? null;
     }
 
     /**
-     * @param list<int> $ids
+     * @param list<int> $variationIds
      * @return array<int, Listing>
      */
-    public function findByIds(array $ids): array
+    public function findByIds(array $variationIds): array
     {
-        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
-        if ($ids === []) {
+        $variationIds = array_values(array_unique(array_filter(array_map('intval', $variationIds))));
+        if ($variationIds === []) {
             return [];
         }
 
         global $wpdb;
-        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        $placeholders = implode(',', array_fill(0, count($variationIds), '%d'));
         $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$this->table()} WHERE id IN ({$placeholders})",
-            ...$ids
+            "SELECT * FROM {$this->table()} WHERE variation_id IN ({$placeholders})",
+            ...$variationIds
         ));
 
         $out = [];
         foreach ($this->hydrateMany($rows ?: []) as $listing) {
-            if ($listing->id !== null) {
-                $out[(int) $listing->id] = $listing;
-            }
+            $out[$listing->variationId] = $listing;
         }
 
         return $out;
@@ -117,24 +119,7 @@ final class ListingRepository
 
     public function findByVariationId(int $variationId): ?Listing
     {
-        if ($variationId <= 0) {
-            return null;
-        }
-        if (array_key_exists($variationId, self::$byVariationCache)) {
-            $hit = self::$byVariationCache[$variationId];
-
-            return $hit instanceof Listing ? $hit : null;
-        }
-
-        global $wpdb;
-        $row = $wpdb->get_row($wpdb->prepare(
-            'SELECT * FROM ' . $this->table() . ' WHERE variation_id = %d',
-            $variationId
-        ));
-        $listing = $row ? $this->hydrate($row) : null;
-        self::$byVariationCache[$variationId] = $listing ?? false;
-
-        return $listing;
+        return $this->find($variationId);
     }
 
     /**
@@ -236,7 +221,7 @@ final class ListingRepository
      * @param list<array{0: int, 1: int}> $pairs [parent_product_id, size_term_id]
      * @return array<string, Listing> keyed by "{parentId}:{sizeTermId}"
      */
-    public function findMatchingForSourcing(int $merchantId, array $pairs): array
+    public function findMatchingForPreOrder(int $merchantId, array $pairs): array
     {
         $merchantId = (int) $merchantId;
         if ($merchantId <= 0 || $pairs === []) {
@@ -313,6 +298,34 @@ final class ListingRepository
         return $row ? $this->hydrate($row) : null;
     }
 
+    /**
+     * Listings that can receive a system aging offer (status + cooldown + step).
+     *
+     * @return list<Listing>
+     */
+    public function findAgingCandidates(int $limit = 80): array
+    {
+        global $wpdb;
+        $now = current_time('mysql');
+        $rows = $wpdb->get_results($wpdb->prepare(
+            'SELECT ' . self::listColumns('') . ' FROM ' . $this->table() . '
+             WHERE listing_status IN (%s, %s)
+               AND campaign_status = %s
+               AND (campaign_cooled_until IS NULL OR campaign_cooled_until <= %s)
+               AND campaign_aging_step < %d
+             ORDER BY created_at ASC
+             LIMIT %d',
+            ListingStatus::PUBLISH,
+            ListingStatus::QUEUED,
+            'none',
+            $now,
+            2,
+            max(1, min(200, $limit))
+        ));
+
+        return $this->hydrateMany($rows ?: []);
+    }
+
     /** Cheapest current winner for a parent (shop "from" price). */
     public function getCheapestWinnerForParent(int $parentId): ?Listing
     {
@@ -354,10 +367,10 @@ final class ListingRepository
         $wpdb->insert($this->table(), $data);
         self::clearRequestCache();
 
-        return (int) $wpdb->insert_id;
+        return (int) ($data['variation_id'] ?? 0);
     }
 
-    public function update(int $id, array $data): bool
+    public function update(int $variationId, array $data): bool
     {
         global $wpdb;
         if (!$this->applyAskingGuard($data)) {
@@ -365,7 +378,7 @@ final class ListingRepository
         }
 
         $data['updated_at'] = current_time('mysql');
-        $ok = false !== $wpdb->update($this->table(), $data, ['id' => $id]);
+        $ok = false !== $wpdb->update($this->table(), $data, ['variation_id' => $variationId]);
         if ($ok) {
             self::clearRequestCache();
         }
@@ -373,26 +386,15 @@ final class ListingRepository
         return $ok;
     }
 
-    public function delete(int $id): bool
+    public function delete(int $variationId): bool
     {
         global $wpdb;
-        $ok = false !== $wpdb->delete($this->table(), ['id' => $id]);
+        $ok = false !== $wpdb->delete($this->table(), ['variation_id' => $variationId]);
         if ($ok) {
             self::clearRequestCache();
         }
 
         return $ok;
-    }
-
-    public function findBySourcingRequestId(int $requestId): ?Listing
-    {
-        global $wpdb;
-        $row = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$this->table()} WHERE sourcing_request_id = %d LIMIT 1",
-            $requestId
-        ));
-
-        return $row ? $this->hydrate($row) : null;
     }
 
     /** @return array{items: Listing[], total: int} */
@@ -417,6 +419,8 @@ final class ListingRepository
                 $where[] = 'l.is_winner = 0 AND l.listing_status IN ("publish","queued","pending")';
             } elseif ($args['status'] === 'not_sale') {
                 $where[] = 'l.listing_status = "not_sale"';
+            } elseif ($args['status'] === 'order_detached') {
+                $where[] = 'l.listing_status = "order_detached"';
             } elseif ($args['status'] === 'in_sale') {
                 $saleActive = \SutoreMarketplace\Modules\Listings\Domain\ListingStatus::saleActive();
                 $placeholders = implode(',', array_fill(0, count($saleActive), '%s'));
@@ -438,10 +442,10 @@ final class ListingRepository
             $params[] = sanitize_key((string) $args['campaign']);
         }
 
-        if (($args['is_sourcing'] ?? '') === 'yes') {
-            $where[] = 'l.sourcing_request_id IS NOT NULL';
-        } elseif (($args['is_sourcing'] ?? '') === 'no') {
-            $where[] = 'l.sourcing_request_id IS NULL';
+        if (($args['is_pre_order'] ?? '') === 'yes') {
+            $where[] = 'l.listing_status = "pre_order"';
+        } elseif (($args['is_pre_order'] ?? '') === 'no') {
+            $where[] = 'l.listing_status <> "pre_order"';
         }
 
         if (($args['is_imported'] ?? '') === 'yes') {
@@ -472,7 +476,7 @@ final class ListingRepository
                 $where[] = 'l.has_invoice = 1';
             } else {
                 $condTable = Schema::table('listing_conditions');
-                $join .= " INNER JOIN {$condTable} lc_filter ON lc_filter.listing_id = l.id ";
+                $join .= " INNER JOIN {$condTable} lc_filter ON lc_filter.variation_id = l.variation_id ";
                 $where[] = 'lc_filter.condition_key = %s AND lc_filter.condition_value = 1';
                 $params[] = $condKey;
             }
@@ -494,8 +498,7 @@ final class ListingRepository
         if (!empty($args['search'])) {
             $search = sanitize_text_field((string) $args['search']);
             if (preg_match('/^ID(\d+)$/i', $search, $m)) {
-                $where[] = '(l.id = %d OR l.variation_id = %d OR l.order_id = %d)';
-                $params[] = (int) $m[1];
+                $where[] = '(l.variation_id = %d OR l.order_id = %d)';
                 $params[] = (int) $m[1];
                 $params[] = (int) $m[1];
             } else {
@@ -511,13 +514,11 @@ final class ListingRepository
                 $ids = array_unique(array_map('intval', array_merge($parentIds ?: [], $metaParents ?: [])));
                 if ($ids) {
                     $in = implode(',', $ids);
-                    $where[] = "(l.parent_product_id IN ({$in}) OR CAST(l.id AS CHAR) = %s OR CAST(l.variation_id AS CHAR) = %s OR CAST(l.order_id AS CHAR) = %s)";
-                    $params[] = $search;
+                    $where[] = "(l.parent_product_id IN ({$in}) OR CAST(l.variation_id AS CHAR) = %s OR CAST(l.order_id AS CHAR) = %s)";
                     $params[] = $search;
                     $params[] = $search;
                 } else {
-                    $where[] = '(CAST(l.id AS CHAR) = %s OR CAST(l.variation_id AS CHAR) = %s OR CAST(l.order_id AS CHAR) = %s)';
-                    $params[] = $search;
+                    $where[] = '(CAST(l.variation_id AS CHAR) = %s OR CAST(l.order_id AS CHAR) = %s)';
                     $params[] = $search;
                     $params[] = $search;
                 }
@@ -536,7 +537,7 @@ final class ListingRepository
             'asking' => 'l.asking',
             'expire_at' => 'l.expire_at',
             'listing_status' => 'l.listing_status',
-            'id' => 'l.id',
+            'id' => 'l.variation_id',
             'fast_shipment' => 'l.fast_shipment',
             'merchant_id' => 'l.merchant_id',
             'title' => 'p.post_title',
@@ -655,7 +656,7 @@ final class ListingRepository
 
     private function hydrate(object $row): Listing
     {
-        $conditions = (new ListingConditionsRepository())->forListing((int) $row->id);
+        $conditions = (new ListingConditionsRepository())->forListing((int) $row->variation_id);
 
         return Listing::fromRow($row, $conditions);
     }
@@ -670,12 +671,12 @@ final class ListingRepository
             return [];
         }
 
-        $ids = array_map(static fn (object $row): int => (int) $row->id, $rows);
-        $conditionsByListing = (new ListingConditionsRepository())->forListings($ids);
+        $variationIds = array_map(static fn (object $row): int => (int) $row->variation_id, $rows);
+        $conditionsByVariation = (new ListingConditionsRepository())->forListings($variationIds);
         $items = [];
         foreach ($rows as $row) {
-            $id = (int) $row->id;
-            $items[] = Listing::fromRow($row, $conditionsByListing[$id] ?? []);
+            $variationId = (int) $row->variation_id;
+            $items[] = Listing::fromRow($row, $conditionsByVariation[$variationId] ?? []);
         }
 
         return $items;
@@ -696,5 +697,29 @@ final class ListingRepository
         $data['asking'] = $valid;
 
         return true;
+    }
+
+    /**
+     * Distinct variation-axis term ids used on this merchant's listings (any taxonomy).
+     *
+     * @return list<int>
+     */
+    public function distinctSizeTermIdsForMerchant(int $merchantId): array
+    {
+        if ($merchantId <= 0) {
+            return [];
+        }
+
+        global $wpdb;
+        $table = Schema::table('listings');
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $rows = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT size_term_id FROM {$table}
+             WHERE merchant_id = %d AND size_term_id > 0
+             ORDER BY size_term_id ASC",
+            $merchantId
+        ));
+
+        return array_values(array_filter(array_map('intval', $rows ?: [])));
     }
 }

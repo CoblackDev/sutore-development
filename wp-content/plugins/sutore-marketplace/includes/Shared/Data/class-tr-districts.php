@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Shared\Data;
 
-use SutoreMarketplace\Shared\Database\Schema;
-
+/**
+ * Canonical TR city → district list. Source: tr-districts-data.php (no DB table).
+ */
 final class TrDistricts
 {
-    private const TRANSIENT_PREFIX = 'sutore_mp_tr_districts_';
+    /** @var array<string, list<string>>|null */
+    private static ?array $byCity = null;
 
     /** @return list<string> */
     public static function forCity(string $cityCode): array
@@ -18,22 +20,28 @@ final class TrDistricts
             return [];
         }
 
-        $key = self::TRANSIENT_PREFIX . sanitize_key($cityCode);
-        $cached = get_transient($key);
-        if (is_array($cached)) {
-            return array_values(array_map('strval', $cached));
+        $districts = self::all()[$cityCode] ?? [];
+        if (!is_array($districts)) {
+            return [];
         }
 
-        global $wpdb;
-        $table = Schema::table('tr_districts');
-        $rows = $wpdb->get_col($wpdb->prepare(
-            "SELECT district_name FROM {$table} WHERE city_code = %s ORDER BY district_name ASC",
-            $cityCode
+        return array_values(array_filter(
+            array_map('strval', $districts),
+            static fn (string $name): bool => $name !== ''
         ));
+    }
 
-        $districts = is_array($rows) ? array_values(array_map('strval', $rows)) : [];
-        set_transient($key, $districts, DAY_IN_SECONDS);
+    /** @return array<string, list<string>> */
+    private static function all(): array
+    {
+        if (self::$byCity !== null) {
+            return self::$byCity;
+        }
 
-        return $districts;
+        $file = __DIR__ . '/tr-districts-data.php';
+        $data = is_readable($file) ? require $file : [];
+        self::$byCity = is_array($data) ? $data : [];
+
+        return self::$byCity;
     }
 }

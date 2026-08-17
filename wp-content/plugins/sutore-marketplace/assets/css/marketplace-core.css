@@ -16,7 +16,6 @@
 }
 
 /* Author display:flex beats UA [hidden]; keep chrome invisible until JS reveals it. */
-.sutore-mp-detail-chrome[hidden],
 .sutore-mp-list-chrome[hidden] {
   display: none !important;
 }
@@ -41,6 +40,9 @@
 .sutore-mp-account-panel input[type="search"],
 .sutore-mp-account-panel input[type="text"],
 .sutore-mp-account-panel input[type="number"],
+.sutore-mp-account-panel input[type="email"],
+.sutore-mp-account-panel input[type="tel"],
+.sutore-mp-account-panel input[type="password"],
 .sutore-mp-account-panel select,
 .sutore-mp-account-panel textarea {
   font: inherit;
@@ -54,6 +56,27 @@
   line-height: 1.4;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+.sutore-mp-account-panel .woocommerce-EditAccountForm .input-text,
+.sutore-mp-account-panel .woocommerce-EditAccountForm .select,
+.sutore-mp-account-panel .woocommerce-EditAccountForm .sutore-mp-input,
+.sutore-mp-account-panel .woocommerce-EditAccountForm select {
+  display: block;
+  width: 100%;
+  min-height: 2.75rem;
+}
+
+.sutore-mp-account-panel .woocommerce-EditAccountForm select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--wp--preset--color--base, #fff);
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 1.05rem) calc(50% - 0.15rem), calc(100% - 0.7rem) calc(50% - 0.15rem);
+  background-size: 0.35rem 0.35rem, 0.35rem 0.35rem;
+  background-repeat: no-repeat;
+  padding-right: 2rem;
 }
 
 .sutore-mp-listings .wp-element-button,
@@ -340,6 +363,203 @@ body.sutore-mp-modal-open {
   align-items: center;
 }
 
+/* Merchant My Listings bulk + table (mirrors staff manage layout). */
+.sutore-mp-list-bulk-chrome {
+  margin: 0;
+}
+
+.sutore-mp-list-bulk-chrome[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-list-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 0.85rem;
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+
+.sutore-mp-list-bulk-bar[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-list-bulk-count {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.sutore-mp-list-bulk-action {
+  min-width: 12rem;
+  max-width: 100%;
+}
+
+.sutore-mp-list-table-wrap {
+  overflow-x: auto;
+}
+
+.sutore-mp-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.sutore-mp-list-table th,
+.sutore-mp-list-table td {
+  text-align: left;
+  padding: 0.7rem 0.55rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  vertical-align: middle;
+}
+
+.sutore-mp-list-table th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sutore-mp-list-col-select {
+  width: 2.25rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.sutore-mp-list-select-all-wrap,
+.sutore-mp-list-select-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  cursor: pointer;
+}
+
+.sutore-mp-listings .sutore-mp-list-select-all,
+.sutore-mp-listings .sutore-mp-list-row-select {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 0.2rem;
+  background: var(--wp--preset--color--base, #fff);
+  color: inherit;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.sutore-mp-listings .sutore-mp-list-select-all:checked,
+.sutore-mp-listings .sutore-mp-list-row-select:checked {
+  background: var(--wp--preset--color--contrast, #111);
+  border-color: var(--wp--preset--color--contrast, #111);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 20'%3E%3Cpath fill='%23fff' d='M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.85rem auto;
+}
+
+.sutore-mp-listings .sutore-mp-list-select-all:indeterminate {
+  background: var(--wp--preset--color--contrast, #111);
+  border-color: var(--wp--preset--color--contrast, #111);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M5 11h14v2H5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.85rem auto;
+}
+
+.sutore-mp-listings .sutore-mp-list-select-all:focus-visible,
+.sutore-mp-listings .sutore-mp-list-row-select:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.sutore-mp-list-product-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.sutore-mp-list-product-thumb {
+  width: 3rem;
+  height: 3rem;
+}
+
+.sutore-mp-list-product-info {
+  min-width: 0;
+}
+
+.sutore-mp-list-product-title {
+  display: block;
+  line-height: 1.3;
+  color: inherit;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.sutore-mp-list-product-title:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.sutore-mp-list-sub {
+  display: block;
+  opacity: 0.65;
+  font-size: 0.85em;
+  margin-top: 0.15rem;
+}
+
+.sutore-mp-list-row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+
+.sutore-mp-list-remaining {
+  display: inline-block;
+  line-height: 1.35;
+  font-size: 0.9em;
+}
+
+.sutore-mp-list-row-actions-cell {
+  white-space: nowrap;
+}
+
+.sutore-mp-list-row-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.sutore-mp-list-row-actions .wp-element-button {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.sutore-mp-invoice-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 0.35rem;
+  color: inherit;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sutore-mp-list-row.is-expired {
+  opacity: 0.78;
+}
+
 .sutore-mp-thumb-box {
   display: flex;
   align-items: center;
@@ -353,6 +573,7 @@ body.sutore-mp-modal-open {
 
 .sutore-mp-thumb-box > img,
 .sutore-mp-card-thumb,
+.sutore-mp-list-product-thumb-img,
 .sutore-mp-pick-thumb {
   display: block;
   width: auto !important;
@@ -467,8 +688,117 @@ body.sutore-mp-modal-open {
   background: color-mix(in srgb, #2ea44f 12%, transparent);
 }
 
+.sutore-mp-tag.is-payout-pending {
+  border-color: color-mix(in srgb, #8c5e00 40%, transparent);
+  color: #6b4700;
+  background: color-mix(in srgb, #dba617 12%, transparent);
+}
+
+.sutore-mp-tag.is-payout-paid {
+  border-color: color-mix(in srgb, #1e7a46 45%, transparent);
+  color: #145c34;
+  background: color-mix(in srgb, #2ea44f 12%, transparent);
+}
+
+.sutore-mp-tag.is-payout-reversed {
+  border-color: color-mix(in srgb, #b32d2e 35%, transparent);
+  color: #8a1f1f;
+  background: color-mix(in srgb, #b32d2e 8%, transparent);
+}
+
+.sutore-mp-tag.is-payout-none {
+  border-color: color-mix(in srgb, #50575e 35%, transparent);
+  color: #50575e;
+  background: color-mix(in srgb, #646970 8%, transparent);
+}
+
+/* Listing / sale status */
+.sutore-mp-tag.is-status-publish {
+  border-color: color-mix(in srgb, #1e7a46 45%, transparent);
+  color: #145c34;
+  background: color-mix(in srgb, #2ea44f 12%, transparent);
+}
+
+.sutore-mp-tag.is-status-queued,
+.sutore-mp-tag.is-status-pending {
+  border-color: color-mix(in srgb, #8c5e00 40%, transparent);
+  color: #6b4700;
+  background: color-mix(in srgb, #dba617 12%, transparent);
+}
+
+.sutore-mp-tag.is-status-expired,
+.sutore-mp-tag.is-status-not-sale,
+.sutore-mp-tag.is-status-order-detached,
+.sutore-mp-tag.is-status-unknown {
+  border-color: color-mix(in srgb, #50575e 35%, transparent);
+  color: #50575e;
+  background: color-mix(in srgb, #646970 8%, transparent);
+}
+
+.sutore-mp-tag.is-status-sourcing {
+  border-color: color-mix(in srgb, #6d4aff 45%, transparent);
+  color: #4b2ecc;
+  background: color-mix(in srgb, #6d4aff 12%, transparent);
+}
+
+.sutore-mp-tag.is-status-payment,
+.sutore-mp-tag.is-status-sold,
+.sutore-mp-tag.is-status-confirmed {
+  border-color: color-mix(in srgb, #9b4d1c 45%, transparent);
+  color: #7a3a12;
+  background: color-mix(in srgb, #e67e22 14%, transparent);
+}
+
+.sutore-mp-tag.is-status-shipped-to-sutore,
+.sutore-mp-tag.is-status-arrived-to-sutore,
+.sutore-mp-tag.is-status-verified,
+.sutore-mp-tag.is-status-ready-to-shipping,
+.sutore-mp-tag.is-status-shipped {
+  border-color: color-mix(in srgb, #2271b1 40%, transparent);
+  color: #135e96;
+  background: color-mix(in srgb, #2271b1 10%, transparent);
+}
+
+.sutore-mp-tag.is-status-delivered-to-customer {
+  border-color: color-mix(in srgb, #1e7a46 45%, transparent);
+  color: #145c34;
+  background: color-mix(in srgb, #2ea44f 12%, transparent);
+}
+
+.sutore-mp-tag.is-status-chargeback {
+  border-color: color-mix(in srgb, #b32d2e 35%, transparent);
+  color: #8a1f1f;
+  background: color-mix(in srgb, #b32d2e 8%, transparent);
+}
+
+/* Customer checkout shipping types */
+.sutore-mp-tag.is-shipping-free,
+.sutore-mp-tag.is-shipping-imported-free {
+  border-color: color-mix(in srgb, #1e7a46 40%, transparent);
+  color: #145c34;
+  background: color-mix(in srgb, #2ea44f 10%, transparent);
+}
+
+.sutore-mp-tag.is-shipping-fast,
+.sutore-mp-tag.is-shipping-express {
+  border-color: color-mix(in srgb, #2271b1 45%, transparent);
+  color: #135e96;
+  background: color-mix(in srgb, #2271b1 12%, transparent);
+}
+
+.sutore-mp-tag.is-shipping-international,
+.sutore-mp-tag.is-shipping-cyprus {
+  border-color: color-mix(in srgb, #9b4d1c 45%, transparent);
+  color: #7a3a12;
+  background: color-mix(in srgb, #e67e22 12%, transparent);
+}
+
 .sutore-mp-card.is-campaign-offer {
   box-shadow: inset 3px 0 0 #e67e22;
+}
+
+.sutore-mp-card.is-price-offer {
+  box-shadow: inset 3px 0 0 #3858e9;
 }
 
 .sutore-mp-card.is-campaign-active {
@@ -501,6 +831,12 @@ body.sutore-mp-modal-open {
   color: #145c34;
 }
 
+.sutore-mp-card-offer-headline {
+  margin-top: 0.4rem;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
 .sutore-mp-card-offer-discounts {
   margin-top: 0.35rem;
   font-size: 0.9rem;
@@ -531,7 +867,7 @@ body.sutore-mp-modal-open {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100001;
+  z-index: 100080;
   padding: 1rem;
 }
 
@@ -586,6 +922,46 @@ body.sutore-mp-modal-open {
   width: 100%;
 }
 
+.sutore-mp-confirm-field.is-checkbox {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.55rem;
+  cursor: pointer;
+}
+
+.sutore-mp-confirm-field.is-checkbox input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.2rem;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 0.2rem;
+  background: var(--wp--preset--color--base, #fff);
+  color: inherit;
+  cursor: pointer;
+}
+
+.sutore-mp-confirm-field.is-checkbox input[type="checkbox"]:checked {
+  background: var(--wp--preset--color--contrast, #111);
+  border-color: var(--wp--preset--color--contrast, #111);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 20'%3E%3Cpath fill='%23fff' d='M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.85rem auto;
+}
+
+.sutore-mp-confirm-field.is-checkbox input[type="checkbox"]:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.sutore-mp-confirm-field.is-checkbox .sutore-mp-field-label {
+  font-weight: inherit;
+}
+
 .sutore-mp-confirm-error {
   margin: 0.65rem 0 0;
   min-height: 1.2em;
@@ -604,7 +980,7 @@ body.sutore-mp-modal-open {
   position: fixed;
   left: 1rem;
   bottom: 1rem;
-  z-index: 100002;
+  z-index: 100081;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;

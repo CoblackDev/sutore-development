@@ -7,6 +7,9 @@ namespace SutoreMarketplace\Modules\Listings\Services;
 use SutoreMarketplace\Modules\Listings\Domain\CampaignDatetime;
 use SutoreMarketplace\Modules\Listings\Domain\CampaignDiscountType;
 use SutoreMarketplace\Modules\Listings\Domain\CampaignOfferStatus;
+use SutoreMarketplace\Modules\Listings\Domain\CampaignSource;
+use SutoreMarketplace\Modules\Listings\Domain\ListingExpireDisplay;
+use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
 use SutoreMarketplace\Modules\Listings\Domain\ProductCodeLookup;
 use SutoreMarketplace\Modules\Listings\Domain\ProductSizeLookup;
 use SutoreMarketplace\Modules\Listings\Domain\ProductThumbnail;
@@ -44,21 +47,21 @@ final class CampaignOfferQueryPresenter
         $total = $this->offers->countForMerchant($userId, $status);
 
         $campaignIds = [];
-        $listingIds = [];
+        $variationIds = [];
         foreach ($rows as $row) {
             $campaignIds[] = (int) $row->campaign_id;
-            $listingIds[] = (int) $row->listing_id;
+            $variationIds[] = (int) $row->variation_id;
         }
 
         $campaignCache = $this->campaigns->findByIds($campaignIds);
-        $listingCache = $this->listings->findByIds($listingIds);
+        $listingCache = $this->listings->findByIds($variationIds);
         $this->primeProducts($listingCache);
 
         $items = [];
         foreach ($rows as $row) {
             $campaignId = (int) $row->campaign_id;
             $campaign = $campaignCache[$campaignId] ?? null;
-            $listing = $listingCache[(int) $row->listing_id] ?? null;
+            $listing = $listingCache[(int) $row->variation_id] ?? null;
             $parentId = $listing ? (int) $listing->parentProductId : 0;
             $productTitle = $listing
                 ? (get_the_title($parentId) ?: __('Product', 'sutore-marketplace'))
@@ -88,13 +91,23 @@ final class CampaignOfferQueryPresenter
             $platformValue = isset($row->platform_discount_value)
                 ? (float) $row->platform_discount_value
                 : (float) $row->platform_discount;
+            $source = CampaignSource::normalize(
+                $campaign && isset($campaign->source) ? (string) $campaign->source : CampaignSource::ADMIN
+            );
+            $headline = '';
+            $notes = $campaign && isset($campaign->notes) ? trim((string) $campaign->notes) : '';
+            if ($source === CampaignSource::SYSTEM && $notes !== '') {
+                $headline = $notes;
+            }
 
             $items[] = [
                 'id' => (int) $row->id,
                 'campaign_id' => $campaignId,
                 'campaign_name' => $campaign ? (string) $campaign->name : '',
-                'listing_id' => (int) $row->listing_id,
-                'variation_id' => $listing ? (int) $listing->variationId : 0,
+                'source' => $source,
+                'source_label' => CampaignSource::label($source),
+                'headline' => $headline,
+                'variation_id' => $listing ? (int) $listing->variationId : (int) $row->variation_id,
                 'parent_product_id' => $parentId,
                 'product_title' => $productTitle,
                 'product_code' => $parentId > 0 ? ProductCodeLookup::codeForProduct($parentId) : '',
@@ -103,7 +116,12 @@ final class CampaignOfferQueryPresenter
                     : '',
                 'thumbnail' => $parentId > 0 ? ProductThumbnail::url($parentId) : '',
                 'permalink' => $parentId > 0 ? (get_permalink($parentId) ?: '') : '',
-                'is_sourcing' => $listing ? $listing->sourcingRequestId !== null : false,
+                'is_pre_order' => $listing
+                    ? $listing->listingStatus === ListingStatus::PRE_ORDER
+                    : false,
+                'is_sourcing' => $listing
+                    ? $listing->listingStatus === ListingStatus::PRE_ORDER
+                    : false,
                 'status' => (string) $row->status,
                 'status_label' => CampaignOfferStatus::label((string) $row->status),
                 'asking_before' => (float) $row->asking_before,
@@ -132,6 +150,9 @@ final class CampaignOfferQueryPresenter
                 'ends_at_label' => $campaign && !empty($campaign->ends_at)
                     ? CampaignDatetime::formatLabel((string) $campaign->ends_at)
                     : '',
+                'remaining_label' => $campaign && !empty($campaign->ends_at)
+                    ? ListingExpireDisplay::remainingFromDatetime((string) $campaign->ends_at)
+                    : null,
                 'created_at' => $row->created_at ?? null,
                 'responded_at' => $row->responded_at ?? null,
             ];

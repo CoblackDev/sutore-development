@@ -10,6 +10,7 @@
   var state = {
     importToken: '',
     fileName: '',
+    csv: '',
     priceTimer: null,
     updatingPrice: false,
     canCommit: false,
@@ -17,7 +18,29 @@
   };
 
   function $listingsFrom($root) {
+    var $create = $root.closest('.sutore-mp-staff-listing-create');
+    if ($create.length) {
+      return $create;
+    }
+    var $staff = $root.closest('.sutore-mp-staff-manage');
+    if ($staff.length) {
+      var $host = $staff.find('.sutore-mp-staff-listing-create').first();
+      if ($host.length) {
+        return $host;
+      }
+    }
     return $root.closest('.sutore-mp-listings');
+  }
+
+  function isStaffCreateMode($listings) {
+    return $listings && $listings.attr('data-staff-create') === '1';
+  }
+
+  function staffBulkMerchantId($listings) {
+    return parseInt(
+      $listings.find('.sutore-mp-bulk-overlay .sutore-mp-staff-merchant-id').val(),
+      10
+    ) || 0;
   }
 
   function priceStep() {
@@ -32,9 +55,6 @@
   function queuePreviewLabel(preview) {
     if (!preview) {
       return '—';
-    }
-    if (preview.blocked_by_better_condition) {
-      return t('bulkBlockedByFlawless', 'Blocked by undamaged listings ahead in queue');
     }
     if (preview.can_win_sale) {
       if (preview.merchant_auto_activates) {
@@ -51,9 +71,6 @@
   function queuePreviewClass(preview) {
     if (!preview) {
       return '';
-    }
-    if (preview.blocked_by_better_condition) {
-      return 'is-blocked';
     }
     if (preview.can_win_sale) {
       return preview.merchant_auto_activates ? 'is-winner' : 'is-awaiting-approval';
@@ -87,16 +104,36 @@
     return map[status] || status;
   }
 
+  function setBulkAlert($root, text) {
+    var $alert = $root.find('.sutore-mp-bulk-alert');
+    if (!$alert.length) {
+      return;
+    }
+    if (!text) {
+      $alert.text('').prop('hidden', true);
+      return;
+    }
+    $alert.text(text).prop('hidden', false);
+  }
+
   function setUploadMessage($root, text, isError) {
-    $root.find('.sutore-mp-bulk-upload-message')
-      .text(text || '')
-      .toggleClass('sutore-mp-error', !!isError);
+    if (isError) {
+      $root.find('.sutore-mp-bulk-upload-message').text('');
+      setBulkAlert($root, text);
+      return;
+    }
+    setBulkAlert($root, '');
+    $root.find('.sutore-mp-bulk-upload-message').text(text || '');
   }
 
   function setCommitMessage($root, text, isError) {
-    $root.find('.sutore-mp-bulk-commit-message')
-      .text(text || '')
-      .toggleClass('sutore-mp-error', !!isError);
+    if (isError) {
+      $root.find('.sutore-mp-bulk-commit-message').text('');
+      setBulkAlert($root, text);
+      return;
+    }
+    setBulkAlert($root, '');
+    $root.find('.sutore-mp-bulk-commit-message').text(text || '');
   }
 
   function bulkWizardStep($listings) {
@@ -192,9 +229,12 @@
         esc(t('bulkNext', 'Next')) +
         '</button>';
     } else {
+      var needsMerchant = isStaffCreateMode($listings) && !staffBulkMerchantId($listings);
       html +=
         '<button type="button" class="wp-element-button sutore-mp-bulk-commit"' +
-        (!state.canCommit || !state.importToken || state.updatingPrice ? ' disabled' : '') +
+        (!state.canCommit || !state.importToken || state.updatingPrice || needsMerchant
+          ? ' disabled'
+          : '') +
         '>' +
         esc(t('bulkCreateListings', 'Create listings')) +
         '</button>';
@@ -224,14 +264,14 @@
     state.canCommit = (summary.ready || 0) + (summary.warning || 0) > 0;
     renderSummary($root, summary);
     renderRows($root, data.rows || []);
-    setCommitMessage(
-      $root,
-      state.canCommit
-        ? t('bulkPreviewReady', 'Review the rows below, then confirm to create listings.')
-        : t('bulkNoValidRows', 'No valid rows to import. Fix the CSV and try again.'),
-      !state.canCommit
-    );
     var $listings = $listingsFrom($root);
+    if (!state.canCommit) {
+      setCommitMessage($root, t('bulkNoValidRows', 'No valid rows to import. Fix the CSV and try again.'), true);
+    } else if (isStaffCreateMode($listings) && !staffBulkMerchantId($listings)) {
+      setCommitMessage($root, t('bulkPickSeller', 'Choose a seller to see the queue preview and create the listings.'));
+    } else {
+      setCommitMessage($root, t('bulkPreviewReady', 'Review the rows below, then confirm to create listings.'));
+    }
     setBulkWizardStep($listings, 2);
   }
 
@@ -288,6 +328,7 @@
     state.updatingPrice = false;
     state.importToken = '';
     state.fileName = '';
+    state.csv = '';
     state.canCommit = false;
     state.validating = false;
     $root.find('.sutore-mp-bulk-file').val('');
@@ -330,6 +371,7 @@
   function renderRows($root, rows) {
     var $tbody = $root.find('.sutore-mp-bulk-table tbody').empty();
     var step = priceStep();
+    var showImported = $root.find('.sutore-mp-bulk-table thead th[data-col="imported"]').length > 0;
     var thumbBox = cfg.thumbBox || function () { return $('<span/>'); };
     (rows || []).forEach(function (row) {
       var preview = row.preview || null;
@@ -357,6 +399,13 @@
       $tr.append($('<td/>').text(row.size || '—'));
       $tr.append($('<td/>').text(row.conditions_label || '—'));
       $tr.append($('<td/>').text(row.shipping_label || '—'));
+      if (showImported) {
+        $tr.append(
+          $('<td class="sutore-mp-bulk-imported"/>').text(
+            row.imported ? t('importedProduct', 'Imported') : '—'
+          )
+        );
+      }
       $tr.append(
         $('<td class="sutore-mp-bulk-lowest"/>').text(lowestOnSaleLabel(preview))
       );
@@ -444,7 +493,42 @@
       });
   }
 
-  function validateFile($root) {
+  function validatePreview($root) {
+    var $listings = $listingsFrom($root);
+    if (!state.csv) {
+      return;
+    }
+
+    var payload = { csv: state.csv };
+    var merchantId = isStaffCreateMode($listings) ? staffBulkMerchantId($listings) : 0;
+    if (merchantId) {
+      payload.merchant_id = merchantId;
+    }
+
+    state.validating = true;
+    setCommitMessage($root, t('bulkUpdatingPreview', 'Updating preview…'));
+    updateBulkWizardFoot($listings);
+
+    api('marketplace_listing_bulk_validate', payload)
+      .done(function (res) {
+        state.validating = false;
+        if (!res || !res.success || !res.data) {
+          setCommitMessage($root, (res && res.data && res.data.message) || t('error', 'Error'), true);
+          updateBulkWizardFoot($listings);
+          return;
+        }
+
+        state.importToken = res.data.import_token || '';
+        applyPreviewResponse($root, res.data);
+      })
+      .fail(function () {
+        state.validating = false;
+        setCommitMessage($root, t('error', 'Error'), true);
+        updateBulkWizardFoot($listings);
+      });
+  }
+
+  function goToPreview($root) {
     var fileInput = $root.find('.sutore-mp-bulk-file')[0];
     if (!fileInput || !fileInput.files || !fileInput.files[0]) {
       setUploadMessage($root, t('bulkPickFile', 'Choose a CSV file.'), true);
@@ -452,42 +536,39 @@
     }
 
     var file = fileInput.files[0];
+    var $listings = $listingsFrom($root);
     state.fileName = file.name;
     state.validating = true;
     setUploadMessage($root, t('loading', 'Loading…'));
-    updateBulkWizardFoot($listingsFrom($root));
+    updateBulkWizardFoot($listings);
 
     var reader = new FileReader();
     reader.onload = function (event) {
-      api('marketplace_listing_bulk_validate', { csv: String(event.target.result || '') })
-        .done(function (res) {
-          state.validating = false;
-          if (!res || !res.success || !res.data) {
-            setUploadMessage($root, (res && res.data && res.data.message) || t('error', 'Error'), true);
-            updateBulkWizardFoot($listingsFrom($root));
-            return;
-          }
-
-          state.importToken = res.data.import_token || '';
-          setUploadMessage($root, '');
-          applyPreviewResponse($root, res.data);
-        })
-        .fail(function () {
-          state.validating = false;
-          setUploadMessage($root, t('error', 'Error'), true);
-          updateBulkWizardFoot($listingsFrom($root));
-        });
+      state.validating = false;
+      state.csv = String(event.target.result || '');
+      setUploadMessage($root, '');
+      if (isStaffCreateMode($listings)) {
+        $listings.addClass('is-staff-simple-create');
+      }
+      setBulkWizardStep($listings, 2);
+      validatePreview($root);
     };
     reader.onerror = function () {
       state.validating = false;
       setUploadMessage($root, t('error', 'Error'), true);
-      updateBulkWizardFoot($listingsFrom($root));
+      updateBulkWizardFoot($listings);
     };
     reader.readAsText(file, 'UTF-8');
   }
 
   function commitImport($root) {
     if (!state.importToken) {
+      return;
+    }
+
+    var $listings = $listingsFrom($root);
+    if (isStaffCreateMode($listings) && !staffBulkMerchantId($listings)) {
+      setCommitMessage($root, t('sellerRequired', 'Select a seller before continuing.'), true);
       return;
     }
 
@@ -508,6 +589,7 @@
         var $listings = $listingsFrom($root);
         if ($listings.length) {
           $listings.trigger('sutore-mp-bulk:committed');
+          $(document).trigger('sutore-mp-bulk:committed', [res.data || {}]);
         }
       })
       .fail(function () {
@@ -532,7 +614,14 @@
       if (bulkWizardStep($listings) !== 1) {
         return;
       }
-      validateFile($root);
+      goToPreview($root);
+    });
+
+    $listings.on('sutore-mp-bulk:merchant-changed', function () {
+      if (bulkWizardStep($listings) !== 2) {
+        return;
+      }
+      validatePreview($root);
     });
 
     $listings.on('click', '.sutore-mp-bulk-wizard-back', function () {
@@ -548,6 +637,7 @@
       }
       state.updatingPrice = false;
       state.importToken = '';
+      state.csv = '';
       state.canCommit = false;
       state.validating = false;
       $root.find('.sutore-mp-bulk-table tbody').empty();
