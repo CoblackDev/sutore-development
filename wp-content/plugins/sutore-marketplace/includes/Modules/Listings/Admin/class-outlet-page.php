@@ -26,7 +26,7 @@ final class OutletPage
         echo '<h1 class="wp-heading-inline">' . esc_html__('Outlet', 'sutore-marketplace') . '</h1>';
         echo '<hr class="wp-header-end" />';
         echo '<p class="description">' . esc_html__(
-            'Manual outlet windows. Add product + size with a customer sale price and seller asking. Sellers opt in from My Account. Listings are created when the window opens and unsold ones expire when it ends.',
+            'Manual outlet windows. Add product + size with a customer sale price and seller price. Sellers opt in from My Account. Products are created when the window opens and unsold ones expire when it ends.',
             'sutore-marketplace'
         ) . '</p>';
 
@@ -74,7 +74,7 @@ final class OutletPage
             if ($status === OutletWindowStatus::ACTIVE || $status === OutletWindowStatus::SCHEDULED) {
                 echo '<button type="button" class="button" data-rest-click data-rest-path="admin/outlet-windows/'
                     . (int) $row['id'] . '/end" data-rest-method="POST" data-rest-confirm="'
-                    . esc_attr__('End this outlet window and expire unsold listings?', 'sutore-marketplace') . '">'
+                    . esc_attr__('End this outlet window and expire unsold products?', 'sutore-marketplace') . '">'
                     . esc_html__('End', 'sutore-marketplace') . '</button>';
             }
             echo '</td>';
@@ -143,17 +143,25 @@ final class OutletPage
                 echo '<option value="' . (int) $row['id'] . '">' . esc_html((string) $row['name']) . ' (#' . (int) $row['id'] . ')</option>';
             }
             echo '</select></td></tr>';
-            echo '<tr><th scope="row"><label for="outlet_parent_product_id">' . esc_html__('Parent product ID', 'sutore-marketplace') . '</label></th>';
-            echo '<td><input name="parent_product_id" type="number" id="outlet_parent_product_id" class="regular-text" min="1" step="1" required />';
-            echo '<p class="description">' . esc_html__('WooCommerce variable product ID.', 'sutore-marketplace') . '</p></td></tr>';
-            echo '<tr><th scope="row"><label for="outlet_size_term_id">' . esc_html__('Size term ID', 'sutore-marketplace') . '</label></th>';
-            echo '<td><input name="size_term_id" type="number" id="outlet_size_term_id" class="regular-text" min="1" step="1" required /></td></tr>';
+            echo '<tr><th scope="row"><label for="outlet_product_search">' . esc_html__('Product', 'sutore-marketplace') . '</label></th><td>';
+            echo '<div class="sutore-mp-admin-product-picker" data-mode="single" data-size-select="outlet_size_term_id">';
+            echo '<input type="search" id="outlet_product_search" class="sutore-mp-admin-product-search regular-text" autocomplete="off" placeholder="'
+                . esc_attr__('Search by product name or SKU…', 'sutore-marketplace') . '" />';
+            echo '<input type="hidden" name="parent_product_id" id="outlet_parent_product_id" value="" />';
+            echo '<div class="sutore-mp-admin-product-results" hidden></div>';
+            echo '<p class="sutore-mp-admin-product-chosen description" hidden></p>';
+            echo '</div>';
+            echo '<p class="description">' . esc_html__('Search the catalog by name or SKU, then pick a variation.', 'sutore-marketplace') . '</p></td></tr>';
+            echo '<tr><th scope="row"><label for="outlet_size_term_id">' . esc_html__('Variation', 'sutore-marketplace') . '</label></th>';
+            echo '<td><select name="size_term_id" id="outlet_size_term_id" class="regular-text" required disabled>';
+            echo '<option value="">' . esc_html__('Select a product first', 'sutore-marketplace') . '</option>';
+            echo '</select></td></tr>';
             echo '<tr><th scope="row"><label for="outlet_customer_sale">' . esc_html__('Customer sale (TL)', 'sutore-marketplace') . '</label></th>';
             echo '<td><input name="customer_sale" type="number" id="outlet_customer_sale" class="regular-text" min="0" step="1" required />';
             echo '<p class="description">' . esc_html__('Price the customer pays during the window.', 'sutore-marketplace') . '</p></td></tr>';
-            echo '<tr><th scope="row"><label for="outlet_seller_net">' . esc_html__('Seller asking (TL)', 'sutore-marketplace') . '</label></th>';
+            echo '<tr><th scope="row"><label for="outlet_seller_net">' . esc_html__('Seller price (TL)', 'sutore-marketplace') . '</label></th>';
             echo '<td><input name="seller_net" type="number" id="outlet_seller_net" class="regular-text" min="0" step="1" required />';
-            echo '<p class="description">' . esc_html__('Listing asking. Commission is still applied on payout.', 'sutore-marketplace') . '</p></td></tr>';
+            echo '<p class="description">' . esc_html__('Product price. Commission is still applied on payout.', 'sutore-marketplace') . '</p></td></tr>';
             echo '</tbody></table>';
             echo '<p>';
             submit_button(__('Add item', 'sutore-marketplace'), 'secondary', 'submit', false);

@@ -40,22 +40,14 @@ final class SourcingFeedPresenter
         $perPage = max(1, $perPage);
         $search = trim($search);
 
-        $queryArgs = [
-            'status' => ListingStatus::PRE_ORDER,
-            'page' => $page,
-            'per_page' => $perPage,
-            'orderby' => $orderby === 'price_asc' || $orderby === 'price_desc' ? 'asking' : 'created_at',
-            'order' => $orderby === 'price_asc' ? 'ASC' : 'DESC',
-        ];
-
         $priceSort = in_array($orderby, ['price_asc', 'price_desc'], true);
-        $needsMemoryPage = $priceSort || $search !== '';
-        if ($needsMemoryPage) {
-            $queryArgs['page'] = 1;
-            $queryArgs['per_page'] = 500;
-        }
-
-        $result = $this->listings->query($queryArgs);
+        $result = $this->listings->query([
+            'status' => ListingStatus::PRE_ORDER,
+            'page' => 1,
+            'per_page' => 500,
+            'orderby' => $priceSort ? 'asking' : 'created_at',
+            'order' => $orderby === 'price_asc' ? 'ASC' : 'DESC',
+        ]);
         $items = [];
         $pairs = [];
         foreach ($result['items'] as $listing) {
@@ -106,22 +98,13 @@ final class SourcingFeedPresenter
             });
         }
 
-        if ($needsMemoryPage) {
-            $total = count($items);
-            $offset = ($page - 1) * $perPage;
-            $items = array_slice($items, $offset, $perPage);
-
-            return [
-                'items' => $items,
-                'total' => $total,
-                'page' => $page,
-                'per_page' => $perPage,
-            ];
-        }
+        $total = count($items);
+        $offset = ($page - 1) * $perPage;
+        $items = array_slice($items, $offset, $perPage);
 
         return [
             'items' => $items,
-            'total' => $result['total'],
+            'total' => $total,
             'page' => $page,
             'per_page' => $perPage,
         ];

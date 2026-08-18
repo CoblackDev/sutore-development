@@ -27,7 +27,7 @@ final class MerchantEventType
             'merchant_commission_override_set' => __('Commission override set', 'sutore-marketplace'),
             'merchant_commission_override_deleted' => __('Commission override deleted', 'sutore-marketplace'),
             'merchant_payout_commission_adjusted' => __('Payout commission adjusted', 'sutore-marketplace'),
-            'merchant_listing_commission_set' => __('Listing commission set', 'sutore-marketplace'),
+            'merchant_listing_commission_set' => __('Product commission set', 'sutore-marketplace'),
             'merchant_referral_accepted' => __('Referral invite accepted', 'sutore-marketplace'),
             'merchant_referral_inviter_rewarded' => __('Referral reward granted', 'sutore-marketplace'),
             'merchant_referral_inviter_capped' => __('Referral reward period limit reached', 'sutore-marketplace'),

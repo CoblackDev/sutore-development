@@ -44,7 +44,7 @@ final class StaffFulfillmentPresenter
         if (!$row) {
             return new \WP_Error(
                 'sutore_marketplace_fulfillment_missing',
-                __('Fulfillment not found.', 'sutore-marketplace'),
+                __('Sale record not found.', 'sutore-marketplace'),
                 ['status' => 404]
             );
         }
@@ -375,7 +375,7 @@ final class StaffFulfillmentPresenter
         if ($title === '' || $title === (string) $variationId) {
             $title = sprintf(
                 /* translators: %d: listing id */
-                __('Listing #%d', 'sutore-marketplace'),
+                __('Product #%d', 'sutore-marketplace'),
                 $variationId
             );
         }

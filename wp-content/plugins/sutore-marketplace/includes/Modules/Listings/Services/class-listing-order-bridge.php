@@ -37,11 +37,11 @@ final class ListingOrderBridge
     {
         $listing = $this->listings->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_not_found', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_not_found', __('Product not found.', 'sutore-marketplace'));
         }
 
         if (ListingStatus::isInSaleLifecycle($listing->listingStatus) && $listing->orderId) {
-            return new \WP_Error('sutore_marketplace_already_linked', __('Listing is already linked to an order.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_already_linked', __('Product is already linked to an order.', 'sutore-marketplace'));
         }
 
         $this->listings->update($listingId, array_merge([
@@ -77,7 +77,7 @@ final class ListingOrderBridge
     {
         $listing = $this->listings->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_not_found', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_not_found', __('Product not found.', 'sutore-marketplace'));
         }
 
         $this->listings->update($listingId, array_merge([
@@ -125,7 +125,7 @@ final class ListingOrderBridge
     {
         $listing = $this->listings->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_not_found', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_not_found', __('Product not found.', 'sutore-marketplace'));
         }
 
         if (!ListingStatus::isValid($newStatus)) {

@@ -23,11 +23,33 @@
       $card.addClass('is-campaign-active');
     }
     var $main = $('<div class="sutore-mp-card-main"/>');
+    var permalink = row.permalink || '';
     if (typeof thumbBox === 'function') {
-      $main.append(thumbBox('sutore-mp-card-thumb-box', 'sutore-mp-card-thumb', row.thumbnail || '', row.product_title || ''));
+      var $thumb = thumbBox('sutore-mp-card-thumb-box', 'sutore-mp-card-thumb', row.thumbnail || '', row.product_title || '');
+      if (permalink) {
+        $main.append(
+          $('<a class="sutore-mp-card-thumb-link"/>')
+            .attr('href', permalink)
+            .attr('target', '_blank')
+            .attr('rel', 'noopener noreferrer')
+            .append($thumb)
+        );
+      } else {
+        $main.append($thumb);
+      }
     }
     var $info = $('<div class="sutore-mp-card-info"/>');
-    $info.append($('<div class="sutore-mp-card-title"/>').text(row.product_title || ''));
+    if (permalink) {
+      $info.append(
+        $('<a class="sutore-mp-card-title"/>')
+          .attr('href', permalink)
+          .attr('target', '_blank')
+          .attr('rel', 'noopener noreferrer')
+          .text(row.product_title || '')
+      );
+    } else {
+      $info.append($('<div class="sutore-mp-card-title"/>').text(row.product_title || ''));
+    }
     var meta = [row.size_label, row.status_label].filter(Boolean);
     $info.append($('<div class="sutore-mp-card-meta"/>').text(meta.join(' · ')));
     $info.append(

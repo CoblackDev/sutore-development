@@ -124,7 +124,7 @@ final class OutletService
         if ($live !== []) {
             return new \WP_Error(
                 'sutore_outlet_item_live',
-                __('This item already has live outlet listings, so it cannot be removed.', 'sutore-marketplace')
+                __('This item already has live outlet products, so it cannot be removed.', 'sutore-marketplace')
             );
         }
 
@@ -464,7 +464,7 @@ final class OutletService
         if ($customerSale < $sellerNet) {
             return new \WP_Error(
                 'sutore_outlet_prices',
-                __('Customer sale price cannot be lower than the seller asking.', 'sutore-marketplace')
+                __('Customer sale price cannot be lower than the seller price.', 'sutore-marketplace')
             );
         }
 

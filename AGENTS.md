@@ -43,9 +43,9 @@ Bundan sonraki geliştirmeler **REST-first** yapılır. Ayrıntı: `.cursor/rule
 
 My Account / admin UI `SutoreMarketplace.api()` veya staff REST client ile bu route’lara gider. `admin-ajax.php` kullanılmaz.
 
-**Merchant My Account:** `listings`, `sourcing`, `campaign-offers`, `price-offers` (müşteri fiyat teklifi), `outlet`, `tasks`, `notifications`.
+**Merchant My Account:** `listings`, `sourcing`, `campaign-offers`, `price-offers` (müşteri fiyat teklifi), `outlet`, `merchant-area` (profil), `balance` (komisyon + hak edişler), `tasks`, `notifications`.
 
-**Customer My Account:** `my-offers` (gönderilen fiyat teklifleri + kabul kuponu).
+**Customer My Account:** `my-offers` (gönderilen fiyat teklifleri + kabul kuponu), `notifications` (teklif kabul/red/iletim).
 
 **Staff My Account:** `manage-products` (fulfillments), `manage-orders`, `merchants` (satıcı listesi/detay — shell + REST), `catalog-product-requests` (katalog talep kuyruğu). Admin Sellers sayfası yok.
 
@@ -118,6 +118,7 @@ Hooks/         → WC/WP/Store API hook bağlantıları
 
 - Genel: `Shared\Settings\Settings` + `Admin\SettingsPage` tab'ları
 - Modül: `Modules\{Modul}\Settings\` + ana sayfada ilgili tab (ör. `orders`)
+- SMS / İYS: Settings → SMS (`netgsm_usercode`, `netgsm_password`, `netgsm_header`, `netgsm_brand_code`). İYS ONAY/RET `Shared\Sms\IysClient` (`/iys/add`). Hook: `sutore_marketplace_marketing_opt_in` / `opt_out`.
 
 ## Güvenlik
 

@@ -11,7 +11,8 @@ PO = ROOT / "languages" / "sutore-marketplace-tr_TR.po"
 
 SKIP_PARTS = (
     "tr-districts-data",
-    "/tools/",
+    "tools/",
+    "tests/",
     "node_modules",
     "pre-information-en.php",
     "distance-sales-en.php",
@@ -65,8 +66,8 @@ def extract_from_file(path: Path) -> set[str]:
             r'(?:__|_e|esc_html__|esc_attr__|_x)\(\s*"((?:\\"|[^"])*)"\s*,\s*"sutore-marketplace"'
         ),
         re.compile(r"_n\(\s*'((?:\\'|[^'])*)'\s*,\s*'((?:\\'|[^'])*)'"),
-        re.compile(r"t\(\s*'[^']+'\s*,\s*'((?:\\'|[^'])*)'"),
-        re.compile(r't\(\s*"[^"]+"\s*,\s*"((?:\\"|[^"])*)"'),
+        re.compile(r"\bt\(\s*'[^']+'\s*,\s*'((?:\\'|[^'])*)'"),
+        re.compile(r'\bt\(\s*"[^"]+"\s*,\s*"((?:\\"|[^"])*)"'),
     ]
 
     for rx in patterns:

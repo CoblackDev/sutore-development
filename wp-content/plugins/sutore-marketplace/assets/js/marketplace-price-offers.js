@@ -83,8 +83,8 @@
     $info.append($('<div class="sutore-mp-card-meta"/>').html(metaParts.map(esc).join(' · ')));
     $info.append(
       $('<div class="sutore-mp-card-offer-discounts"/>').text(
-        t('priceOfferBid', 'Customer bid (asking)') + ': ' + money(row.bid_amount) +
-        ' · ' + t('priceOfferAsking', 'Your asking') + ': ' + money(row.asking_now || row.asking_at_offer)
+        t('priceOfferBid', 'Customer bid') + ': ' + money(row.bid_amount) +
+        ' · ' + t('priceOfferAsking', 'Your price') + ': ' + money(row.asking_now || row.asking_at_offer)
       )
     );
     if (row.remaining_label) {
@@ -140,8 +140,8 @@
     if (row.size_label) {
       html += metaRow(t('size', 'Size'), esc(row.size_label));
     }
-    html += metaRow(t('priceOfferBid', 'Customer bid (asking)'), esc(money(row.bid_amount)));
-    html += metaRow(t('priceOfferAsking', 'Your asking'), esc(money(row.asking_now || row.asking_at_offer)));
+    html += metaRow(t('priceOfferBid', 'Customer bid'), esc(money(row.bid_amount)));
+    html += metaRow(t('priceOfferAsking', 'Your price'), esc(money(row.asking_now || row.asking_at_offer)));
     html += metaRow(t('priceOfferPay', 'Customer would pay'), esc(money(row.customer_pay)));
     if (row.expires_at_label) {
       html += metaRow(t('remaining', 'Expires'), esc(row.expires_at_label));
@@ -235,12 +235,14 @@
   function acceptOffer(id) {
     showConfirm(
       t('priceOfferAccept', 'Accept'),
-      t('priceOfferAcceptConfirm', 'Accept this offer? A personal coupon will be issued. Your public asking price will not change.'),
+      t('priceOfferAcceptConfirm', 'Accept this offer? A personal coupon will be issued. Your public price will not change.'),
       t('priceOfferAccept', 'Accept'),
       function () {
         api('marketplace_price_offer_accept', { offer_id: id }).done(function (res) {
           if (!res || !res.success) {
             window.alert((res && res.data && res.data.message) || t('error', 'Error'));
+            closeModal();
+            loadOffers(currentPage);
             return;
           }
           closeModal();
@@ -259,6 +261,8 @@
         api('marketplace_price_offer_decline', { offer_id: id }).done(function (res) {
           if (!res || !res.success) {
             window.alert((res && res.data && res.data.message) || t('error', 'Error'));
+            closeModal();
+            loadOffers(currentPage);
             return;
           }
           closeModal();

@@ -26,6 +26,11 @@ final class NetgsmSettings
         return $header !== '' ? $header : 'SUTORE';
     }
 
+    public static function brandCode(): string
+    {
+        return trim((string) Settings::get('netgsm_brand_code', ''));
+    }
+
     public static function encoding(): string
     {
         $encoding = strtoupper(trim((string) Settings::get('netgsm_encoding', 'TR')));
@@ -36,6 +41,11 @@ final class NetgsmSettings
     public static function isConfigured(): bool
     {
         return self::usercode() !== '' && self::password() !== '';
+    }
+
+    public static function isIysConfigured(): bool
+    {
+        return self::isConfigured() && self::brandCode() !== '';
     }
 
     public static function hasStoredPassword(): bool

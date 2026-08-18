@@ -73,7 +73,7 @@ final class CampaignsPage
             echo '<td>' . esc_html(CampaignDiscountType::ruleLabel(
                 isset($row->seller_discount_type) ? (string) $row->seller_discount_type : CampaignDiscountType::FIXED,
                 (float) $row->seller_discount_amount,
-                __('asking', 'sutore-marketplace')
+                __('price', 'sutore-marketplace')
             )) . '</td>';
             echo '<td>' . esc_html(CampaignDiscountType::ruleLabel(
                 isset($row->platform_discount_type) ? (string) $row->platform_discount_type : CampaignDiscountType::FIXED,
@@ -116,7 +116,7 @@ final class CampaignsPage
         echo '</select> ';
         echo '<input name="seller_discount_amount" type="number" id="seller_discount_amount" class="regular-text" value="0" step="0.01" min="0" />';
         echo '<p class="description">' . esc_html__(
-            'Fixed TL off asking, or percent of the listing asking price (resolved per product when offers are published).',
+            'Fixed TL off the price, or percent of the product price (resolved per product when offers are published).',
             'sutore-marketplace'
         ) . '</p></td></tr>';
 
@@ -144,7 +144,7 @@ final class CampaignsPage
         }
         echo '<p class="description">' . esc_html__('Leave empty to include all levels.', 'sutore-marketplace') . '</p></td></tr>';
 
-        echo '<tr><th scope="row">' . esc_html__('Listing asking range (TL)', 'sutore-marketplace') . '</th><td>';
+        echo '<tr><th scope="row">' . esc_html__('Product price range (TL)', 'sutore-marketplace') . '</th><td>';
         echo '<input name="asking_min" type="number" class="small-text" min="0" step="1" placeholder="'
             . esc_attr__('Min', 'sutore-marketplace') . '" /> — ';
         echo '<input name="asking_max" type="number" class="small-text" min="0" step="1" placeholder="'
@@ -170,9 +170,15 @@ final class CampaignsPage
         echo '</select>';
         echo '<p class="description">' . esc_html__('Leave empty to include all brands.', 'sutore-marketplace') . '</p></td></tr>';
 
-        echo '<tr><th scope="row"><label for="product_ids">' . esc_html__('Product IDs (optional)', 'sutore-marketplace') . '</label></th>';
-        echo '<td><input name="product_ids" type="text" id="product_ids" class="regular-text" placeholder="12, 34, 56" />';
-        echo '<p class="description">' . esc_html__('Comma-separated parent product IDs to further narrow the audience.', 'sutore-marketplace') . '</p></td></tr>';
+        echo '<tr><th scope="row"><label for="campaign_product_search">' . esc_html__('Products (optional)', 'sutore-marketplace') . '</label></th><td>';
+        echo '<div class="sutore-mp-admin-product-picker" data-mode="multiple">';
+        echo '<input type="search" id="campaign_product_search" class="sutore-mp-admin-product-search regular-text" autocomplete="off" placeholder="'
+            . esc_attr__('Search by product name or SKU…', 'sutore-marketplace') . '" />';
+        echo '<input type="hidden" name="product_ids" id="product_ids" value="" />';
+        echo '<div class="sutore-mp-admin-product-results" hidden></div>';
+        echo '<ul class="sutore-mp-admin-product-chips"></ul>';
+        echo '</div>';
+        echo '<p class="description">' . esc_html__('Search by name or SKU to narrow the campaign to specific catalog products. Leave empty to include all matching products.', 'sutore-marketplace') . '</p></td></tr>';
 
         echo '<tr><th scope="row">' . esc_html__('Audience preview', 'sutore-marketplace') . '</th><td>';
         echo '<div class="sutore-mp-campaign-live-preview notice notice-info inline" style="margin:0;padding:10px 12px;" role="status" aria-live="polite">';
@@ -181,7 +187,7 @@ final class CampaignsPage
             . '</p>';
         echo '<ul class="sutore-mp-campaign-preview-samples" style="margin:0;padding-left:18px;list-style:disc;"></ul>';
         echo '</div>';
-        echo '<p class="description">' . esc_html__('Updates automatically as you change levels, price range, categories, brands, or product IDs. Category and brand filters are optional.', 'sutore-marketplace') . '</p>';
+        echo '<p class="description">' . esc_html__('Updates automatically as you change levels, price range, categories, brands, or products. Category and brand filters are optional.', 'sutore-marketplace') . '</p>';
         echo '</td></tr>';
 
         echo '<tr><th scope="row"><label for="campaign_notes">' . esc_html__('Note', 'sutore-marketplace') . '</label></th>';

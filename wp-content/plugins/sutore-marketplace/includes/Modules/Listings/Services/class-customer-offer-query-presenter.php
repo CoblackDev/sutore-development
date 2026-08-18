@@ -79,8 +79,10 @@ final class CustomerOfferQueryPresenter
             'asking' => 0.0,
             'customer_price' => 0.0,
             'min_bid' => 0,
+            'max_bid' => 0,
             'price_step' => \SutoreMarketplace\Shared\Settings\Settings::listingPriceStep(),
             'ttl_hours' => CustomerOfferGuardrails::ttlHours(),
+            'auto_decline_hours' => CustomerOfferGuardrails::autoDeclineHours(),
             'min_percent' => CustomerOfferGuardrails::minPercent(),
             'pending_offer' => null,
             'accepted_offer' => null,
@@ -102,6 +104,7 @@ final class CustomerOfferQueryPresenter
         $empty['asking'] = $asking;
         $empty['customer_price'] = MarketplacePricing::customerPrice($listing);
         $empty['min_bid'] = CustomerOfferGuardrails::minBidForAsking($asking);
+        $empty['max_bid'] = CustomerOfferGuardrails::maxBidForAsking($asking);
         $empty['parent_product_id'] = (int) $listing->parentProductId;
         $empty['size_term_id'] = (int) $listing->sizeTermId;
         $empty['size_label'] = ProductSizeLookup::labelForTermId((int) $listing->sizeTermId);
@@ -204,6 +207,14 @@ final class CustomerOfferQueryPresenter
             }
         }
 
+        $permalink = '';
+        if ($listing && (int) $listing->variationId > 0) {
+            $permalink = (string) (get_permalink((int) $listing->variationId) ?: '');
+        }
+        if ($permalink === '' && $parentId > 0) {
+            $permalink = (string) (get_permalink($parentId) ?: '');
+        }
+
         return [
             'id' => (int) $row->id,
             'listing_id' => (int) $row->listing_id,
@@ -217,7 +228,7 @@ final class CustomerOfferQueryPresenter
                 $listing ? (int) $listing->sizeTermId : (int) $row->size_term_id
             ),
             'thumbnail' => $parentId > 0 ? ProductThumbnail::url($parentId) : '',
-            'permalink' => $parentId > 0 ? (get_permalink($parentId) ?: '') : '',
+            'permalink' => $permalink,
             'status' => (string) $row->status,
             'status_label' => CustomerOfferStatus::label((string) $row->status),
             'bid_amount' => $bid,

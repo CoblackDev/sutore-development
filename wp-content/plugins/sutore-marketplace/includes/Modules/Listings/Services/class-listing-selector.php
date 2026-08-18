@@ -83,7 +83,7 @@ final class ListingSelector
     {
         $listing = $this->listings->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_listing_missing', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_listing_missing', __('Product not found.', 'sutore-marketplace'));
         }
 
         if (!$listing->isWinner) {
@@ -96,7 +96,7 @@ final class ListingSelector
         if ($listing->listingStatus !== 'pending') {
             return new \WP_Error(
                 'sutore_marketplace_not_pending',
-                __('Listing is not awaiting approval.', 'sutore-marketplace')
+                __('Product is not awaiting approval.', 'sutore-marketplace')
             );
         }
 
@@ -113,7 +113,7 @@ final class ListingSelector
             $this->sync->syncFromWinner($fresh);
         }
 
-        return $fresh ?: new \WP_Error('sutore_marketplace_approve_failed', __('Listing could not be approved.', 'sutore-marketplace'));
+        return $fresh ?: new \WP_Error('sutore_marketplace_approve_failed', __('Product could not be approved.', 'sutore-marketplace'));
     }
 
     public function queuePosition(Listing $listing): array

@@ -89,7 +89,7 @@
     if ($delete.length) {
       bindOtpForm($delete, 'account_delete', 'marketplace_account_delete', {
         confirmTitle: t('deleteAccountTitle', 'Delete your account?'),
-        confirmText: t('deleteAccountConfirm', 'This will permanently delete your account and listings. You cannot undo this action.'),
+        confirmText: t('deleteAccountConfirm', 'This will permanently delete your account and products. You cannot undo this action.'),
         confirmLabel: t('deleteAccountConfirmButton', 'Delete account'),
         redirectHome: true
       });

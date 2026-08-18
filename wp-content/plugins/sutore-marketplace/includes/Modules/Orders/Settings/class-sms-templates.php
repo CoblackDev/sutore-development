@@ -56,14 +56,14 @@ final class SmsTemplates
             'paid_seller' => 'Your payout for {product} sold at {price} TL has been completed.',
             'suspended_customer' => 'Alternative sourcing is being considered for {product} on order {order_id}.',
             'suspended_seller' => 'Your {product} sale was taken off sale because it was not confirmed.',
-            'alternative_sourcing' => 'Urgent sourcing request for {product}. Check the panel if you have a matching listing.',
+            'alternative_sourcing' => 'Urgent sourcing request for {product}. Check the panel if you have a matching product.',
             'sourcing_digest' => 'Pre-order list updated: {products}',
             'pre_order_swapped_customer' => '{product} on your order {order_id} was sourced from another seller. We are tracking delivery to your estimated date.',
             'pre_order_unsourced_customer' => 'We could not source {product} on order {order_id}. The item has been removed and a refund will be processed if payment was taken.',
             'manual_order_attach_customer' => '{product} on your order {order_id} was sourced from another seller. We are tracking delivery to your estimated date.',
             'order_completed' => 'Your order {order_id} is complete. Thank you.',
             'order_refunded' => 'A refund for your order {order_id} has been processed.',
-            'order_cancelled_open_fulfillment' => 'Order {order_id} was cancelled while {product} is still in fulfillment. Handle in Manage Products.',
+            'order_cancelled_open_fulfillment' => 'Order {order_id} was cancelled while {product} is still in the sale pipeline. Handle in Manage Products.',
         ];
     }
 
@@ -109,7 +109,7 @@ final class SmsTemplates
             'manual_order_attach_customer' => __('Manual order attach (customer)', 'sutore-marketplace'),
             'order_completed' => __('Order completed', 'sutore-marketplace'),
             'order_refunded' => __('Order refund', 'sutore-marketplace'),
-            'order_cancelled_open_fulfillment' => __('Cancelled order still in fulfillment (admin)', 'sutore-marketplace'),
+            'order_cancelled_open_fulfillment' => __('Cancelled order still in the sale pipeline (admin)', 'sutore-marketplace'),
         ];
     }
 

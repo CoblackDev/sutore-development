@@ -23,7 +23,7 @@ final class BehaviorSettingsSection
             : Settings::defaults()['merchant_levels'];
 
         echo '<p class="description">' . esc_html__(
-            'Score is computed daily from listing events in the score window. Event weights, thresholds, and protection rules are applied by cron and REST surfaces.',
+            'Score is computed daily from product events in the score window. Event weights, thresholds, and protection rules are applied by cron and REST surfaces.',
             'sutore-marketplace'
         ) . '</p>';
 
@@ -109,14 +109,14 @@ final class BehaviorSettingsSection
             __('Score window (days)', 'sutore-marketplace'),
             (int) ($behavior['score_window_days'] ?? $defaults['score_window_days']),
             '1',
-            __('How many days of listing events are included in the 1–5 score.', 'sutore-marketplace')
+            __('How many days of product events are included in the 1–5 score.', 'sutore-marketplace')
         );
         $this->numberRow(
             'behavior_asking_reference',
-            __('Asking reference (TL)', 'sutore-marketplace'),
+            __('Price reference (TL)', 'sutore-marketplace'),
             (float) ($behavior['asking_reference'] ?? $defaults['asking_reference']),
             '1',
-            __('Amount weighting uses asking / reference, clamped between 0.5× and 2×.', 'sutore-marketplace')
+            __('Amount weighting uses price / reference, clamped between 0.5× and 2×.', 'sutore-marketplace')
         );
         $this->numberRow(
             'behavior_sourcing_min_score',
@@ -138,7 +138,7 @@ final class BehaviorSettingsSection
 
         echo '<h2>' . esc_html__('Event weights', 'sutore-marketplace') . '</h2>';
         echo '<p class="description">' . esc_html__(
-            'Each scorable listing event adds weight × amount factor to the score (starting from 5.0). Negative values lower the score.',
+            'Each scorable product event adds weight × amount factor to the score (starting from 5.0). Negative values lower the score.',
             'sutore-marketplace'
         ) . '</p>';
         echo '<table class="form-table" role="presentation"><tbody>';
@@ -253,7 +253,7 @@ final class BehaviorSettingsSection
         );
         $this->numberRow(
             'behavior_premium_monthly_min_revenue',
-            __('Previous month minimum revenue (asking TL)', 'sutore-marketplace'),
+            __('Previous month minimum revenue (price TL)', 'sutore-marketplace'),
             (float) ($behavior['premium_monthly_min_revenue'] ?? $defaults['premium_monthly_min_revenue']),
             '1',
             ''

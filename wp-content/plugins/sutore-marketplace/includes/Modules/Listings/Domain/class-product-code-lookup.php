@@ -18,49 +18,27 @@ final class ProductCodeLookup
     /**
      * @return list<array{id:int,title:string,product_code:string,thumbnail:string}>
      */
-    public static function searchParents(string $code, string $categorySlug = ''): array
+    public static function searchParents(string $query, string $categorySlug = ''): array
     {
-        $code = trim($code);
-        if ($code === '') {
+        $query = trim($query);
+        if ($query === '') {
             return [];
         }
 
-        $args = [
-            'post_type' => 'product',
-            'post_status' => 'publish',
-            'post_parent' => 0,
-            'posts_per_page' => 20,
-            'meta_query' => [[
-                'key' => '_sku',
-                'value' => $code,
-                'compare' => 'LIKE',
-            ]],
-        ];
-
-        if ($categorySlug !== '') {
-            $args['tax_query'] = [[
-                'taxonomy' => 'product_cat',
-                'field' => 'slug',
-                'terms' => [$categorySlug],
-            ]];
+        $ids = [];
+        foreach (self::parentIdsBySku($query, $categorySlug) as $id) {
+            $ids[$id] = true;
+        }
+        foreach (self::parentIdsByTitle($query, $categorySlug) as $id) {
+            $ids[$id] = true;
         }
 
-        $q = new \WP_Query($args);
         $items = [];
-        $seen = [];
-        foreach ($q->posts as $post) {
-            $id = (int) $post->ID;
-            if (isset($seen[$id])) {
-                continue;
+        foreach (array_keys($ids) as $id) {
+            $items[] = self::presentParent($id);
+            if (count($items) >= 20) {
+                break;
             }
-            $seen[$id] = true;
-            $items[] = [
-                'id' => $id,
-                'title' => get_the_title($id),
-                'product_code' => self::codeForProduct($id),
-                'thumbnail' => ProductThumbnail::url($id),
-                'permalink' => get_permalink($id) ?: '',
-            ] + ReleasePriceService::context($id);
         }
 
         return $items;
@@ -92,5 +70,96 @@ final class ProductCodeLookup
         }
 
         return null;
+    }
+
+    /**
+     * @return list<int>
+     */
+    private static function parentIdsBySku(string $query, string $categorySlug): array
+    {
+        $args = self::baseParentQueryArgs($categorySlug);
+        $args['meta_query'] = [[
+            'key' => '_sku',
+            'value' => $query,
+            'compare' => 'LIKE',
+        ]];
+
+        return self::queryParentIds($args);
+    }
+
+    /**
+     * @return list<int>
+     */
+    private static function parentIdsByTitle(string $query, string $categorySlug): array
+    {
+        $args = self::baseParentQueryArgs($categorySlug);
+        $filter = static function (string $where) use ($query): string {
+            global $wpdb;
+            $like = '%' . $wpdb->esc_like($query) . '%';
+
+            return $where . $wpdb->prepare(" AND {$wpdb->posts}.post_title LIKE %s", $like);
+        };
+        add_filter('posts_where', $filter);
+        try {
+            return self::queryParentIds($args);
+        } finally {
+            remove_filter('posts_where', $filter);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function baseParentQueryArgs(string $categorySlug): array
+    {
+        $args = [
+            'post_type' => 'product',
+            'post_status' => 'publish',
+            'post_parent' => 0,
+            'posts_per_page' => 20,
+            'fields' => 'ids',
+            'orderby' => 'title',
+            'order' => 'ASC',
+            'no_found_rows' => true,
+        ];
+
+        if ($categorySlug !== '') {
+            $args['tax_query'] = [[
+                'taxonomy' => 'product_cat',
+                'field' => 'slug',
+                'terms' => [$categorySlug],
+            ]];
+        }
+
+        return $args;
+    }
+
+    /**
+     * @param array<string, mixed> $args
+     * @return list<int>
+     */
+    private static function queryParentIds(array $args): array
+    {
+        $q = new \WP_Query($args);
+        $ids = [];
+        foreach ($q->posts as $id) {
+            $ids[] = (int) $id;
+        }
+
+        return $ids;
+    }
+
+    /**
+     * @return array{id:int,title:string,product_code:string,thumbnail:string,permalink:string}
+     */
+    private static function presentParent(int $id): array
+    {
+        return [
+            'id' => $id,
+            'title' => get_the_title($id),
+            'product_code' => self::codeForProduct($id),
+            'thumbnail' => ProductThumbnail::url($id),
+            'permalink' => get_permalink($id) ?: '',
+        ] + ReleasePriceService::context($id);
     }
 }

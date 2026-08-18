@@ -335,7 +335,7 @@ final class InvoiceIssuer
             $listing = (new \SutoreMarketplace\Modules\Listings\Repositories\ListingRepository())->find($variationId);
         }
         if ((string) $row->kind === InvoiceKind::SELLER_COMMISSION && !$listing instanceof Listing) {
-            return new \WP_Error('sutore_invoice_listing', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_invoice_listing', __('Product not found.', 'sutore-marketplace'));
         }
 
         $person = (string) $row->kind === InvoiceKind::SELLER_COMMISSION && $listing instanceof Listing

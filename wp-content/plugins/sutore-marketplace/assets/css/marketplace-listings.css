@@ -451,26 +451,26 @@ body.sutore-mp-modal-open {
   margin: 0 0 0.75rem;
 }
 
+.sutore-mp-open-catalog-request {
+  margin-top: 0.15rem;
+}
+
 .sutore-mp-catalog-request {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.85rem 0.9rem;
-  border: 1px solid color-mix(in srgb, currentColor 15%, transparent);
-  border-radius: 0.4rem;
-}
-
-.sutore-mp-catalog-request__title {
-  margin: 0;
-  font-size: 1rem;
+  min-height: 0;
 }
 
 .sutore-mp-catalog-request .sutore-mp-field-label {
-  margin-top: 0.35rem;
+  margin-top: 0.65rem;
+}
+
+.sutore-mp-catalog-request .sutore-mp-field-label:first-of-type {
+  margin-top: 0;
 }
 
 .sutore-mp-catalog-request-error {
-  margin: 0.25rem 0 0;
+  margin: 0.5rem 0 0;
   color: #b32d2e;
 }
 
@@ -479,11 +479,6 @@ body.sutore-mp-modal-open {
   padding: 0.75rem 0.85rem;
   border-left: 3px solid currentColor;
   background: color-mix(in srgb, currentColor 8%, transparent);
-}
-
-.sutore-mp-catalog-request-submit {
-  margin-top: 0.5rem;
-  align-self: flex-start;
 }
 
 .sutore-mp-staff-catalog-requests .sutore-mp-open-sort {
@@ -1777,6 +1772,7 @@ body.sutore-mp-modal-open {
 .sutore-mp-manage-modal .sutore-mp-form-section-condition,
 .sutore-mp-manage-modal .sutore-mp-form-section-shipping,
 .sutore-mp-manage-modal .sutore-mp-form-section-imported,
+.sutore-mp-manage-modal .sutore-mp-form-section-duration,
 .sutore-mp-manage-modal .sutore-mp-form-section-price {
   margin-bottom: 1.25rem;
   padding-top: 0;
@@ -1938,6 +1934,7 @@ body.sutore-mp-modal-open {
   .sutore-mp-manage-modal .sutore-mp-form-section-condition,
   .sutore-mp-manage-modal .sutore-mp-form-section-shipping,
   .sutore-mp-manage-modal .sutore-mp-form-section-imported,
+  .sutore-mp-manage-modal .sutore-mp-form-section-duration,
   .sutore-mp-manage-modal .sutore-mp-form-section-price {
     padding-top: 1rem;
     border-top: 1px solid color-mix(in srgb, currentColor 8%, transparent);
@@ -2083,7 +2080,8 @@ body.sutore-mp-modal-open {
   display: none !important;
 }
 
-.sutore-mp-size-prices-overlay {
+.sutore-mp-size-prices-overlay,
+.sutore-mp-catalog-request-overlay {
   position: fixed;
   inset: 0;
   z-index: 100001;
@@ -2100,13 +2098,15 @@ body.sutore-mp-modal-open {
     visibility 0.22s ease;
 }
 
-.sutore-mp-size-prices-overlay.is-open {
+.sutore-mp-size-prices-overlay.is-open,
+.sutore-mp-catalog-request-overlay.is-open {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
 }
 
-.sutore-mp-size-prices-overlay[hidden] {
+.sutore-mp-size-prices-overlay[hidden],
+.sutore-mp-catalog-request-overlay[hidden] {
   display: none !important;
 }
 
@@ -2127,7 +2127,8 @@ body.sutore-mp-modal-open {
     opacity 0.22s ease;
 }
 
-.sutore-mp-size-prices-overlay.is-open .sutore-mp-size-prices-modal {
+.sutore-mp-size-prices-overlay.is-open .sutore-mp-size-prices-modal,
+.sutore-mp-catalog-request-overlay.is-open .sutore-mp-catalog-request-modal {
   transform: scale(1);
   opacity: 1;
 }
@@ -2165,6 +2166,83 @@ body.sutore-mp-modal-open {
 .sutore-mp-size-prices-modal__body {
   overflow: auto;
   padding: 1rem 1.15rem 1.25rem;
+}
+
+.sutore-mp-catalog-request-overlay {
+  z-index: 100002;
+}
+
+.sutore-mp-catalog-request-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(480px, 100%);
+  max-height: min(88vh, 640px);
+  background: var(--wp--preset--color--base, #fff);
+  color: inherit;
+  border-radius: 0.5rem;
+  box-shadow: 0 18px 50px color-mix(in srgb, #000 28%, transparent);
+  overflow: hidden;
+  transform: scale(0.94);
+  opacity: 0;
+  transition:
+    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease;
+}
+
+.sutore-mp-catalog-request-modal__handle {
+  display: none;
+}
+
+.sutore-mp-catalog-request-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  flex-shrink: 0;
+}
+
+.sutore-mp-catalog-request-modal__head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.sutore-mp-catalog-request-close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+}
+
+.sutore-mp-catalog-request-modal__body {
+  overflow: auto;
+  padding: 1rem 1.15rem 1.25rem;
+}
+
+.sutore-mp-catalog-request-modal__body .description {
+  margin: 0 0 0.85rem;
+  font-size: 0.88rem;
+  opacity: 0.75;
+  line-height: 1.4;
+}
+
+.sutore-mp-catalog-request-modal__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.85rem 1.15rem 1rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  flex-shrink: 0;
+}
+
+.sutore-mp-manage-modal .sutore-mp-duration-days {
+  width: 100%;
+  max-width: 16rem;
 }
 
 .sutore-mp-size-prices-modal .sutore-mp-competing-prices {
@@ -2467,12 +2545,14 @@ body.sutore-mp-modal-open {
     padding-top: 0.55rem;
   }
 
-  .sutore-mp-size-prices-overlay {
+  .sutore-mp-size-prices-overlay,
+  .sutore-mp-catalog-request-overlay {
     padding: 0;
     align-items: flex-end;
   }
 
-  .sutore-mp-size-prices-modal {
+  .sutore-mp-size-prices-modal,
+  .sutore-mp-catalog-request-modal {
     width: 100%;
     max-height: min(88vh, 100%);
     border-radius: 1rem 1rem 0 0;
@@ -2480,19 +2560,22 @@ body.sutore-mp-modal-open {
     opacity: 1;
   }
 
-  .sutore-mp-size-prices-overlay.is-open .sutore-mp-size-prices-modal {
+  .sutore-mp-size-prices-overlay.is-open .sutore-mp-size-prices-modal,
+  .sutore-mp-catalog-request-overlay.is-open .sutore-mp-catalog-request-modal {
     transform: translateY(0);
     opacity: 1;
   }
 
-  .sutore-mp-size-prices-modal__handle {
+  .sutore-mp-size-prices-modal__handle,
+  .sutore-mp-catalog-request-modal__handle {
     display: flex;
     justify-content: center;
     padding: 0.55rem 0 0.15rem;
     flex-shrink: 0;
   }
 
-  .sutore-mp-size-prices-modal__handle span {
+  .sutore-mp-size-prices-modal__handle span,
+  .sutore-mp-catalog-request-modal__handle span {
     display: block;
     width: 2.5rem;
     height: 0.28rem;

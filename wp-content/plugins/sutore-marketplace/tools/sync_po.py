@@ -15,7 +15,8 @@ OVERRIDES = TOOLS / "_po_overrides.json"
 
 SKIP_PARTS = (
     "tr-districts-data",
-    "/tools/",
+    "tools/",
+    "tests/",
     "node_modules",
     "pre-information-en.php",
     "distance-sales-en.php",
@@ -77,8 +78,8 @@ def extract_msgids() -> set[str]:
             r'(?:__|_e|esc_html__|esc_attr__|_x)\(\s*"((?:\\"|[^"])*)"\s*,\s*"sutore-marketplace"'
         ),
         re.compile(r"_n\(\s*'((?:\\'|[^'])*)'\s*,\s*'((?:\\'|[^'])*)'"),
-        re.compile(r"t\(\s*'[^']+'\s*,\s*'((?:\\'|[^'])*)'"),
-        re.compile(r't\(\s*"[^"]+"\s*,\s*"((?:\\"|[^"])*)"'),
+        re.compile(r"\bt\(\s*'[^']+'\s*,\s*'((?:\\'|[^'])*)'"),
+        re.compile(r'\bt\(\s*"[^"]+"\s*,\s*"((?:\\"|[^"])*)"'),
     ]
     for path in list(ROOT.rglob("*.php")) + list(ROOT.rglob("*.js")):
         rel = path.relative_to(ROOT).as_posix()
@@ -190,10 +191,14 @@ def main() -> None:
             still_missing.append(en)
             translations[en] = en  # placeholder
 
+    if OVERRIDES.is_file():
+        for en, tr in json.loads(OVERRIDES.read_text(encoding="utf-8")).items():
+            if en in translations and tr:
+                translations[en] = tr
+
     # Manual overrides for identity / technical strings
     manual: dict[str, str] = {
         "ID": "ID",
-        "asking": "asking",
         "%s TL": "%s TL",
     }
     for en, tr in manual.items():

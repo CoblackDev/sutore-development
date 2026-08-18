@@ -70,8 +70,8 @@ final class OutletController
         }
 
         $message = !empty($result['listing_created'])
-            ? __('You joined this outlet item. Your listing is now on sale at the committed asking.', 'sutore-marketplace')
-            : __('You joined this outlet item. A listing will be created when the window opens.', 'sutore-marketplace');
+            ? __('You joined this outlet item. Your product is now on sale at the committed price.', 'sutore-marketplace')
+            : __('You joined this outlet item. A product will be created when the window opens.', 'sutore-marketplace');
 
         return RestResponse::success([
             ...$result,

@@ -255,6 +255,61 @@ final class ListingEventsRepository
     /**
      * @return list<object>
      */
+    public function forListing(int $variationId, int $limit = 50, ?string $visibility = null): array
+    {
+        if ($variationId <= 0) {
+            return [];
+        }
+
+        global $wpdb;
+        $table = $this->table();
+        $limit = max(1, min(200, $limit));
+
+        if ($visibility !== null && $visibility !== '') {
+            return $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM {$table}
+                 WHERE variation_id = %d
+                   AND visibility = %s
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT %d",
+                $variationId,
+                sanitize_key($visibility),
+                $limit
+            )) ?: [];
+        }
+
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$table}
+             WHERE variation_id = %d
+             ORDER BY created_at DESC, id DESC
+             LIMIT %d",
+            $variationId,
+            $limit
+        )) ?: [];
+    }
+
+    public function merchantCanAccessListing(int $variationId, int $merchantId): bool
+    {
+        if ($variationId <= 0 || $merchantId <= 0) {
+            return false;
+        }
+
+        global $wpdb;
+        $found = $wpdb->get_var($wpdb->prepare(
+            'SELECT id FROM ' . $this->table() . '
+             WHERE variation_id = %d
+               AND merchant_id = %d
+             LIMIT 1',
+            $variationId,
+            $merchantId
+        ));
+
+        return (int) $found > 0;
+    }
+
+    /**
+     * @return list<object>
+     */
     public function findTimelineForVariation(int $variationId): array
     {
         if ($variationId <= 0) {

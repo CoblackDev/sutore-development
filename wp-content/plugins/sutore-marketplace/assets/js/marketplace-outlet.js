@@ -43,7 +43,7 @@
 
     var $prices = $('<div class="sutore-mp-card-meta"/>');
     $prices.append($('<div/>').text(t('outletCustomerSale', 'Customer sale') + ': ' + (row.customer_sale_display || '')));
-    $prices.append($('<div/>').text(t('outletSellerAsking', 'Your asking') + ': ' + (row.seller_net_display || '')));
+    $prices.append($('<div/>').text(t('outletSellerAsking', 'Your price') + ': ' + (row.seller_net_display || '')));
     $info.append($prices);
 
     $info.append($('<div class="sutore-mp-card-meta"/>').text(
@@ -64,7 +64,7 @@
       $actions.append(
         $('<button type="button" class="wp-element-button sutore-mp-outlet-join"/>')
           .attr('data-id', String(row.id))
-          .text(t('outletJoin', 'Join at this asking'))
+          .text(t('outletJoin', 'Join at this price'))
       );
     }
     if (row.can_cancel) {
@@ -123,14 +123,14 @@
     };
     if (typeof showConfirm === 'function') {
       showConfirm(
-        t('outletJoin', 'Join at this asking'),
-        t('outletJoinConfirm', 'Join this outlet item at the listed asking?'),
-        t('outletJoin', 'Join at this asking'),
+        t('outletJoin', 'Join at this price'),
+        t('outletJoinConfirm', 'Join this outlet item at the listed price?'),
+        t('outletJoin', 'Join at this price'),
         run
       );
       return;
     }
-    if (window.confirm(t('outletJoinConfirm', 'Join this outlet item at the listed asking?'))) {
+    if (window.confirm(t('outletJoinConfirm', 'Join this outlet item at the listed price?'))) {
       run();
     }
   });

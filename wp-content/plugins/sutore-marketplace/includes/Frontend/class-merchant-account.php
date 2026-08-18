@@ -11,12 +11,13 @@ use SutoreMarketplace\Shared\Settings\Settings;
 
 /**
  * Merchant WooCommerce My Account endpoints:
- * - listings  → Listinglerim (+ ?variation_id= manage / ?action=create|bulk modals)
+ * - listings  → My products / Ürünlerim (+ ?variation_id= manage / ?action=create|bulk modals)
  * - sourcing  → Pre-order (list + detail/accept modal)
  * - campaign-offers → Kampanya teklifleri
  * - price-offers → Müşteri fiyat teklifleri
  * - outlet → Outlet
- * - merchant-area → Satıcı Özel (profil, bakiye)
+ * - merchant-area → Satıcı Özel (profil)
+ * - balance → Bakiyem (komisyon, hak edişler)
  * - tasks → Görevlerim
  * - notifications → Bildirimler
  */
@@ -28,6 +29,7 @@ final class MerchantAccount
     public const ENDPOINT_PRICE_OFFERS = 'price-offers';
     public const ENDPOINT_OUTLET = 'outlet';
     public const ENDPOINT_MERCHANT_AREA = 'merchant-area';
+    public const ENDPOINT_BALANCE = 'balance';
     public const ENDPOINT_TASKS = 'tasks';
     public const ENDPOINT_NOTIFICATIONS = 'notifications';
 
@@ -49,6 +51,7 @@ final class MerchantAccount
         add_action('woocommerce_account_' . self::ENDPOINT_PRICE_OFFERS . '_endpoint', [$this, 'renderPriceOffers']);
         add_action('woocommerce_account_' . self::ENDPOINT_OUTLET . '_endpoint', [$this, 'renderOutlet']);
         add_action('woocommerce_account_' . self::ENDPOINT_MERCHANT_AREA . '_endpoint', [$this, 'renderMerchantArea']);
+        add_action('woocommerce_account_' . self::ENDPOINT_BALANCE . '_endpoint', [$this, 'renderBalance']);
         add_action('woocommerce_account_' . self::ENDPOINT_TASKS . '_endpoint', [$this, 'renderTasks']);
         add_action('woocommerce_account_' . self::ENDPOINT_NOTIFICATIONS . '_endpoint', [$this, 'renderNotifications']);
         add_action('wp_loaded', [$this, 'maybeFlushRewrites']);
@@ -66,6 +69,11 @@ final class MerchantAccount
             return;
         }
 
+        if (isset($wp->query_vars[self::ENDPOINT_BALANCE])) {
+            $this->assets->enqueueMerchantBalance();
+            return;
+        }
+
         if (isset($wp->query_vars[self::ENDPOINT_TASKS])) {
             if (MerchantMeta::isMerchant(get_current_user_id())) {
                 $this->assets->enqueueTasks();
@@ -74,9 +82,7 @@ final class MerchantAccount
         }
 
         if (isset($wp->query_vars[self::ENDPOINT_NOTIFICATIONS])) {
-            if (MerchantMeta::canViewMerchantDashboard(get_current_user_id())) {
-                $this->assets->enqueueNotifications();
-            }
+            $this->assets->enqueueNotifications();
             return;
         }
 
@@ -139,6 +145,10 @@ final class MerchantAccount
             self::ENDPOINT_MERCHANT_AREA => __('Merchant exclusive', 'sutore-marketplace'),
         ];
 
+        if (MerchantMeta::canViewMerchantDashboard(get_current_user_id())) {
+            $extra[self::ENDPOINT_BALANCE] = __('My Balance', 'sutore-marketplace');
+        }
+
         if (MerchantMeta::isMerchant(get_current_user_id())) {
             $extra[self::ENDPOINT_TASKS] = __('Opportunities', 'sutore-marketplace');
         }
@@ -158,7 +168,7 @@ final class MerchantAccount
         }
 
         if (!is_wp_error(ListingPolicy::assertCanManage())) {
-            $extra[self::ENDPOINT_LISTINGS] = __('My Listings', 'sutore-marketplace');
+            $extra[self::ENDPOINT_LISTINGS] = __('My products', 'sutore-marketplace');
             if (ListingPolicy::canAccessSourcingBoard()) {
                 $extra[self::ENDPOINT_SOURCING] = __('Pre-order', 'sutore-marketplace');
             }
@@ -290,6 +300,24 @@ final class MerchantAccount
         echo (string) ob_get_clean();
     }
 
+    public function renderBalance(): void
+    {
+        if (!is_user_logged_in()) {
+            echo '<p class="sutore-mp-error">' . esc_html__('You must log in.', 'sutore-marketplace') . '</p>';
+            return;
+        }
+
+        if (!MerchantMeta::canViewMerchantDashboard(get_current_user_id())) {
+            echo '<p class="sutore-mp-error">' . esc_html__('You do not have access to this area.', 'sutore-marketplace') . '</p>';
+            return;
+        }
+
+        $this->assets->enqueueMerchantBalance();
+        ob_start();
+        include SUTORE_MARKETPLACE_PATH . 'templates/merchant-balance.php';
+        echo (string) ob_get_clean();
+    }
+
     public function renderTasks(): void
     {
         if (!is_user_logged_in()) {
@@ -312,11 +340,6 @@ final class MerchantAccount
     {
         if (!is_user_logged_in()) {
             echo '<p class="sutore-mp-error">' . esc_html__('You must log in.', 'sutore-marketplace') . '</p>';
-            return;
-        }
-
-        if (!MerchantMeta::canViewMerchantDashboard(get_current_user_id())) {
-            echo '<p class="sutore-mp-error">' . esc_html__('You do not have access to this area.', 'sutore-marketplace') . '</p>';
             return;
         }
 
@@ -356,6 +379,7 @@ final class MerchantAccount
     {
         return [
             self::ENDPOINT_MERCHANT_AREA,
+            self::ENDPOINT_BALANCE,
             self::ENDPOINT_TASKS,
             self::ENDPOINT_NOTIFICATIONS,
             self::ENDPOINT_LISTINGS,
@@ -372,7 +396,7 @@ final class MerchantAccount
         return self::endpointSlugs();
     }
 
-    private const ENDPOINTS_REVISION = '20260816-price-offers';
+    private const ENDPOINTS_REVISION = '20260818-merchant-balance';
 
     public function maybeFlushRewrites(): void
     {

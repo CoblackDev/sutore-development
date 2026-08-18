@@ -241,6 +241,26 @@ final class CustomerOfferRepository
         return false !== $wpdb->update($this->table(), $data, ['id' => $id]);
     }
 
+    /**
+     * Atomically apply $data only while the row is still $expectedStatus.
+     * Prevents cancel/accept/decline/expiry from overwriting each other.
+     */
+    public function updateIfStatus(int $id, string $expectedStatus, array $data): bool
+    {
+        global $wpdb;
+        $data['updated_at'] = current_time('mysql');
+        $updated = $wpdb->update(
+            $this->table(),
+            $data,
+            [
+                'id' => $id,
+                'status' => $expectedStatus,
+            ]
+        );
+
+        return is_int($updated) && $updated > 0;
+    }
+
     private function resolveOrderBy(string $orderby): string
     {
         return match (sanitize_key($orderby)) {

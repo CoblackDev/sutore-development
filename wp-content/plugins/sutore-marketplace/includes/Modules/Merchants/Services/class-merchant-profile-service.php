@@ -10,6 +10,7 @@ use SutoreMarketplace\Modules\Otp\Domain\OtpPurpose;
 use SutoreMarketplace\Modules\Otp\Services\OtpService;
 use SutoreMarketplace\Shared\Domain\MerchantLevels;
 use SutoreMarketplace\Shared\Settings\Settings;
+use SutoreMarketplace\Shared\Sms\IysConsentService;
 
 final class MerchantProfileService
 {
@@ -137,6 +138,7 @@ final class MerchantProfileService
             ],
             $wasNew
         );
+        $this->syncIysPhone($userId, $user, $before, $profile);
 
         if ($markVerified) {
             (new BehaviorLevelService())->evaluateConfirmed($userId);
@@ -236,6 +238,7 @@ final class MerchantProfileService
             ],
             $wasNew
         );
+        $this->syncIysPhone($merchantId, $user, $before, $profile);
 
         return [
             'success' => true,
@@ -346,5 +349,30 @@ final class MerchantProfileService
             || ($before[MerchantMeta::ACCOUNT_NAME] ?? '') !== ($after[MerchantMeta::ACCOUNT_NAME] ?? '')
             || ($before[MerchantMeta::ACCOUNT_LASTNAME] ?? '') !== ($after[MerchantMeta::ACCOUNT_LASTNAME] ?? '')
             || ($before[MerchantMeta::ACCOUNT_BIRTH_YEAR] ?? '') !== ($after[MerchantMeta::ACCOUNT_BIRTH_YEAR] ?? '');
+    }
+
+    /**
+     * @param array<string, string> $before
+     * @param array<string, string> $profile
+     */
+    private function syncIysPhone(int $userId, \WP_User $user, array $before, array $profile): void
+    {
+        $consent = MerchantMeta::marketingConsent($userId);
+        $oldEmail = (string) ($before[MerchantMeta::ACCOUNT_EMAIL] ?? '');
+        $newEmail = (string) ($profile[MerchantMeta::ACCOUNT_EMAIL] ?? '');
+        if ($oldEmail === '') {
+            $oldEmail = (string) $user->user_email;
+        }
+        if ($newEmail === '') {
+            $newEmail = (string) $user->user_email;
+        }
+        (new IysConsentService())->sync(
+            $oldEmail,
+            (string) ($before[MerchantMeta::ACCOUNT_PHONE] ?? ''),
+            $newEmail,
+            (string) ($profile[MerchantMeta::ACCOUNT_PHONE] ?? ''),
+            $consent,
+            $consent
+        );
     }
 }

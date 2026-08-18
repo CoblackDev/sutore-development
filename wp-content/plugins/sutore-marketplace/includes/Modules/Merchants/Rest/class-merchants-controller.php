@@ -32,28 +32,28 @@ final class MerchantsController
             [
                 'methods' => 'GET',
                 'callback' => [$this, 'notificationsList'],
-                'permission_callback' => [$this, 'canViewDashboard'],
+                'permission_callback' => [$this, 'canAccessLoggedIn'],
             ],
         ]);
         register_rest_route($ns, '/notifications/unread-count', [
             [
                 'methods' => 'GET',
                 'callback' => [$this, 'unreadCount'],
-                'permission_callback' => [$this, 'canViewDashboard'],
+                'permission_callback' => [$this, 'canAccessLoggedIn'],
             ],
         ]);
         register_rest_route($ns, '/notifications/read-all', [
             [
                 'methods' => 'POST',
                 'callback' => [$this, 'markAllRead'],
-                'permission_callback' => [$this, 'canViewDashboard'],
+                'permission_callback' => [$this, 'canAccessLoggedIn'],
             ],
         ]);
         register_rest_route($ns, '/notifications/(?P<id>\d+)/read', [
             [
                 'methods' => 'POST',
                 'callback' => [$this, 'markRead'],
-                'permission_callback' => [$this, 'canViewDashboard'],
+                'permission_callback' => [$this, 'canAccessLoggedIn'],
             ],
         ]);
 

@@ -56,12 +56,12 @@ final class VariationLifecycleGuard
         }
 
         $message = $trash
-            ? __('This variation is a Sutore Marketplace listing and cannot be trashed from WordPress. Remove the listing in the marketplace UI first.', 'sutore-marketplace')
-            : __('This variation is a Sutore Marketplace listing and cannot be deleted from WordPress. Remove the listing in the marketplace UI first.', 'sutore-marketplace');
+            ? __('This variation is a Sutore Marketplace product and cannot be trashed from WordPress. Remove the product in the marketplace UI first.', 'sutore-marketplace')
+            : __('This variation is a Sutore Marketplace product and cannot be deleted from WordPress. Remove the product in the marketplace UI first.', 'sutore-marketplace');
 
         wp_die(
             esc_html($message),
-            esc_html__('Marketplace listing protected', 'sutore-marketplace'),
+            esc_html__('Marketplace product protected', 'sutore-marketplace'),
             ['response' => 403]
         );
     }

@@ -30,6 +30,17 @@ final class MarketplacePricingTest
         Harness::assertEqualsFloat(10.0, MarketplacePricing::netFromAsking(10, 0));
     }
 
+    public function testFirstPlaceAskingSubtractsOneStep(): void
+    {
+        Fixtures::withMarketplaceSettings(['listing_price_step' => 100], static function (): void {
+            Harness::assertEqualsFloat(2900.0, (float) MarketplacePricing::firstPlaceAsking(3000));
+            Harness::assertSame(null, MarketplacePricing::firstPlaceAsking(100));
+        });
+        Fixtures::withMarketplaceSettings(['listing_price_step' => 25], static function (): void {
+            Harness::assertEqualsFloat(2975.0, (float) MarketplacePricing::firstPlaceAsking(3000));
+        });
+    }
+
     public function testCampaignAcceptMathCapsPlatformWaiverByFees(): void
     {
         Fixtures::withMarketplaceSettings([

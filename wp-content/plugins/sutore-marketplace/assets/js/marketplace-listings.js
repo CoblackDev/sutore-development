@@ -517,7 +517,7 @@
       setPriceAlert(
         $root,
         'error',
-        t('campaignAskingRaiseBlocked', 'This listing is in a campaign, so you cannot increase the asking price.')
+        t('campaignAskingRaiseBlocked', 'This product is in a campaign, so you cannot increase the price.')
       );
       $input.addClass('is-invalid');
       $submit.prop('disabled', true);
@@ -541,7 +541,7 @@
 
     var retailTl = parseFloat($root.data('retail-tl'));
     if (retailTl && asking < retailTl) {
-      var warn = (t('belowRetailWarn', 'This listing will go on sale below the product’s starting price (≈ %s TL).'))
+      var warn = (t('belowRetailWarn', 'This product will go on sale below the product’s starting price (≈ %s TL).'))
         .replace('%s', Number(retailTl).toLocaleString('tr-TR'));
       setPriceAlert($root, 'warn', warn);
       return;
@@ -704,7 +704,7 @@
   }
 
   function chooseAxisHint(label) {
-    var template = t('chooseAxisHint', 'Choose the %s for this listing.');
+    var template = t('chooseAxisHint', 'Choose the %s for this product.');
     var lower = String(label || t('variation', 'Variation')).toLowerCase();
     if (template.indexOf('%s') !== -1) {
       return template.replace('%s', lower);
@@ -816,7 +816,7 @@
     var items = d.competing_prices || [];
     if (!items.length) {
       return $('<p class="sutore-mp-empty"/>').text(
-        t('sizePriceListEmpty', 'No other Listing for sale or in queue for this size.')
+        t('sizePriceListEmpty', 'No other product for sale or in queue for this size.')
       );
     }
 
@@ -1260,13 +1260,13 @@
       setPriceAlert(
         $root,
         'warn',
-        t('campaignOfferBlocksEdit', 'Respond to the campaign offer before updating this listing.')
+        t('campaignOfferBlocksEdit', 'Respond to the campaign offer before updating this product.')
       );
     } else if (canEdit && item && item.can_increase_asking === false) {
       setPriceAlert(
         $root,
         'warn',
-        t('campaignAskingRaiseBlocked', 'This listing is in a campaign, so you cannot increase the asking price.')
+        t('campaignAskingRaiseBlocked', 'This product is in a campaign, so you cannot increase the price.')
       );
     }
   }
@@ -1292,7 +1292,7 @@
       $hint.text(
         t(
           'putOnCampaignHint',
-          'Lowering asking is permanent and has no strikethrough. A campaign is timed and shows the previous asking crossed out.'
+          'Lowering the price is permanent and has no strikethrough. A campaign is timed and shows the previous price crossed out.'
         )
       ).prop('hidden', false);
     } else {
@@ -1505,7 +1505,6 @@
         '<td class="sutore-mp-manage-activity-date">' + escHtml(event.date || '') + '</td>' +
         '<td><strong>' + escHtml(event.event_label || '') + '</strong></td>' +
         '<td>' + escHtml(event.actor || '—') + '</td>' +
-        '<td class="sutore-mp-manage-activity-details">' + escHtml(event.summary || '—') + '</td>' +
         '</tr>'
       );
     }).join('');
@@ -1517,7 +1516,6 @@
       '<th>' + escHtml(t('date', 'Date')) + '</th>' +
       '<th>' + escHtml(t('event', 'Event')) + '</th>' +
       '<th>' + escHtml(t('actor', 'Actor')) + '</th>' +
-      '<th>' + escHtml(t('details', 'Details')) + '</th>' +
       '</tr></thead><tbody>' +
       rows +
       '</tbody></table></div>'
@@ -1616,7 +1614,7 @@
     }
 
     cells += manageMetaCell(
-      t('listingSource', 'Listing source'),
+      t('listingSource', 'Product source'),
       escHtml(
         item.is_sourcing
           ? t('preOrderProduct', 'Pre-order')
@@ -1919,8 +1917,8 @@
   var CREATE_WIZARD_SECTIONS = {
     1: ['product'],
     2: ['size'],
-    3: ['seller', 'condition', 'shipping', 'imported'],
-    4: ['duration', 'price']
+    3: ['seller', 'condition', 'shipping', 'imported', 'duration'],
+    4: ['price']
   };
 
   function createWizardStep($listings) {
@@ -1981,14 +1979,14 @@
     data = data || {};
     var status = String(data.listing_status || '');
     if (status === 'publish') {
-      return t('createSuccessForSale', 'Your listing is now for sale.');
+      return t('createSuccessForSale', 'Your product is now for sale.');
     }
     if (status === 'queued') {
-      return t('createSuccessQueued', 'Your listing was added to the queue for this size.');
+      return t('createSuccessQueued', 'Your product was added to the queue for this size.');
     }
     return t(
       'createSuccessPending',
-      'Your listing was submitted and will go on sale after approval.'
+      'Your product was submitted and will go on sale after approval.'
     );
   }
 
@@ -2000,7 +1998,7 @@
     $listings.find('.sutore-mp-manage-modal__loading').prop('hidden', true);
     $listings.find('.sutore-mp-manage-panel').prop('hidden', true);
     $listings.find('.sutore-mp-manage-modal__tabs').prop('hidden', true);
-    $listings.find('.sutore-mp-manage-modal__title').text(t('createSuccessTitle', 'Listing added'));
+    $listings.find('.sutore-mp-manage-modal__title').text(t('createSuccessTitle', 'Product added'));
     $listings.find('.sutore-mp-manage-modal__sub').text('');
     $listings.find('.sutore-mp-manage-modal__media').empty().prop('hidden', true);
     $listings.find('.sutore-mp-manage-modal__badge').prop('hidden', true);
@@ -2067,6 +2065,9 @@
     updateCreateWizardFoot($listings);
     updateWizardContext($listings);
 
+    if (step === 3 && $formRoot.length) {
+      refreshContext($formRoot, { skipCompetingPrices: true });
+    }
     if (step === 4 && $formRoot.length) {
       // Ensure size/parent are still readable from hidden prior steps, then load price meta + list.
       refreshContext($formRoot, { skipCompetingPrices: false });
@@ -2503,6 +2504,54 @@
     if (
       !$listings.find('.sutore-mp-manage-overlay').hasClass('is-open') &&
       !$listings.find('.sutore-mp-bulk-overlay').hasClass('is-open') &&
+      !$listings.find('.sutore-mp-catalog-request-overlay').hasClass('is-open') &&
+      !$listings.find('.sutore-mp-filter-overlay:not([hidden])').length &&
+      !$listings.find('.sutore-mp-sort-overlay:not([hidden])').length
+    ) {
+      $('body').removeClass('sutore-mp-modal-open');
+    }
+  }
+
+  function openCatalogRequestModal($listings, skuPrefill) {
+    var $overlay = $listings.find('.sutore-mp-catalog-request-overlay');
+    if (!$overlay.length) {
+      return;
+    }
+    var $formBox = $overlay.find('.sutore-mp-catalog-request');
+    $formBox.find('.sutore-mp-catalog-request-sku').val($.trim(skuPrefill || ''));
+    $formBox.find('.sutore-mp-catalog-request-size').val('');
+    $formBox.find('.sutore-mp-catalog-request-note').val('');
+    $formBox.find('.sutore-mp-catalog-request-error').text('').prop('hidden', true);
+    $formBox.find('.sutore-mp-catalog-request-submit')
+      .prop('disabled', false)
+      .text(t('catalogRequestSubmit', 'Send request'));
+    $overlay
+      .removeClass('is-closing')
+      .prop('hidden', false);
+    void $overlay[0].offsetWidth;
+    $overlay.addClass('is-open');
+    $('body').addClass('sutore-mp-modal-open');
+    window.setTimeout(function () {
+      var $focus = $formBox.find('.sutore-mp-catalog-request-sku');
+      if ($focus.val()) {
+        $focus = $formBox.find('.sutore-mp-catalog-request-size');
+      }
+      $focus.trigger('focus');
+    }, 50);
+  }
+
+  function closeCatalogRequestModal($listings) {
+    var $overlay = $listings.find('.sutore-mp-catalog-request-overlay');
+    if (!$overlay.length || $overlay.prop('hidden')) {
+      return;
+    }
+    $overlay
+      .prop('hidden', true)
+      .removeClass('is-open is-closing');
+    if (
+      !$listings.find('.sutore-mp-manage-overlay').hasClass('is-open') &&
+      !$listings.find('.sutore-mp-bulk-overlay').hasClass('is-open') &&
+      !$listings.find('.sutore-mp-size-prices-overlay').hasClass('is-open') &&
       !$listings.find('.sutore-mp-filter-overlay:not([hidden])').length &&
       !$listings.find('.sutore-mp-sort-overlay:not([hidden])').length
     ) {
@@ -2534,6 +2583,7 @@
     if (
       !$listings.find('.sutore-mp-bulk-overlay').hasClass('is-open') &&
       !$listings.find('.sutore-mp-size-prices-overlay').hasClass('is-open') &&
+      !$listings.find('.sutore-mp-catalog-request-overlay').hasClass('is-open') &&
       !$listings.find('.sutore-mp-filter-overlay:not([hidden])').length &&
       !$listings.find('.sutore-mp-sort-overlay:not([hidden])').length
     ) {
@@ -2548,6 +2598,7 @@
     $listings.find('.sutore-mp-wizard-context').prop('hidden', true);
     resetCreateSuccess($listings);
     closeSizePricesModal($listings);
+    closeCatalogRequestModal($listings);
     $listings.find('.sutore-mp-manage-modal__title').text('');
     $listings.find('.sutore-mp-manage-modal__sub').text('');
     $listings.find('.sutore-mp-manage-modal__media').empty().prop('hidden', true);
@@ -2634,7 +2685,7 @@
         return;
       }
       if (!res || !res.success || !res.data || !res.data.item) {
-        var msg = (res && res.data && res.data.message) ? res.data.message : t('listingNotFound', 'Listing not found.');
+        var msg = (res && res.data && res.data.message) ? res.data.message : t('listingNotFound', 'Product not found.');
         if (res && res.message) {
           msg = res.message;
         }
@@ -2713,7 +2764,7 @@
       if (parseInt($listings.data('manage-variation-id'), 10) !== listingId) {
         return;
       }
-      var msg = t('listingNotFound', 'Listing not found.');
+      var msg = t('listingNotFound', 'Product not found.');
       if (xhr.responseJSON && xhr.responseJSON.message) {
         msg = xhr.responseJSON.message;
       }
@@ -2794,62 +2845,16 @@
     });
   }
 
-  function renderCatalogRequestBox($root) {
-    var code = $.trim($root.find('.sutore-mp-product-code').val() || '');
-    var $form = $('<form class="sutore-mp-catalog-request" novalidate/>');
-    $form.append($('<h4 class="sutore-mp-catalog-request__title"/>').text(t('catalogRequestTitle', 'Request this product')));
-    $form.append(
-      $('<p class="description"/>').text(
-        t(
-          'catalogRequestLead',
-          'Leave the SKU or a product link, the size, and a short note. We will notify you when it is added to the catalog.'
-        )
-      )
-    );
-    $form.append(
-      $('<label class="sutore-mp-field-label" for="sutore-mp-catalog-request-sku"/>').text(
-        t('catalogRequestSku', 'SKU or product link')
-      )
-    );
-    $form.append(
-      $('<input type="text" id="sutore-mp-catalog-request-sku" class="sutore-mp-input sutore-mp-catalog-request-sku" required/>')
-        .val(code)
-        .attr('maxlength', 500)
-    );
-    $form.append(
-      $('<label class="sutore-mp-field-label" for="sutore-mp-catalog-request-size"/>').text(
-        t('catalogRequestSize', 'Size')
-      )
-    );
-    $form.append(
-      $('<input type="text" id="sutore-mp-catalog-request-size" class="sutore-mp-input sutore-mp-catalog-request-size" required/>')
-        .attr('maxlength', 80)
-    );
-    $form.append(
-      $('<label class="sutore-mp-field-label" for="sutore-mp-catalog-request-note"/>').text(
-        t('catalogRequestNote', 'Short note')
-      )
-    );
-    $form.append(
-      $('<textarea id="sutore-mp-catalog-request-note" class="sutore-mp-input sutore-mp-catalog-request-note" rows="2"/>')
-        .attr('maxlength', 500)
-    );
-    $form.append($('<p class="sutore-mp-catalog-request-error" role="alert" hidden/>'));
-    $form.append(
-      $('<button type="submit" class="wp-element-button sutore-mp-catalog-request-submit"/>').text(
-        t('catalogRequestSubmit', 'Send request')
-      )
-    );
-    return $form;
-  }
-
   function renderSearchResults($root, res) {
     var $box = $root.find('.sutore-mp-search-results').empty();
     if (!res.success || !res.data.items || !res.data.items.length) {
       var message = (res.data && res.data.message) || t('notFound', 'The product you searched for was not found');
       $box.append($('<p class="sutore-mp-search-empty"/>').text(message));
       if (!isStaffCreateMode($shell($root)) && res.data && res.data.can_request_catalog_product) {
-        $box.append(renderCatalogRequestBox($root));
+        $box.append(
+          $('<button type="button" class="wp-element-button is-style-outline sutore-mp-open-catalog-request"/>')
+            .text(t('catalogRequestTitle', 'Request this product'))
+        );
       }
       return;
     }
@@ -2948,7 +2953,7 @@
           }
           return;
         }
-        var savedMsg = t('savedTitle', 'Listing updated');
+        var savedMsg = t('savedTitle', 'Product updated');
         if (typeof SutoreMarketplace.showToast === 'function') {
           SutoreMarketplace.showToast(savedMsg, 'success');
         }
@@ -3132,8 +3137,8 @@
         $('<label class="sutore-mp-list-select-wrap"/>').append(
           $('<input type="checkbox" class="sutore-mp-list-row-select"/>')
             .attr('value', String(listingId))
-            .attr('aria-label', t('selectListing', 'Select listing')),
-          $('<span class="screen-reader-text"/>').text(t('selectListing', 'Select listing'))
+            .attr('aria-label', t('selectListing', 'Select product')),
+          $('<span class="screen-reader-text"/>').text(t('selectListing', 'Select product'))
         )
       )
     );
@@ -3289,28 +3294,28 @@
   function merchantBulkConfirmCopy(action) {
     if (action === 'put_on_sale') {
       return {
-        title: t('bulkPutOnSaleTitle', 'Put selected listings on sale?'),
+        title: t('bulkPutOnSaleTitle', 'Put selected products on sale?'),
         body: t(
           'bulkPutOnSaleConfirm',
-          'Selected listings will re-enter the sale queue with a fresh expiry window.'
+          'Selected products will re-enter the sale queue with a fresh expiry window.'
         ),
         confirm: t('putOnSale', 'Put on sale')
       };
     }
     if (action === 'remove_from_sale') {
       return {
-        title: t('bulkRemoveFromSaleTitle', 'Remove selected listings from sale?'),
+        title: t('bulkRemoveFromSaleTitle', 'Remove selected products from sale?'),
         body: t(
           'bulkRemoveFromSaleConfirm',
-          'Selected listings will leave the sale queue without being deleted.'
+          'Selected products will leave the sale queue without being deleted.'
         ),
         confirm: t('removeFromSale', 'Remove from sale')
       };
     }
     if (action === 'delete') {
       return {
-        title: t('bulkDeleteTitle', 'Delete selected listings?'),
-        body: t('bulkDeleteConfirm', 'This cannot be undone for the selected listings.'),
+        title: t('bulkDeleteTitle', 'Delete selected products?'),
+        body: t('bulkDeleteConfirm', 'This cannot be undone for the selected products.'),
         confirm: t('delete', 'Delete')
       };
     }
@@ -3472,6 +3477,23 @@
   $(document).on('click', '.sutore-mp-size-prices-overlay', function (e) {
     if (e.target === this) {
       closeSizePricesModal($shell($(this)));
+    }
+  });
+
+  $(document).on('click', '.sutore-mp-open-catalog-request', function (e) {
+    e.preventDefault();
+    var $listings = $shell($(this));
+    var sku = $.trim($listings.find('.sutore-mp-product-code').val() || '');
+    openCatalogRequestModal($listings, sku);
+  });
+
+  $(document).on('click', '.sutore-mp-catalog-request-close', function () {
+    closeCatalogRequestModal($shell($(this)));
+  });
+
+  $(document).on('click', '.sutore-mp-catalog-request-overlay', function (e) {
+    if (e.target === this) {
+      closeCatalogRequestModal($shell($(this)));
     }
   });
 
@@ -3692,6 +3714,11 @@ $(document).on('click', '.sutore-mp-open-create', function (e) {
     if (e.key !== 'Escape') return;
     $('.sutore-mp-listings').each(function () {
       var $root = $(this);
+      var $catalog = $root.find('.sutore-mp-catalog-request-overlay');
+      if ($catalog.length && !$catalog.prop('hidden')) {
+        closeCatalogRequestModal($root);
+        return;
+      }
       var $sizePrices = $root.find('.sutore-mp-size-prices-overlay');
       if ($sizePrices.length && !$sizePrices.prop('hidden')) {
         closeSizePricesModal($root);
@@ -3723,7 +3750,7 @@ $(document).on('click', '.sutore-mp-open-create', function (e) {
   $(document).on('submit', '.sutore-mp-catalog-request', function (e) {
     e.preventDefault();
     var $formBox = $(this);
-    var $root = $form($formBox);
+    var $listings = $shell($formBox);
     var sku = $.trim($formBox.find('.sutore-mp-catalog-request-sku').val() || '');
     var size = $.trim($formBox.find('.sutore-mp-catalog-request-size').val() || '');
     var $error = $formBox.find('.sutore-mp-catalog-request-error');
@@ -3749,9 +3776,7 @@ $(document).on('click', '.sutore-mp-open-create', function (e) {
         return;
       }
       var msg = (res.data && res.data.message) || t('catalogRequestSubmit', 'Send request');
-      $root.find('.sutore-mp-search-results').empty().append(
-        $('<p class="sutore-mp-catalog-request-success"/>').text(msg)
-      );
+      closeCatalogRequestModal($listings);
       if (typeof SutoreMarketplace.showToast === 'function') {
         SutoreMarketplace.showToast(msg, 'success');
       }
@@ -3843,10 +3868,10 @@ $(document).on('click', '.sutore-mp-open-create', function (e) {
     if (!id) {
       return;
     }
-    showConfirm(t('deleteTitle', 'Delete this Listing?'), t('confirmDelete', ''), t('delete', 'Delete'), function () {
+    showConfirm(t('deleteTitle', 'Delete this product?'), t('confirmDelete', ''), t('delete', 'Delete'), function () {
       api('marketplace_listing_delete', { variation_id: id }).done(function (r) {
         if (!r.success) {
-          showConfirm(t('deleteTitle', 'Delete this Listing?'), (r.data && r.data.message) || t('cannotDelete', ''), t('cancel', 'Cancel'), function () {});
+          showConfirm(t('deleteTitle', 'Delete this product?'), (r.data && r.data.message) || t('cannotDelete', ''), t('cancel', 'Cancel'), function () {});
           return;
         }
         // Manage modal / create page / list refresh.
@@ -3899,10 +3924,10 @@ $(document).on('click', '.sutore-mp-open-create', function (e) {
     }
 
     showForm({
-      title: t('putOnCampaignTitle', 'Put this listing on campaign'),
+      title: t('putOnCampaignTitle', 'Put this product on campaign'),
       text: t(
         'putOnCampaignHint',
-        'Lowering asking is permanent and has no strikethrough. A campaign is timed and shows the previous asking crossed out.'
+        'Lowering the price is permanent and has no strikethrough. A campaign is timed and shows the previous price crossed out.'
       ),
       confirmLabel: t('putOnCampaign', 'Put on campaign'),
       fields: [
@@ -3937,7 +3962,7 @@ $(document).on('click', '.sutore-mp-open-create', function (e) {
           $preview.text(
             t(
               'putOnCampaignPreview',
-              'Asking %1$s TL → %2$s TL for %3$s days. Customers see a strikethrough until it ends.'
+              'Price %1$s TL → %2$s TL for %3$s days. Customers see a strikethrough until it ends.'
             )
               .replace('%1$s', String(Math.round(asking)))
               .replace('%2$s', String(Math.round(after)))
@@ -3998,8 +4023,8 @@ $(document).on('click', '.sutore-mp-open-create', function (e) {
         if (!r.success) {
           if (confirmFn) {
             confirmFn(
-              t('putOnSaleTitle', 'Put this listing back on sale?'),
-              (r.data && r.data.message) || t('putOnSaleFailed', 'This listing cannot be put back on sale right now.'),
+              t('putOnSaleTitle', 'Put this product back on sale?'),
+              (r.data && r.data.message) || t('putOnSaleFailed', 'This product cannot be put back on sale right now.'),
               t('cancel', 'Cancel'),
               function () {}
             );
@@ -4021,8 +4046,8 @@ $(document).on('click', '.sutore-mp-open-create', function (e) {
 
     if (typeof confirmFn === 'function') {
       confirmFn(
-        t('putOnSaleTitle', 'Put this listing back on sale?'),
-        t('putOnSaleConfirm', 'The listing will re-enter the sale queue with a fresh expiry window.'),
+        t('putOnSaleTitle', 'Put this product back on sale?'),
+        t('putOnSaleConfirm', 'The product will re-enter the sale queue with a fresh expiry window.'),
         t('putOnSale', 'Put on sale'),
         runPutOnSale
       );
@@ -4049,8 +4074,8 @@ $(document).on('click', '.sutore-mp-open-create', function (e) {
         if (!r.success) {
           if (confirmFn) {
             confirmFn(
-              t('removeFromSaleTitle', 'Remove this listing from sale?'),
-              (r.data && r.data.message) || t('removeFromSaleFailed', 'This listing cannot be removed from sale right now.'),
+              t('removeFromSaleTitle', 'Remove this product from sale?'),
+              (r.data && r.data.message) || t('removeFromSaleFailed', 'This product cannot be removed from sale right now.'),
               t('cancel', 'Cancel'),
               function () {}
             );
@@ -4072,8 +4097,8 @@ $(document).on('click', '.sutore-mp-open-create', function (e) {
 
     if (typeof confirmFn === 'function') {
       confirmFn(
-        t('removeFromSaleTitle', 'Remove this listing from sale?'),
-        t('removeFromSaleConfirm', 'The listing will leave the sale queue without being deleted.'),
+        t('removeFromSaleTitle', 'Remove this product from sale?'),
+        t('removeFromSaleConfirm', 'The product will leave the sale queue without being deleted.'),
         t('removeFromSale', 'Remove from sale'),
         runRemove
       );

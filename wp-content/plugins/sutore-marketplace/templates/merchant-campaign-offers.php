@@ -31,7 +31,7 @@ if (!defined('ABSPATH')) {
 
         <p class="sutore-mp-panel-lead">
 
-            <?php esc_html_e('Review platform campaign offers for your listings. Accepting updates your asking price for the campaign period.', 'sutore-marketplace'); ?>
+            <?php esc_html_e('Review platform campaign offers for your products. Accepting updates your price for the campaign period.', 'sutore-marketplace'); ?>
 
         </p>
 

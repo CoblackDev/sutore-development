@@ -37,7 +37,7 @@ $statusLabels = is_array($view['status_labels'] ?? null) ? $view['status_labels'
     </div>
 
     <p class="sutore-mp-panel-lead">
-        <?php esc_html_e('Sellers request products that are not in the catalog. Add the product in WooCommerce, then mark the request as added so the seller can open a listing.', 'sutore-marketplace'); ?>
+        <?php esc_html_e('Sellers request products that are not in the catalog. Add the product in WooCommerce, then mark the request as added so the seller can open a product.', 'sutore-marketplace'); ?>
     </p>
 
     <div

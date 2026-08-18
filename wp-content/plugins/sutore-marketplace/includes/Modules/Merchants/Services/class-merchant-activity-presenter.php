@@ -134,10 +134,10 @@ final class MerchantActivityPresenter
             'merchant_listing_commission_set' => isset($payload['commission_percent']) && $payload['commission_percent'] !== null && $payload['commission_percent'] !== ''
                 ? sprintf(
                     /* translators: %s: commission percent */
-                    __('Listing commission %s%%', 'sutore-marketplace'),
+                    __('Product commission %s%%', 'sutore-marketplace'),
                     (string) $payload['commission_percent']
                 )
-                : __('Listing commission cleared', 'sutore-marketplace'),
+                : __('Product commission cleared', 'sutore-marketplace'),
             'merchant_referral_accepted' => sprintf(
                 /* translators: %s: inviter user id */
                 __('Invited by seller #%s', 'sutore-marketplace'),
@@ -162,7 +162,7 @@ final class MerchantActivityPresenter
     private static function restrictionLabel(string $key): string
     {
         return match ($key) {
-            'listing_create_ban' => __('Ban creating listings', 'sutore-marketplace'),
+            'listing_create_ban' => __('Ban creating products', 'sutore-marketplace'),
             'price_update_ban' => __('Ban price updates', 'sutore-marketplace'),
             'disabled_account' => __('Disable account', 'sutore-marketplace'),
             default => $key,

@@ -104,7 +104,7 @@
     }
 
     var discountLine =
-      t('campaignAskingBefore', 'Current asking') +
+      t('campaignAskingBefore', 'Current price') +
       ': ' +
       money(row.asking_before) +
       ' → ' +
@@ -240,7 +240,7 @@
     if (row.size_label) {
       html += metaRow(t('size', 'Size'), esc(row.size_label));
     }
-    html += metaRow(t('campaignAskingBefore', 'Current asking'), esc(money(row.asking_before)));
+    html += metaRow(t('campaignAskingBefore', 'Current price'), esc(money(row.asking_before)));
     html += metaRow(
       t('campaignSellerDiscount', 'Your discount'),
       esc('−' + (row.seller_discount_label || money(row.seller_discount)))
@@ -249,7 +249,7 @@
       t('campaignPlatformDiscount', 'Platform discount'),
       esc('−' + (row.platform_discount_label || money(row.platform_discount)))
     );
-    html += metaRow(t('campaignAskingAfter', 'Asking after accept'), esc(money(row.asking_effective)));
+    html += metaRow(t('campaignAskingAfter', 'Price after accept'), esc(money(row.asking_effective)));
     if (row.starts_at_label || row.starts_at) {
       html += metaRow(t('campaignStartsAt', 'Campaign starts'), esc(row.starts_at_label || row.starts_at));
     }
@@ -399,7 +399,7 @@
       t('campaignOfferAccept', 'Accept'),
       t(
         'campaignOfferAcceptConfirm',
-        'Accept this campaign offer? Your listing price will be updated for the campaign period.'
+        'Accept this campaign offer? Your product price will be updated for the campaign period.'
       ),
       t('campaignOfferAccept', 'Accept'),
       function () {

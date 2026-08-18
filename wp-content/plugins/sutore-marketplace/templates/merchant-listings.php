@@ -33,7 +33,7 @@ if ($merchantId > 0) {
 ?>
 <div class="sutore-mp-listings wp-block-group" data-price-step="<?php echo esc_attr((string) $step); ?>">
     <div class="sutore-mp-listings-header sutore-mp-list-chrome" hidden>
-        <h2 class="wp-block-heading"><?php esc_html_e('My Listings', 'sutore-marketplace'); ?></h2>
+        <h2 class="wp-block-heading"><?php esc_html_e('My products', 'sutore-marketplace'); ?></h2>
         <div class="sutore-mp-header-actions">
             <?php
             $id = 'sutore-mp-list-search';
@@ -86,7 +86,7 @@ if ($merchantId > 0) {
                     <option value="not_sale"><?php esc_html_e('Not for sale', 'sutore-marketplace'); ?></option>
                     <option value="order_detached"><?php esc_html_e('Detached from order / Could not be sourced', 'sutore-marketplace'); ?></option>
                     <option value="pre_order"><?php esc_html_e('Pre-order', 'sutore-marketplace'); ?></option>
-                    <option value="in_sale"><?php esc_html_e('In sale / fulfillment', 'sutore-marketplace'); ?></option>
+                    <option value="in_sale"><?php esc_html_e('In sale / shipping', 'sutore-marketplace'); ?></option>
                     <option value="sale_ended"><?php esc_html_e('Sale ended', 'sutore-marketplace'); ?></option>
                 </select>
 
@@ -117,7 +117,7 @@ if ($merchantId > 0) {
                     <option value="active"><?php esc_html_e('On campaign', 'sutore-marketplace'); ?></option>
                 </select>
 
-                <label class="sutore-mp-field-label" for="sutore-mp-list-sourcing"><?php esc_html_e('Listing source', 'sutore-marketplace'); ?></label>
+                <label class="sutore-mp-field-label" for="sutore-mp-list-sourcing"><?php esc_html_e('Product source', 'sutore-marketplace'); ?></label>
                 <select id="sutore-mp-list-sourcing" name="is_sourcing" class="sutore-mp-input sutore-mp-list-sourcing">
                     <option value=""><?php esc_html_e('All', 'sutore-marketplace'); ?></option>
                     <option value="yes"><?php esc_html_e('Pre-order products', 'sutore-marketplace'); ?></option>
@@ -130,7 +130,7 @@ if ($merchantId > 0) {
                     <option value="yes"><?php esc_html_e('Imported products', 'sutore-marketplace'); ?></option>
                     <option value="no"><?php esc_html_e('Non-imported products', 'sutore-marketplace'); ?></option>
                 </select>
-                <p class="description"><?php esc_html_e('Campaign and pre-order filters can be combined — a listing may be both.', 'sutore-marketplace'); ?></p>
+                <p class="description"><?php esc_html_e('Campaign and pre-order filters can be combined — a product may be both.', 'sutore-marketplace'); ?></p>
             </div>
             <?php
             $clear_class = 'sutore-mp-list-clear';

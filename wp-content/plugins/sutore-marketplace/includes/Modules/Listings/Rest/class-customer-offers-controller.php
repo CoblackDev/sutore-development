@@ -104,7 +104,7 @@ final class CustomerOffersController
         $variationId = (int) $req->get_param('variation_id');
         if ($variationId <= 0) {
             return RestResponse::fail(
-                __('Listing not found.', 'sutore-marketplace'),
+                __('Product not found.', 'sutore-marketplace'),
                 400,
                 'sutore_customer_offer_listing'
             );

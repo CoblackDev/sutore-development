@@ -1,116 +1,136 @@
 # Sutore Marketplace
 
-Merchant listings, pricing, fulfillment workflow, checkout shipping, campaigns, sourcing, tasks and admin tools.
+WooCommerce çok satıcılı marketplace eklentisi: satıcı listing’leri, canlı fiyat, kuyruk, kampanya, outlet, müşteri fiyat teklifi, satış/lojistik pipeline, kargo, kupon, sözleşme, ön sipariş, görevler, hak ediş ve e-Arşiv fatura.
 
-## Plugin structure
+| Belge | İçerik |
+|---|---|
+| **[FLOWS.md](FLOWS.md)** | Tüm ürün ve sipariş akışları (durumlar, fiyat, REST, cron, tablolar) |
+| **[TESTING.md](TESTING.md)** | Panel test senaryoları ve demo hesaplar |
+| `languages/` | UI çevirisi — msgid İngilizce, text domain `sutore-marketplace` |
+
+Gereksinim: WordPress 6+, WooCommerce 8+, PHP 8.1+. Namespace: `SutoreMarketplace\`. Autoload: `includes/Bootstrap/class-autoloader.php` (`class-{kebab-case}.php`).
+
+HTTP yüzeyi REST-first’tür (`admin-ajax` yok). My Account / staff sayfaları kabuk + spinner; veri JS ile `sutore-marketplace/v1` üzerinden gelir.
+
+---
+
+## Kimlik (kısa)
+
+Listing satırının PK’si WooCommerce **varyasyon ID**’sidir (`listings.variation_id`). REST `{id}` (listings, fulfillments, sourcing) ve payout satırı aynı değeri kullanır. Ayrı fulfillments tablosu yoktur; sale/lojistik kolonları listing satırındadır.
+
+Tek ürün durumu: `listings.listing_status` (`ListingStatus`). Kampanya (`campaign_status`) ve payout (`payout_status`) ayrıdır.
+
+Ayrıntı: [FLOWS.md — kimlik ve durumlar](FLOWS.md#1-kimlik-ve-roller).
+
+---
+
+## Dizin yapısı
 
 ```
 includes/
   Bootstrap/          Plugin, Activator, Autoloader
-  Shared/             Database, Settings, Domain, Repositories, Hooks
+  Shared/             Schema, Settings, Pricing, PDP/cart/cron hook’ları, SMS
   Modules/
-    Listings/         Listing CRUD, selector, campaigns, REST
-    Orders/           Seller fulfillment workflow
-    Shipping/         Checkout kargo seçimi ve ücretleri
+    Listings/         CRUD, kuyruk, kampanya, outlet, müşteri teklifi, katalog talebi
+    Orders/           Satış/lojistik facade, SMS, webhook, staff fulfillments
+    Sourcing/         Ön sipariş board
+    Merchants/        Profil, bildirim, payout, kısıt, staff satıcı
+    Tasks/            Görev / ödül
+    Shipping/         Checkout kargo
+    Coupons/          Lockout + marka kampanya kuponu
     Contracts/        Checkout sözleşmeleri
-    Sourcing/         Ön sipariş servisi
-    Tasks/            Görev ilerleme servisi
-  Admin/              Tüm admin ekranları (+ Admin/Orders/)
-  Frontend/           Merchant account, asset enqueue
+    Invoices/         Paraşüt e-Arşiv
+    Otp/              SMS OTP, hesap güvenlik / silme
+  Admin/              Ayarlar, Campaigns, Outlet, Tasks, Events
+  Frontend/           My Account endpoint + asset enqueue
+assets/               Sayfa bazlı CSS/JS
+templates/            Shell şablonları
+tools/                Seed, i18n (`sync_po.py`, `audit_i18n.py`)
+languages/            .po / .mo
 ```
 
-| Namespace | Path |
-|-----------|------|
-| `SutoreMarketplace\Bootstrap\` | `includes/Bootstrap/` |
-| `SutoreMarketplace\Shared\` | `includes/Shared/` |
-| `SutoreMarketplace\Modules\{Module}\` | `includes/Modules/{Module}/` |
-| `SutoreMarketplace\Admin\` | `includes/Admin/` |
-| `SutoreMarketplace\Frontend\` | `includes/Frontend/` |
+`Plugin::boot()` modülleri ve paylaşılan hook’ları kaydeder; şema sürümü gerideyse `Schema::install()` çalışır (`Schema::VERSION` = 48).
 
-Autoloader convention: `class-{kebab-case}.php` under the matching namespace path.
+---
 
-## Merchant account (WooCommerce)
+## My Account
 
-| Endpoint | Menü | URL |
-|----------|------|-----|
-| `listings` | Listinglerim | `/hesabim/listings/` |
-| `sourcing` | Ön Sipariş | `/hesabim/sourcing/` |
-| `campaign-offers` | Kampanya teklifleri | `/hesabim/campaign-offers/` |
-| `price-offers` | Müşteri teklifleri | `/hesabim/price-offers/` |
-| `my-offers` | Tekliflerim (müşteri) | `/hesabim/my-offers/` |
-| `tasks` | Görevlerim | `/hesabim/tasks/` |
+### Satıcı
 
-Visible only for merchant / shop_manager / administrator.
+| Endpoint | Menü (msgid) |
+|---|---|
+| `listings` | My products |
+| `sourcing` | Pre-order (Confirmed / Super) |
+| `campaign-offers` | Campaign offers |
+| `price-offers` | Customer offers |
+| `outlet` | Outlet |
+| `merchant-area` | Merchant exclusive |
+| `balance` | My Balance |
+| `tasks` | Opportunities |
+| `notifications` | Notifications |
 
-### Ön sipariş (sourcing)
+### Müşteri
 
-Ayrı talep tablosu / `open|accepted|reserved|fulfilled` durumları yok. Board, siparişe bağlı listing’in `listing_status = pre_order` olmasıdır.
+`my-offers`, `notifications`.
 
-1. **Açılış:** staff Manage Products → `mark_pre_order`, onay süresi dolunca (`confirm_deadline`), veya satıcı iptali → `FulfillmentService::markAsPreOrder()`.
-2. **Duyuru:** hedefli SMS (`AskMerchants`) + digest cron (`sutore_marketplace_pre_order_digest_sent_ids` ile tekrar-önleme). Fiyat toleransı `sourcing_price_tolerance_percent` (eski sabit `/1.10` değil).
-3. **Kabul:** Confirmed / Super satıcı `POST /sourcing/{id}/accept` — mevcut listing reuse edilirse `asking` talep fiyatına eşitlenir (modal + confirm bunu gösterir) → **anında sipariş swap**. Staff `fulfilled` adımı yok.
-4. **İz:** `listing_pre_order`, `pre_order_accepted`, `sourcing_fulfilled` event’leri; webhook `pre_order.accepted`.
+### Staff (`manage_woocommerce`)
 
-Board erişimi seviye + (yaptırım açıksa) puan eşiğine bağlı: Normal satıcı menüyü görmez; Super yeni talepleri hemen görür, Confirmed `sourcing_early_access_hours` sonra.
+`manage-products`, `manage-orders`, `merchants`, `catalog-product-requests`.
 
-### Görevler
-
-İlerleme otomatik: listing oluşturma/güncelleme, satış event'leri.
-
-## PDP / cart pricing
-
-**Source of truth:** `listing.asking + hizmet + güvence − platform discount` (live).  
-Fee değişiklikleri `pricing_revision` ile cache bust edilir.
-
-## Orders modülü (fulfillment)
-
-`includes/Modules/Orders/` — `SutoreMarketplace\Modules\Orders\`
-
-**Staff UI:** My Account → Manage Products. Sipariş ayarları: Ana Ayarlar → Sipariş Akışı sekmesi
-
-**Akış:** ödeme → admin onay (opsiyonel) → satıcı onay → kargo → doğrulama → müşteriye gönderim → satıcı ödemesi
-
-| Kaynak | Ad |
-|--------|-----|
-| DB tablosu | `wp_sutore_marketplace_listings` (sale/lojistik alanları listing satırında) |
-| Ayar option | `sutore_marketplace_fulfillment_settings` |
-| Schema version | `sutore_marketplace_db_version` = 18 |
-| Cron | `sutore_marketplace_fulfillment_deadlines` |
-| Frontend JS | `SutoreMarketplaceFulfillment`, `SutoreMarketplaceFulfillmentAppend` |
-| REST | `GET/POST /wp-json/sutore-marketplace/v1/fulfillments/{id}` (id = variation_id) |
-
-## Shipping modülü (checkout)
-
-`includes/Modules/Shipping/` — `SutoreMarketplace\Modules\Shipping\`
-
-Checkout kargo seçimi, sepet fee, sipariş meta. Ayarlar: Ana Ayarlar → **Kargo** sekmesi.
-
-## Coupons modülü (WooCommerce native)
-
-`includes/Modules/Coupons/` — `SutoreMarketplace\Modules\Coupons\`
-
-**Kupon kuralları:** WooCommerce → Kuponlar → kupon düzenle (Usage restriction)
-- Standart WC alanları: kod, yüzde indirim, product brands
-- Sutore meta: marka kampanyası, min marka adedi, bildirim önceliği/rengi
-
-**Genel davranış:** Ana Ayarlar → **Kuponlar** (lockout, sepet bildirimi limiti)
-
-Kupon uygulama/kaldırma WooCommerce `wc-ajax=apply_coupon|remove_coupon` kullanır.
-
-## Contracts modülü (checkout sözleşmeleri)
-
-`includes/Modules/Contracts/` — `SutoreMarketplace\Modules\Contracts\`
-
-Ön bilgilendirme formu ve mesafeli satış sözleşmesi: checkout modal, zorunlu onay checkbox, sipariş snapshot meta, müşteri e-postası.
-
-**Ayarlar:** Ana Ayarlar → **Sözleşmeler** (aktif/pasif, checkbox başlığı, şablon sürümü)
-
-**Sipariş meta:** `_sutore_marketplace_contracts_snapshot` (accepted_at, pre_information, distance_sales, version)
-
-**Fiyat kırılımı:** `MarketplacePricing` + `Settings::hizmetBedeli()` / `guvenceBedeli()`
-
-Hook'lar: `sutore_marketplace_queue_position_changed`, `sutore_marketplace_notification_created`, `sutore_marketplace_notification_dispatched`, `sutore_marketplace_notification_push`, `sutore_marketplace_fulfillment_webhook_sent`, `sutore_marketplace_sms_sent`
+---
 
 ## REST
 
-Namespace `sutore-marketplace/v1` — listings CRUD, search-parents, sizes, form-context, catalog product requests, customer price offers (`GET/POST /my-offers`, merchant `GET /price-offers` + accept/decline), sourcing, fulfillments, merchant / staff admin routes.
+Namespace `sutore-marketplace/v1`. Müşteri sepet/checkout: WooCommerce Store API (`/wc/store/v1/*`). Tam tablo: [FLOWS.md §17](FLOWS.md#17-rest-yüzeyi).
+
+Özet:
+
+- Listings: `GET/POST /listings`, `GET/PUT/DELETE /listings/{id}`, `search-parents`, `sizes/{id}`, `form-context`, bulk, catalog requests
+- Offers: müşteri `/my-offers*`; satıcı `/price-offers*`, `/campaign-offers*`
+- Outlet: `/outlet*`, staff `/admin/outlet-windows*`
+- Fulfillments: `/fulfillments/{id}/confirm|ship|cancel|actions` (`{id}` = `variation_id`)
+- Sourcing: `/sourcing`, `/sourcing/{id}/accept`
+- Merchant: `/merchant/profile`, `/merchant/balance`, `/notifications*`, `/tasks/dashboard`
+- Account: `/otp/*`, `/account/details|password`, `DELETE /account`
+- Staff: `/admin/merchants*`, `/admin/orders*`, `/admin/campaigns*`, `/admin/catalog-product-requests*`
+- Invoices: `GET /invoices/{id}/pdf`
+
+---
+
+## Akış özeti
+
+Detay ve diyagramlar [FLOWS.md](FLOWS.md) içindedir.
+
+| Akış | Tek cümle |
+|---|---|
+| Listing | Create → kuyruk (en düşük asking kazanır) → `publish` veya `pending` / `queued` |
+| Fiyat | `asking + hizmet + güvence − kampanya waiver`; outlet’te `customer_sale` |
+| Checkout | WC ödeme → listing `payment` veya `sold` → hub pipeline |
+| Hub | confirm → Sutore’a kargo → arrived → verified (payout) → müşteriye kargo → teslim |
+| Ön sipariş | `pre_order` board; kabul = anında sipariş swap |
+| Kampanya | Admin teklif fan-out; kabul asking’i düşürür |
+| Outlet | Pencere kalemi + satıcı opt-in; bitince expire (restore yok) |
+| Müşteri teklifi | Kişisel kupon; vitrin fiyatı değişmez; red = sonraki satıcıya şelale |
+| Fatura | Müşteri: sipariş kapanınca hizmet+güvence; satıcı: payout `paid` olunca komisyon. İade faturası yok |
+
+---
+
+## Ayarlar (wp-admin)
+
+**Sutore Marketplace → Settings:** Pricing, Products, Behavior, Operations, SMS, Invoices, Order Flow, Shipping, Coupons, Contracts, Campaigns.
+
+Kardeş sayfalar: Campaigns, Outlet, Tasks & Rewards, Events.
+
+SMS / İYS: NetGSM kullanıcı, şifre, başlık, `netgsm_brand_code`. Simülasyon veya boş brand code ile İYS API çağrılmaz.
+
+---
+
+## Geliştirme
+
+```bash
+docker compose up -d
+```
+
+Demo seed: `tools/seed-scenarios.php` (`--force`). i18n senkron: `tools/sync_po.py`. Panel checklist: [TESTING.md](TESTING.md).
+
+Kurallar: `.cursor/rules/sutore-marketplace-*.mdc` (REST, i18n, legacy yok, demo seeder).

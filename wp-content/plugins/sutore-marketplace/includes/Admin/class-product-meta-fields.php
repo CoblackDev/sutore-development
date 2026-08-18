@@ -40,7 +40,7 @@ final class ProductMetaFields
             'id' => ReleasePriceService::META_RETAIL_USD,
             'label' => __('Exit price (USD)', 'sutore-marketplace'),
             'desc_tip' => true,
-            'description' => __('Parent product original release / list price (USD). Shown on the Listing form; confirmation is required if the bid is below this.', 'sutore-marketplace'),
+            'description' => __('Parent product original release / list price (USD). Shown on the Product form; confirmation is required if the bid is below this.', 'sutore-marketplace'),
             'type' => 'number',
             'custom_attributes' => [
                 'step' => '0.01',

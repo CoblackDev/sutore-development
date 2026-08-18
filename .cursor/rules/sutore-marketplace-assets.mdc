@@ -14,7 +14,8 @@ CSS ve JS **yalnızca ihtiyaç duyulan sayfada** yüklenir.
 
 1. `Frontend\Assets` içinde `wp_register_style/script`.
 2. `MerchantAccount::enqueueEndpointAssets()` ilgili `enqueue{Feature}()` çağırır.
-3. Görev UI: `enqueueMerchantProfile()` + `marketplace-merchant-profile.js` (ayrı tasks asset yok).
+3. Bakiye: `enqueueMerchantBalance()` + `marketplace-merchant-balance.js`.
+4. Görev UI: `enqueueTasks()` + `marketplace-tasks.js`.
 
 ## Checkout modülleri
 

@@ -77,19 +77,25 @@
     return html;
   }
 
-  function renderSummary(profileData, balance) {
+  function renderSummary(profileData) {
     var html = '';
     if (profileData.can_view_dashboard) {
       html +=
         '<section class="sutore-mp-merchant-profile__section sutore-mp-merchant-profile__summary">' +
         '<h2>' + esc(t('merchantSummary', 'Merchant summary')) + '</h2>' +
-        '<div class="sutore-mp-merchant-profile__stats">' +
-        '<div class="sutore-mp-merchant-profile__stat"><span class="sutore-mp-merchant-profile__stat-label">' +
-        esc(t('level', 'Level')) + '</span><strong>' + esc(profileData.level_label || profileData.level || '') +
-        '</strong></div>';
+        '<div class="sutore-mp-merchant-profile__highlights">' +
+        '<div class="sutore-mp-merchant-profile__stat sutore-mp-merchant-profile__stat--level">' +
+        '<span class="sutore-mp-merchant-profile__stat-label">' +
+        esc(t('level', 'Level')) +
+        '</span><strong>' +
+        esc(profileData.level_label || profileData.level || '') +
+        '</strong></div>' +
+        renderReferral(profileData) +
+        '</div>';
 
       if (profileData.behavior && profileData.behavior.score != null) {
         html +=
+          '<div class="sutore-mp-merchant-profile__stats">' +
           '<div class="sutore-mp-merchant-profile__stat sutore-mp-merchant-profile__stat--behavior">' +
           '<span class="sutore-mp-merchant-profile__stat-label">' +
           esc(t('behaviorScore', 'Behavior score')) + '</span><strong>' +
@@ -98,85 +104,7 @@
         if (profileData.behavior.summary) {
           html += '<small>' + esc(profileData.behavior.summary) + '</small>';
         }
-        html += '</div>';
-      }
-
-      html +=
-        '<div class="sutore-mp-merchant-profile__stat"><span class="sutore-mp-merchant-profile__stat-label">' +
-        esc(t('commission', 'Commission')) + '</span><strong>' +
-        esc(String(profileData.commission_percent || 0)) + '%</strong>';
-
-      if (profileData.commission_overridden) {
-        var overrideNote =
-          esc(profileData.commission_override_label || t('commissionDiscountActive', 'Commission discount active'));
-        var levelPct = String(profileData.commission_level_percent || 0);
-        var effectivePct = String(profileData.commission_percent || 0);
-        overrideNote +=
-          ' — ' +
-          esc(
-            t('commissionLevelToEffective', 'Level %1$s%% → Effective %2$s%%')
-              .replace('%1$s', levelPct)
-              .replace('%2$s', effectivePct)
-          );
-        if (profileData.commission_override_expires_at) {
-          overrideNote +=
-            '<br />' +
-            esc(t('expiresAt', 'Expires')) +
-            ': ' +
-            esc(String(profileData.commission_override_expires_at));
-        } else {
-          overrideNote += '<br />' + esc(t('noExpiry', 'No end date'));
-        }
-        html += '<small class="sutore-mp-merchant-profile__commission-note">' + overrideNote + '</small>';
-      }
-
-      html += '</div>';
-
-      if (balance) {
-        html +=
-          '<div class="sutore-mp-merchant-profile__stat"><span class="sutore-mp-merchant-profile__stat-label">' +
-          esc(t('paidPayout', 'Paid payout')) + '</span><strong>' +
-          esc(balance.formatted_paid || '0 TL') + '</strong><small>' +
-          esc(t('salesCount', '%d sales').replace('%d', String(balance.paid_count || 0))) +
-          '</small></div>' +
-          '<div class="sutore-mp-merchant-profile__stat"><span class="sutore-mp-merchant-profile__stat-label">' +
-          esc(t('pendingPayout', 'Pending payout')) + '</span><strong>' +
-          esc(balance.formatted_pending || '0 TL') + '</strong><small>' +
-          esc(t('salesCount', '%d sales').replace('%d', String(balance.pending_count || 0))) +
-          '</small></div>';
-      }
-      html += '</div>';
-      html += renderReferral(profileData);
-
-      if (balance && balance.recent && balance.recent.length) {
-        html +=
-          '<div class="sutore-mp-merchant-profile__payouts"><h3>' +
-          esc(t('recentPayouts', 'Recent payouts')) +
-          '</h3><table class="shop_table shop_table_responsive"><thead><tr>' +
-          '<th>' + esc(t('product', 'Product')) + '</th>' +
-          '<th>' + esc(t('listing', 'Listing')) + '</th>' +
-          '<th>' + esc(t('net', 'Net')) + '</th>' +
-          '<th>' + esc(t('payment', 'Payment')) + '</th>' +
-          '</tr></thead><tbody>';
-        balance.recent.forEach(function (line) {
-          var statusText = line.scheduled_message || '';
-          if (!statusText && line.payout_status === 'paid') {
-            statusText = line.paid_at_display
-              ? (line.payout_status_label || t('paidPayout', 'Paid payout')) +
-                ' · ' +
-                line.paid_at_display
-              : (line.payout_status_label || t('paidPayout', 'Paid payout'));
-          }
-          if (!statusText) {
-            statusText = line.payout_status_label || line.payout_status || '';
-          }
-          html +=
-            '<tr><td>' + esc(line.product_title || '') + '</td><td>#' +
-            esc(String(line.variation_id || 0)) +
-            '</td><td>' + esc(line.formatted_net || '') + '</td><td>' +
-            esc(statusText) + '</td></tr>';
-        });
-        html += '</tbody></table></div>';
+        html += '</div></div>';
       }
 
       if (profileData.tc_verified) {
@@ -388,10 +316,7 @@
     $root.attr('aria-busy', 'true');
     $mount.attr('aria-busy', 'true').html(loadingHtml());
 
-    $.when(
-      cfg.api('marketplace_merchant_profile_get'),
-      cfg.api('marketplace_merchant_balance_get')
-    ).done(function (res, balRes) {
+    cfg.api('marketplace_merchant_profile_get').done(function (res) {
       if (!res || !res.success || !res.data) {
         $root.attr('aria-busy', 'false');
         $mount.attr('aria-busy', 'false').html(
@@ -401,8 +326,7 @@
       }
 
       var profileData = res.data;
-      var balance = profileData.can_view_dashboard && balRes && balRes.success ? balRes.data : null;
-      var html = renderSummary(profileData, balance) + renderBilling(profileData);
+      var html = renderSummary(profileData) + renderBilling(profileData);
       $mount.attr('aria-busy', 'false').html(html);
       fillForm(profileData);
       bindForm();

@@ -68,7 +68,7 @@ final class OrderItemSellerDisplay
 
         if ($status !== '') {
             $rows[] = [
-                'label' => __('Fulfillment status', 'sutore-marketplace'),
+                'label' => __('Sale status', 'sutore-marketplace'),
                 'value' => ListingStatus::label($status),
             ];
         }

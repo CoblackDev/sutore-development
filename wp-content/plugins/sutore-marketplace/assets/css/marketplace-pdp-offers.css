@@ -1,13 +1,95 @@
-.sutore-mp-pdp-offer {
-  margin: 1.25rem 0 0;
-  padding: 1rem 0 0;
-  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+.single-product form.cart:not(.variations_form),
+.single-product .woocommerce-variation-add-to-cart {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.65rem;
+}
+
+.single-product form.cart:not(.variations_form) .single_add_to_cart_button,
+.single-product .woocommerce-variation-add-to-cart .single_add_to_cart_button,
+.sutore-mp-pdp-offer-btn {
+  flex: 1 1 10rem;
+  margin: 0;
+  min-height: 3rem;
+  width: auto;
+}
+
+.sutore-mp-pdp-offer-btn[hidden] {
+  display: none !important;
+}
+
+.sutore-mp-pdp-offer-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.sutore-mp-pdp-offer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100080;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: color-mix(in srgb, #000 45%, transparent);
+}
+
+.sutore-mp-pdp-offer-overlay.is-open {
+  display: flex;
+}
+
+.sutore-mp-pdp-offer-overlay[hidden] {
+  display: none !important;
+}
+
+body.sutore-mp-modal-open {
+  overflow: hidden;
+}
+
+.sutore-mp-pdp-offer-modal {
+  background: var(--wp--preset--color--base, #fff);
+  color: inherit;
+  width: min(420px, 100%);
+  border-radius: 0.4rem;
+  overflow: hidden;
+  box-shadow: 0 12px 36px color-mix(in srgb, #000 25%, transparent);
+}
+
+.sutore-mp-pdp-offer-modal__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.sutore-mp-pdp-offer-modal__title {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+.sutore-mp-pdp-offer-modal__close {
+  border: 0;
+  background: transparent;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  padding: 0.15rem 0.35rem;
+}
+
+.sutore-mp-pdp-offer-modal__body {
+  padding: 1rem;
 }
 
 .sutore-mp-pdp-offer__lead {
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.85rem;
   font-size: 0.92em;
-  opacity: 0.85;
+  line-height: 1.45;
+  opacity: 0.9;
 }
 
 .sutore-mp-pdp-offer__label {
@@ -17,20 +99,28 @@
   font-weight: 600;
 }
 
-.sutore-mp-pdp-offer__row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
+.sutore-mp-pdp-offer__input {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 0.85rem;
+  box-sizing: border-box;
 }
 
-.sutore-mp-pdp-offer__input {
-  max-width: 10rem;
+.sutore-mp-pdp-offer__submit {
+  width: 100%;
+  margin: 0;
+  min-height: 2.75rem;
+}
+
+.sutore-mp-pdp-offer__form[hidden] {
+  display: none !important;
 }
 
 .sutore-mp-pdp-offer__status {
-  margin: 0.5rem 0 0;
+  margin: 0.75rem 0 0;
   font-size: 0.9em;
+  line-height: 1.4;
 }
 
 .sutore-mp-card.is-price-offer {

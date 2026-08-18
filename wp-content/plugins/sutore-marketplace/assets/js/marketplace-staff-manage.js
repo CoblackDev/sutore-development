@@ -134,7 +134,7 @@
       confirmTitleKey: 'approveListing',
       confirmTitleFallback: 'Approve & put on sale',
       confirmTextKey: 'approveListingConfirm',
-      confirmTextFallback: 'Approve this listing and put it on sale for customers?'
+      confirmTextFallback: 'Approve this product and put it on sale for customers?'
     },
     {
       key: 'send_campaign_offer',
@@ -182,7 +182,7 @@
       primary: false,
       textKey: 'adjustCommissionConfirm',
       textFallback:
-        'Set a new commission percent for this pending payout only. Net amount is recalculated from the sale asking price.',
+        'Set a new commission percent for this pending payout only. Net amount is recalculated from the sale price.',
       fields: [
         {
           name: 'commission_percent',
@@ -222,12 +222,12 @@
       primary: false,
       textKey: 'changeSellerConfirm',
       textFallback:
-        'Replace this sale with another eligible listing. Same product is listed by default; search to pick a different product.',
+        'Replace this sale with another eligible product. Same product is listed by default; search to pick a different product.',
       fields: [
         {
           name: 'new_variation_id',
           labelKey: 'replacementListing',
-          labelFallback: 'Replacement listing',
+          labelFallback: 'Replacement product',
           type: 'select',
           required: true,
           optionsKey: 'swap_candidates'
@@ -258,7 +258,7 @@
       primary: true,
       textKey: 'attachToOrderConfirm',
       textFallback:
-        'Add this listing to an order. Paid orders start as sold (seller is notified). Unpaid pending/on-hold orders wait for payment confirmation — no sold SMS.',
+        'Add this product to an order. Paid orders start as sold (seller is notified). Unpaid pending/on-hold orders wait for payment confirmation — no sold SMS.',
       fields: [
         {
           name: 'order_id',
@@ -354,7 +354,7 @@
       fallback: 'Not for sale',
       primary: false,
       textKey: 'markNotForSaleConfirm',
-      textFallback: 'This sale will be taken off the order and the listing will become not for sale.',
+      textFallback: 'This sale will be taken off the order and the product will be marked as detached from order.',
       fields: [
         {
           name: 'staff_note',
@@ -374,7 +374,7 @@
       fallback: 'Remove from sale',
       primary: false,
       textKey: 'removeFromSaleConfirm',
-      textFallback: 'This listing will be taken off sale and marked as not for sale.',
+      textFallback: 'This product will be taken off sale and marked as not for sale.',
       fields: [
         {
           name: 'staff_note',
@@ -396,7 +396,7 @@
       confirmTitleKey: 'delete',
       confirmTitleFallback: 'Delete',
       confirmTextKey: 'confirmDelete',
-      confirmTextFallback: 'Are you sure you want to permanently remove this product Listing?'
+      confirmTextFallback: 'Are you sure you want to permanently remove this product?'
     }
   ];
 
@@ -825,7 +825,7 @@
       return t('selectCampaignPlaceholder', 'Select a campaign…');
     }
     if (field.optionsKey === 'swap_candidates') {
-      return t('selectReplacementListing', 'Select a replacement listing…');
+      return t('selectReplacementListing', 'Select a replacement product…');
     }
     return t('selectOrderPlaceholder', 'Select a processing order…');
   }
@@ -976,14 +976,14 @@
             $select,
             options,
             isSwap
-              ? t('selectReplacementListing', 'Select a replacement listing…')
+              ? t('selectReplacementListing', 'Select a replacement product…')
               : t('selectOrderPlaceholder', 'Select a processing order…')
           );
           $reset.prop('hidden', !q);
           if (!options.length) {
             showToast(
               isSwap
-                ? t('noSwapCandidates', 'No eligible replacement listings found.')
+                ? t('noSwapCandidates', 'No eligible replacement products found.')
                 : t('noProcessingOrders', 'No processing orders found.'),
               'error'
             );
@@ -1566,19 +1566,19 @@
       esc(String(data.variation_id || data.id || '')) +
       '">' +
       '<h3 class="sutore-mp-staff-panel-title sutore-mp-staff-subheading">' +
-      esc(t('listingCommission', 'Listing commission %')) +
+      esc(t('listingCommission', 'Product commission %')) +
       '</h3>' +
       '<p class="description sutore-mp-staff-form-hint">' +
       esc(
         t(
           'listingCommissionHelp',
-          'Optional. Leave empty for the normal seller rate. 0 means no commission on this listing.'
+          'Optional. Leave empty for the normal seller rate. 0 means no commission on this product.'
         )
       ) +
       '</p>' +
       '<div class="sutore-mp-staff-form-grid">' +
       '<label>' +
-      esc(t('listingCommission', 'Listing commission %')) +
+      esc(t('listingCommission', 'Product commission %')) +
       '<input type="number" name="commission_percent" class="sutore-mp-input" min="0" max="100" step="0.01" value="' +
       esc(listingVal) +
       '" /></label></div>' +

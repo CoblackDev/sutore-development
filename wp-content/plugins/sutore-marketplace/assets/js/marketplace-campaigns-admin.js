@@ -44,14 +44,14 @@
     var truncated = !!(data && data.truncated);
     if (listings <= 0) {
       if (matched > 0 && busy > 0) {
-        return (i18n.coverBusy || 'No eligible products: %d matching listing(s) already have a campaign offer or active campaign.').replace('%d', String(busy));
+        return (i18n.coverBusy || 'No eligible products: %d matching product(s) already have a campaign offer or active campaign.').replace('%d', String(busy));
       }
       return i18n.coverZero || 'No products match the current targeting.';
     }
     var tpl = i18n.coverTpl || 'This campaign will cover %1$d products (%2$d merchants).';
     var text = tpl.replace('%1$d', String(listings)).replace('%2$d', String(merchants));
     if (truncated) {
-      text += ' ' + (i18n.truncated || 'Audience scan is capped at 2000 matching listings; the real audience may be larger.');
+      text += ' ' + (i18n.truncated || 'Audience scan is capped at 2000 matching products; the real audience may be larger.');
     }
     return text;
   }

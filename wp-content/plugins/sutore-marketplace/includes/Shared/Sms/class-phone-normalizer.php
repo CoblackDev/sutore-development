@@ -27,4 +27,15 @@ final class PhoneNormalizer
 
         return strlen($digits) === 10 && str_starts_with($digits, '5');
     }
+
+    /** E.164 for IYS (Netgsm expects +90…). */
+    public static function toIysRecipient(string $phone): string
+    {
+        $digits = self::toDomestic($phone);
+        if (!self::isValidDomestic($digits)) {
+            return '';
+        }
+
+        return '+90' . $digits;
+    }
 }

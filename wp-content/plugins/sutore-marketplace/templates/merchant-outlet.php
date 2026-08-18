@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
 
         <p class="sutore-mp-panel-lead">
 
-            <?php esc_html_e('Join an outlet window at the listed asking. A listing is created when the window opens and unsold listings expire when it ends.', 'sutore-marketplace'); ?>
+            <?php esc_html_e('Join an outlet window at the listed price. A product is created when the window opens and unsold products expire when it ends.', 'sutore-marketplace'); ?>
 
         </p>
 

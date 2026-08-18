@@ -2,6 +2,9 @@
   'use strict';
 
   var cfg = window.SutoreMarketplacePdpOffers || {};
+  var lastCtx = null;
+  var lastFocus = null;
+
   var t = function (key, fallback) {
     return (cfg.i18n && cfg.i18n[key]) || fallback;
   };
@@ -20,6 +23,18 @@
     });
   }
 
+  function money(n) {
+    return Number(n || 0).toLocaleString() + ' TL';
+  }
+
+  function $triggers() {
+    return $('[data-sutore-pdp-offer-open]');
+  }
+
+  function $modal() {
+    return $('[data-sutore-pdp-offer-modal]');
+  }
+
   function selectedVariationId() {
     var $form = $('form.variations_form');
     var id = parseInt($form.find('input.variation_id').val() || '0', 10);
@@ -30,35 +45,100 @@
     return simple > 0 ? simple : 0;
   }
 
-  function renderContext(ctx) {
-    var $box = $('[data-sutore-pdp-offer]');
-    if (!$box.length) {
+  function setTriggers(opts) {
+    var $btn = $triggers();
+    $btn.prop('hidden', !opts.visible);
+    $btn.prop('disabled', !!opts.disabled);
+    $btn.text(opts.label || t('makeOffer', 'Make an offer'));
+  }
+
+  function modalOpen() {
+    var $ov = $modal();
+    if (!$ov.length || $ov.hasClass('is-open')) {
       return;
     }
-    var $lead = $box.find('.sutore-mp-pdp-offer__lead');
-    var $form = $box.find('.sutore-mp-pdp-offer__form');
-    var $status = $box.find('.sutore-mp-pdp-offer__status');
-    var $bid = $box.find('#sutore-mp-pdp-offer-bid');
+    lastFocus = document.activeElement;
+    $ov.prop('hidden', false).addClass('is-open');
+    $('body').addClass('sutore-mp-modal-open');
+    window.setTimeout(function () {
+      var $form = $ov.find('.sutore-mp-pdp-offer__form');
+      if ($form.length && !$form.prop('hidden')) {
+        $('#sutore-mp-pdp-offer-bid').trigger('focus');
+        return;
+      }
+      $ov.find('[data-sutore-pdp-offer-close]').trigger('focus');
+    }, 20);
+  }
+
+  function modalClose() {
+    var $ov = $modal();
+    $ov.removeClass('is-open').prop('hidden', true);
+    $('body').removeClass('sutore-mp-modal-open');
+    if (lastFocus && typeof lastFocus.focus === 'function') {
+      lastFocus.focus();
+    }
+  }
+
+  function fillBidBounds(ctx) {
+    var $bid = $('#sutore-mp-pdp-offer-bid');
+    var minBid = ctx.min_bid || 1;
+    var maxBid = ctx.max_bid || Math.max(0, Number(ctx.asking || 0) - Number(ctx.price_step || 1));
+    $bid.attr('min', minBid);
+    $bid.attr('max', maxBid);
+    $bid.attr('step', ctx.price_step || 1);
+    var current = parseFloat($bid.val() || '0');
+    if (!current || current < minBid || current > maxBid) {
+      $bid.val(minBid);
+    }
+  }
+
+  function renderContext(ctx) {
+    lastCtx = ctx || null;
+    var $ov = $modal();
+    var $lead = $ov.find('[data-sutore-pdp-offer-lead]');
+    var $form = $ov.find('.sutore-mp-pdp-offer__form');
+    var $status = $ov.find('.sutore-mp-pdp-offer__status');
     $status.text('');
 
     if (!ctx || !ctx.enabled) {
-      $box.prop('hidden', true);
+      setTriggers({ visible: false });
       return;
     }
 
     if (ctx.pending_offer) {
-      $box.prop('hidden', false);
+      setTriggers({
+        visible: true,
+        disabled: false,
+        label: t('offerPending', 'Offer pending')
+      });
       $form.prop('hidden', true);
-      $lead.text(t('pending', 'You already have a pending offer on this size.'));
+      var pendingAmount = ctx.pending_offer.bid_amount;
+      var pendingText = t('pending', 'You already have a pending offer on this size.');
+      if (pendingAmount) {
+        pendingText += ' ' + t('yourOffer', 'Your offer') + ': ' + money(pendingAmount);
+      }
+      $lead.text(pendingText);
+      if (cfg.myOffersUrl) {
+        $lead.append(' ').append(
+          $('<a/>').attr('href', cfg.myOffersUrl).text(t('viewOffers', 'View my offers'))
+        );
+      }
       return;
     }
+
     if (ctx.accepted_offer) {
-      $box.prop('hidden', false);
+      setTriggers({
+        visible: true,
+        disabled: false,
+        label: t('offerAccepted', 'Offer accepted')
+      });
       $form.prop('hidden', true);
       var accepted = t('accepted', 'Your offer was accepted. Use your coupon at checkout.');
+      if (ctx.accepted_offer.bid_amount) {
+        accepted += ' ' + t('yourOffer', 'Your offer') + ': ' + money(ctx.accepted_offer.bid_amount);
+      }
       if (cfg.myOffersUrl) {
-        accepted += ' ';
-        $lead.empty().text(accepted).append(
+        $lead.empty().text(accepted + ' ').append(
           $('<a/>').attr('href', cfg.myOffersUrl).text(t('viewOffers', 'View my offers'))
         );
       } else {
@@ -68,7 +148,11 @@
     }
 
     if (!ctx.can_offer && ctx.reason === 'login') {
-      $box.prop('hidden', false);
+      setTriggers({
+        visible: true,
+        disabled: false,
+        label: t('makeOffer', 'Make an offer')
+      });
       $form.prop('hidden', true);
       $lead.empty().append(
         $('<a/>').attr('href', cfg.loginUrl || '#').text(t('loginToOffer', 'Log in to make an offer.'))
@@ -77,56 +161,100 @@
     }
 
     if (!ctx.can_offer) {
-      $box.prop('hidden', true);
+      setTriggers({ visible: false });
+      $form.prop('hidden', true);
+      $lead.text('');
       return;
     }
 
-    $box.prop('hidden', false);
-    $form.prop('hidden', false);
+    setTriggers({
+      visible: true,
+      disabled: false,
+      label: t('makeOffer', 'Make an offer')
+    });
+    $form.prop('hidden', false).data('variation-id', ctx.variation_id);
     $lead.text(
-      t('asking', 'Seller asking') + ': ' + Number(ctx.asking || 0).toLocaleString() + ' TL · ' +
-      t('minBid', 'Minimum offer') + ': ' + Number(ctx.min_bid || 0).toLocaleString() + ' TL'
+      t('listedPrice', 'Listed price') + ': ' + money(ctx.asking) + ' · ' +
+      t('minBid', 'Minimum offer') + ': ' + money(ctx.min_bid)
     );
-    $bid.attr('min', ctx.min_bid || 1);
-    $bid.attr('step', ctx.price_step || 1);
-    if (!$bid.val()) {
-      $bid.val(ctx.min_bid || '');
-    }
-    $form.data('variation-id', ctx.variation_id);
+    fillBidBounds(ctx);
   }
 
   function loadContext() {
     var variationId = selectedVariationId();
     if (variationId <= 0) {
-      $('[data-sutore-pdp-offer]').prop('hidden', true);
+      lastCtx = null;
+      setTriggers({ visible: false });
       return;
     }
     rest('my-offers/context', 'GET', { variation_id: variationId }).done(function (res) {
       var ctx = res && res.data ? res.data : res;
       renderContext(ctx);
     }).fail(function () {
-      $('[data-sutore-pdp-offer]').prop('hidden', true);
+      lastCtx = null;
+      setTriggers({ visible: false });
     });
   }
 
   $(function () {
-    if (!$('[data-sutore-pdp-offer]').length) {
+    if (!$triggers().length || !$modal().length) {
       return;
     }
+
     $('form.variations_form').on('found_variation hide_variation show_variation', function () {
       window.setTimeout(loadContext, 50);
     });
-    $('[data-sutore-pdp-offer]').on('submit', '.sutore-mp-pdp-offer__form', function (e) {
+
+    $triggers().on('click', function (e) {
+      e.preventDefault();
+      if (!lastCtx) {
+        return;
+      }
+      if (!cfg.loggedIn && lastCtx.reason === 'login') {
+        window.location.href = cfg.loginUrl || '/';
+        return;
+      }
+      modalOpen();
+    });
+
+    $modal().on('click', '[data-sutore-pdp-offer-close]', function (e) {
+      e.preventDefault();
+      modalClose();
+    });
+
+    $modal().on('click', function (e) {
+      if (e.target === this) {
+        modalClose();
+      }
+    });
+
+    $(document).on('keydown.sutorePdpOffer', function (e) {
+      if (e.key === 'Escape' && $modal().hasClass('is-open')) {
+        modalClose();
+      }
+    });
+
+    $modal().on('submit', '.sutore-mp-pdp-offer__form', function (e) {
       e.preventDefault();
       if (!cfg.loggedIn) {
         window.location.href = cfg.loginUrl || '/';
         return;
       }
+      if (!lastCtx || !lastCtx.can_offer) {
+        return;
+      }
       var variationId = parseInt($(this).data('variation-id') || selectedVariationId() || '0', 10);
       var bid = parseFloat($('#sutore-mp-pdp-offer-bid').val() || '0');
-      var $status = $('[data-sutore-pdp-offer] .sutore-mp-pdp-offer__status');
+      var $status = $modal().find('.sutore-mp-pdp-offer__status');
       $status.text('');
+      if (bid >= Number(lastCtx.asking || 0)) {
+        $status.text(t('bidHigh', 'Your offer must be below the current price. Add the product to your cart to buy at the listed price.'));
+        return;
+      }
+      var $submit = $(this).find('.sutore-mp-pdp-offer__submit');
+      $submit.prop('disabled', true);
       rest('my-offers', 'POST', { variation_id: variationId, bid_amount: bid }).done(function (res) {
+        $submit.prop('disabled', false);
         if (res && res.success) {
           $status.text((res.data && res.data.message) || t('sent', 'Your offer was sent to the seller.'));
           loadContext();
@@ -134,6 +262,7 @@
         }
         $status.text((res && res.message) || t('error', 'Error'));
       }).fail(function (xhr) {
+        $submit.prop('disabled', false);
         var msg = t('error', 'Error');
         if (xhr.responseJSON && xhr.responseJSON.message) {
           msg = xhr.responseJSON.message;
@@ -141,6 +270,7 @@
         $status.text(msg);
       });
     });
+
     loadContext();
   });
 })(jQuery);

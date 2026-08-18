@@ -33,6 +33,10 @@ final class NotificationType
 
     public const CAMPAIGN_OFFER = 'campaign.offer';
     public const CUSTOMER_OFFER = 'customer.offer';
+    public const CUSTOMER_OFFER_ACCEPTED = 'customer.offer_accepted';
+    public const CUSTOMER_OFFER_DECLINED = 'customer.offer_declined';
+    public const CUSTOMER_OFFER_EXPIRED = 'customer.offer_expired';
+    public const CUSTOMER_OFFER_FORWARDED = 'customer.offer_forwarded';
     public const REFERRAL_REWARDED = 'referral.rewarded';
     public const CATALOG_REQUEST_FULFILLED = 'catalog_request.fulfilled';
     public const CATALOG_REQUEST_REJECTED = 'catalog_request.rejected';
@@ -63,6 +67,10 @@ final class NotificationType
             self::LEVEL_CHANGED => 'system',
             self::CAMPAIGN_OFFER => 'listing',
             self::CUSTOMER_OFFER => 'listing',
+            self::CUSTOMER_OFFER_ACCEPTED => 'customer',
+            self::CUSTOMER_OFFER_DECLINED => 'customer',
+            self::CUSTOMER_OFFER_EXPIRED => 'customer',
+            self::CUSTOMER_OFFER_FORWARDED => 'customer',
             self::REFERRAL_REWARDED => 'system',
             self::CATALOG_REQUEST_FULFILLED => 'listing',
             self::CATALOG_REQUEST_REJECTED => 'listing',
@@ -151,16 +159,20 @@ final class NotificationType
             self::PAYOUT_REVERSED => __('Payout cancelled', 'sutore-marketplace'),
             self::LISTING_WINNER_GAINED => __('Moved up to #1', 'sutore-marketplace'),
             self::LISTING_WINNER_LOST => __('Queue loss', 'sutore-marketplace'),
-            self::LISTING_EXPIRED => __('Listing expired', 'sutore-marketplace'),
+            self::LISTING_EXPIRED => __('Product expired', 'sutore-marketplace'),
             self::LISTING_BULK_IMPORT_COMPLETED => __('Bulk import completed', 'sutore-marketplace'),
             self::TASK_COMPLETED => __('Task completed', 'sutore-marketplace'),
             self::LEVEL_CHANGED => __('Seller level changed', 'sutore-marketplace'),
             self::CAMPAIGN_OFFER => __('Campaign offer', 'sutore-marketplace'),
             self::CUSTOMER_OFFER => __('Customer offer', 'sutore-marketplace'),
+            self::CUSTOMER_OFFER_ACCEPTED => __('Offer accepted', 'sutore-marketplace'),
+            self::CUSTOMER_OFFER_DECLINED => __('Offer declined', 'sutore-marketplace'),
+            self::CUSTOMER_OFFER_EXPIRED => __('Offer expired', 'sutore-marketplace'),
+            self::CUSTOMER_OFFER_FORWARDED => __('Offer sent to next seller', 'sutore-marketplace'),
             self::REFERRAL_REWARDED => __('Referral reward', 'sutore-marketplace'),
             self::CATALOG_REQUEST_FULFILLED => __('Catalog product added', 'sutore-marketplace'),
             self::CATALOG_REQUEST_REJECTED => __('Catalog request declined', 'sutore-marketplace'),
-            self::OUTLET_LISTING_LIVE => __('Outlet listing is live', 'sutore-marketplace'),
+            self::OUTLET_LISTING_LIVE => __('Outlet product is live', 'sutore-marketplace'),
         ];
     }
 
@@ -176,7 +188,8 @@ final class NotificationType
             'sales' => __('Sale', 'sutore-marketplace'),
             'fulfillment' => __('Shipping & verification', 'sutore-marketplace'),
             'payout' => __('Payout', 'sutore-marketplace'),
-            'listing' => __('Listing & queue', 'sutore-marketplace'),
+            'listing' => __('Products & queue', 'sutore-marketplace'),
+            'customer' => __('Buyer offers', 'sutore-marketplace'),
             'system' => __('System', 'sutore-marketplace'),
         ];
     }

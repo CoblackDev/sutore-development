@@ -93,7 +93,7 @@ final class OrderItemPricingMetaHooks
         }
 
         $labels = [
-            self::META_ASKING => __('Seller asking', 'sutore-marketplace'),
+            self::META_ASKING => __('Seller price', 'sutore-marketplace'),
             self::META_HIZMET => __('Service fee', 'sutore-marketplace'),
             self::META_GUVENCE => __('Guarantee fee', 'sutore-marketplace'),
             self::META_WAIVER => __('Platform campaign waiver', 'sutore-marketplace'),

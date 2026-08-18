@@ -94,7 +94,7 @@ final class PayoutExportService
             __('Order', 'sutore-marketplace'),
             __('Customer', 'sutore-marketplace'),
             __('Product', 'sutore-marketplace'),
-            __('Asking', 'sutore-marketplace'),
+            __('Price', 'sutore-marketplace'),
             __('Guarantee fee', 'sutore-marketplace'),
             __('Service fee', 'sutore-marketplace'),
             __('Commission %', 'sutore-marketplace'),

@@ -54,7 +54,7 @@ final class ListingPolicy
 
         return new \WP_Error(
             'sutore_marketplace_not_owner',
-            __('This Listing does not belong to you.', 'sutore-marketplace')
+            __('This product does not belong to you.', 'sutore-marketplace')
         );
     }
 
@@ -161,7 +161,7 @@ final class ListingPolicy
         if (!ListingDuration::isAllowed($days)) {
             return new \WP_Error(
                 'sutore_marketplace_invalid_duration',
-                __('Select a valid listing duration.', 'sutore-marketplace'),
+                __('Select a valid sale duration.', 'sutore-marketplace'),
                 ['status' => 400]
             );
         }
@@ -170,7 +170,7 @@ final class ListingPolicy
         if (!in_array($days, $allowed, true)) {
             return new \WP_Error(
                 'sutore_marketplace_duration_not_allowed',
-                __('This listing duration is not available for your seller level.', 'sutore-marketplace'),
+                __('This sale duration is not available for your seller level.', 'sutore-marketplace'),
                 ['status' => 403]
             );
         }
@@ -305,7 +305,7 @@ final class ListingPolicy
             || $restrictions->hasActive($userId, 'disabled_account')) {
             return new \WP_Error(
                 'sutore_marketplace_restricted',
-                __('Listing creation is restricted.', 'sutore-marketplace'),
+                __('Product creation is restricted.', 'sutore-marketplace'),
                 ['status' => 403]
             );
         }

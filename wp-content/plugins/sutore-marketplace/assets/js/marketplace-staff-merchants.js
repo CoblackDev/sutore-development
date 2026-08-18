@@ -185,7 +185,7 @@
       '</th><th>' +
       esc(t('restrictionStatus', 'Restrictions')) +
       '</th><th>' +
-      esc(t('listings', 'Listings')) +
+      esc(t('listings', 'Products')) +
       '</th><th>' +
       esc(t('sold', 'Sold')) +
       '</th><th>' +
@@ -462,7 +462,7 @@
       '" data-product-title="' +
       esc(title) +
       '" title="' +
-      esc(t('openListingDetail', 'Open listing detail')) +
+      esc(t('openListingDetail', 'Open product detail')) +
       '">' +
       esc(title) +
       '</a>' +
@@ -591,7 +591,7 @@
 
   function restrictionLabels() {
     return {
-      listing_create_ban: t('listingCreateBan', 'Ban creating listings'),
+      listing_create_ban: t('listingCreateBan', 'Ban creating products'),
       price_update_ban: t('priceUpdateBan', 'Ban price updates'),
       disabled_account: t('disabledAccount', 'Disable account')
     };
@@ -715,7 +715,7 @@
           ? '<span class="sutore-mp-staff-meta-warn">' + esc(restrictionSummary) + '</span>'
           : esc(restrictionSummary)
       ) +
-      kvRow(t('listings', 'Listings'), esc(String(data.listing_count || 0))) +
+      kvRow(t('listings', 'Products'), esc(String(data.listing_count || 0))) +
       kvRow(t('inviteCode', 'Invite code'), esc((data.referral && data.referral.code) || '—')) +
       kvRow(
         t('referredBy', 'Referred by'),

@@ -57,7 +57,7 @@ final class ListingService
         $staffForMerchant = $actorId !== $merchantId;
         if (!$staffForMerchant && ($this->restrictions->hasActive($merchantId, 'listing_create_ban')
             || $this->restrictions->hasActive($merchantId, 'disabled_account'))) {
-            return new \WP_Error('sutore_marketplace_restricted', __('Listing creation is restricted.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_restricted', __('Product creation is restricted.', 'sutore-marketplace'));
         }
 
         $parentId = (int) ($input['parent_product_id'] ?? 0);
@@ -128,7 +128,7 @@ final class ListingService
         $this->conditions->sync($insertedId, $conditions);
         $listing = $this->listings->find($insertedId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_create_failed', __('Listing could not be created.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_create_failed', __('Product could not be created.', 'sutore-marketplace'));
         }
 
         $this->events->log('listing_created', array_merge($listing->toArray(), [
@@ -166,7 +166,7 @@ final class ListingService
 
         $listing = $this->listings->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_not_found', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_not_found', __('Product not found.', 'sutore-marketplace'));
         }
 
         $owns = ListingPolicy::assertOwnsListing($listing, $userId);
@@ -182,7 +182,7 @@ final class ListingService
         if (ListingStatus::isProcessLocked($listing)) {
             return new \WP_Error(
                 'sutore_marketplace_order_locked',
-                __('A Listing in the order process cannot be updated.', 'sutore-marketplace')
+                __('A product in the order process cannot be updated.', 'sutore-marketplace')
             );
         }
 
@@ -292,14 +292,14 @@ final class ListingService
         if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
             return new \WP_Error(
                 'sutore_marketplace_forbidden',
-                __('You are not allowed to set a listing commission.', 'sutore-marketplace'),
+                __('You are not allowed to set a product commission.', 'sutore-marketplace'),
                 ['status' => 403]
             );
         }
 
         $listing = $this->listings->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_not_found', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_not_found', __('Product not found.', 'sutore-marketplace'));
         }
 
         if ($percent !== null) {
@@ -356,7 +356,7 @@ final class ListingService
 
         $listing = $this->listings->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_not_found', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_not_found', __('Product not found.', 'sutore-marketplace'));
         }
 
         $owns = ListingPolicy::assertOwnsListing($listing, $userId);
@@ -418,7 +418,7 @@ final class ListingService
 
         $listing = $this->listings->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_not_found', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_not_found', __('Product not found.', 'sutore-marketplace'));
         }
 
         $owns = ListingPolicy::assertOwnsListing($listing, $userId);
@@ -477,14 +477,14 @@ final class ListingService
         if (!in_array($listing->listingStatus, ListingStatus::removableFromSale(), true)) {
             return new \WP_Error(
                 'sutore_marketplace_cannot_remove_from_sale',
-                __('Only listings awaiting sale or already for sale can be removed from sale.', 'sutore-marketplace')
+                __('Only products awaiting sale or already for sale can be removed from sale.', 'sutore-marketplace')
             );
         }
 
         if ($listing->orderId || ListingStatus::isProcessLocked($listing)) {
             return new \WP_Error(
                 'sutore_marketplace_order_locked',
-                __('A listing linked to an order cannot be removed from sale here. Use fulfillment actions.', 'sutore-marketplace')
+                __('A product linked to an order cannot be removed from sale here. Use sale actions.', 'sutore-marketplace')
             );
         }
 
@@ -498,7 +498,7 @@ final class ListingService
             if ($activeFulfillment) {
                 return new \WP_Error(
                     'sutore_marketplace_order_locked',
-                    __('A listing linked to an order cannot be removed from sale here. Use fulfillment actions.', 'sutore-marketplace')
+                    __('A product linked to an order cannot be removed from sale here. Use sale actions.', 'sutore-marketplace')
                 );
             }
         }
@@ -520,7 +520,7 @@ final class ListingService
         if (!in_array($status, ListingStatus::relistable(), true)) {
             return new \WP_Error(
                 'sutore_marketplace_cannot_put_on_sale',
-                __('Only listings that are not for sale or expired can be put back on sale.', 'sutore-marketplace')
+                __('Only products that are not for sale or expired can be put back on sale.', 'sutore-marketplace')
             );
         }
 
@@ -528,21 +528,21 @@ final class ListingService
         if ($this->restrictions->hasActive($merchantId, 'disabled_account')) {
             return new \WP_Error(
                 'sutore_marketplace_restricted',
-                __('This seller account is disabled and cannot put listings on sale.', 'sutore-marketplace')
+                __('This seller account is disabled and cannot put products on sale.', 'sutore-marketplace')
             );
         }
 
         if ($this->restrictions->hasActive($merchantId, 'listing_create_ban')) {
             return new \WP_Error(
                 'sutore_marketplace_restricted',
-                __('This seller is restricted from creating or putting listings on sale.', 'sutore-marketplace')
+                __('This seller is restricted from creating or putting products on sale.', 'sutore-marketplace')
             );
         }
 
         if (ListingStatus::isPreOrder($listing)) {
             return new \WP_Error(
                 'sutore_marketplace_sourcing_held',
-                __('This listing is held for a pre-order and cannot be put on sale.', 'sutore-marketplace')
+                __('This product is held for a pre-order and cannot be put on sale.', 'sutore-marketplace')
             );
         }
 
@@ -551,7 +551,7 @@ final class ListingService
             if ($activeFulfillment) {
                 return new \WP_Error(
                     'sutore_marketplace_order_locked',
-                    __('A Listing in the order process cannot be updated.', 'sutore-marketplace')
+                    __('A product in the order process cannot be updated.', 'sutore-marketplace')
                 );
             }
         }
@@ -569,7 +569,7 @@ final class ListingService
 
         $listing = $this->listings->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_not_found', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_not_found', __('Product not found.', 'sutore-marketplace'));
         }
 
         $owns = ListingPolicy::assertOwnsListing($listing, $userId);
@@ -698,7 +698,7 @@ final class ListingService
         if ($listing->orderId || $this->isOrderLinked($listing->variationId) || ListingStatus::isProcessLocked($listing)) {
             return new \WP_Error(
                 'sutore_marketplace_cannot_delete',
-                __('This listing cannot be deleted right now. (In order or payment process.)', 'sutore-marketplace')
+                __('This product cannot be deleted right now. (In order or payment process.)', 'sutore-marketplace')
             );
         }
 
@@ -707,7 +707,7 @@ final class ListingService
             if ($activeFulfillment) {
                 return new \WP_Error(
                     'sutore_marketplace_cannot_delete',
-                    __('This listing cannot be deleted right now. (In order or payment process.)', 'sutore-marketplace')
+                    __('This product cannot be deleted right now. (In order or payment process.)', 'sutore-marketplace')
                 );
             }
         }

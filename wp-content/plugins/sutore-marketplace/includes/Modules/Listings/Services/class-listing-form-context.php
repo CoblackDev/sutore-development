@@ -314,7 +314,7 @@ final class ListingFormContext
         }
 
         return new Listing(
-            variationId: 0,
+            variationId: -1,
             parentProductId: $parentId,
             sizeTermId: $sizeTermId,
             merchantId: $merchantId,
@@ -323,7 +323,7 @@ final class ListingFormContext
             conditionFingerprint: $fingerprint,
             fastShipment: $fastShipment,
             hasInvoice: $hasInvoice,
-            createdAt: gmdate('Y-m-d H:i:s'),
+            createdAt: current_time('mysql'),
             conditions: $rankConditions,
         );
     }

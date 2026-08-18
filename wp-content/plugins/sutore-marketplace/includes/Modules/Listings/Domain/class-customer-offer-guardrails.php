@@ -18,6 +18,12 @@ final class CustomerOfferGuardrails
         return max(1, min(168, (int) Settings::get('customer_offer_ttl_hours', 48)));
     }
 
+    /** Hours a seller has to answer before a pending offer is auto-declined. */
+    public static function autoDeclineHours(): int
+    {
+        return max(1, min(168, (int) Settings::get('customer_offer_auto_decline_hours', 48)));
+    }
+
     public static function minPercent(): int
     {
         return max(1, min(99, (int) Settings::get('customer_offer_min_percent', 70)));
@@ -34,5 +40,13 @@ final class CustomerOfferGuardrails
         $raw = $asking * (self::minPercent() / 100);
 
         return max($step, ListingPriceValidator::roundDownToStep($raw, $step));
+    }
+
+    public static function maxBidForAsking(float $asking): int
+    {
+        $step = Settings::listingPriceStep();
+        $max = ListingPriceValidator::roundDownToStep(max(0.0, $asking - $step), $step);
+
+        return max(0, min($max, (int) $asking - $step));
     }
 }

@@ -37,7 +37,7 @@ assets/js/*.js      → sayfa yüklenince REST fetch → DOM render
 Modules/*/Rest/     → tek HTTP API (Presenter/Service zenginleştirme)
 ```
 
-Örnekler: listings, sourcing, profile, notifications, tasks, outlet, staff manage-products.
+Örnekler: listings, sourcing, profile, balance, notifications, tasks, outlet, staff manage-products.
 
 ## Modül klasörü
 

@@ -236,7 +236,7 @@
           ? ' disabled'
           : '') +
         '>' +
-        esc(t('bulkCreateListings', 'Create listings')) +
+        esc(t('bulkCreateListings', 'Create products')) +
         '</button>';
     }
 
@@ -268,9 +268,9 @@
     if (!state.canCommit) {
       setCommitMessage($root, t('bulkNoValidRows', 'No valid rows to import. Fix the CSV and try again.'), true);
     } else if (isStaffCreateMode($listings) && !staffBulkMerchantId($listings)) {
-      setCommitMessage($root, t('bulkPickSeller', 'Choose a seller to see the queue preview and create the listings.'));
+      setCommitMessage($root, t('bulkPickSeller', 'Choose a seller to see the queue preview and create the products.'));
     } else {
-      setCommitMessage($root, t('bulkPreviewReady', 'Review the rows below, then confirm to create listings.'));
+      setCommitMessage($root, t('bulkPreviewReady', 'Review the rows below, then confirm to create products.'));
     }
     setBulkWizardStep($listings, 2);
   }
@@ -307,7 +307,7 @@
     if (total > 0) {
       html +=
         '<p class="sutore-mp-bulk-queued-meta">' +
-        esc(t('bulkQueuedRowCount', '%d listings queued for import.').replace('%d', String(total))) +
+        esc(t('bulkQueuedRowCount', '%d products queued for import.').replace('%d', String(total))) +
         '</p>';
     }
 
@@ -480,7 +480,7 @@
         setCommitMessage(
           $root,
           state.canCommit
-            ? t('bulkPreviewReady', 'Review the rows below, then confirm to create listings.')
+            ? t('bulkPreviewReady', 'Review the rows below, then confirm to create products.')
             : t('bulkNoValidRows', 'No valid rows to import. Fix the CSV and try again.'),
           !state.canCommit
         );

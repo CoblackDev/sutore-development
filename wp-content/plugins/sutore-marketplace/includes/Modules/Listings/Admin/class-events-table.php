@@ -24,7 +24,7 @@ final class EventsTable extends \WP_List_Table
         return [
             'id' => __('ID', 'sutore-marketplace'),
             'event_type' => __('Type', 'sutore-marketplace'),
-            'variation_id' => __('Listing', 'sutore-marketplace'),
+            'variation_id' => __('Product', 'sutore-marketplace'),
             'merchant_id' => __('Seller', 'sutore-marketplace'),
             'visibility' => __('Visibility', 'sutore-marketplace'),
             'created_at' => __('Date', 'sutore-marketplace'),
@@ -59,11 +59,11 @@ final class EventsTable extends \WP_List_Table
             esc_attr((string) ($_REQUEST['event_type'] ?? '')),
             esc_attr__('event_type', 'sutore-marketplace')
         );
-        echo '<label class="screen-reader-text" for="filter-event-listing">' . esc_html__('Listing ID', 'sutore-marketplace') . '</label>';
+        echo '<label class="screen-reader-text" for="filter-event-listing">' . esc_html__('Product ID', 'sutore-marketplace') . '</label>';
         printf(
             '<input type="number" class="small-text" name="variation_id" id="filter-event-listing" value="%s" placeholder="%s" />',
             esc_attr((string) ($_REQUEST['variation_id'] ?? '')),
-            esc_attr__('Listing ID', 'sutore-marketplace')
+            esc_attr__('Product ID', 'sutore-marketplace')
         );
         echo '<label class="screen-reader-text" for="filter-event-merchant">' . esc_html__('Merchant ID', 'sutore-marketplace') . '</label>';
         printf(

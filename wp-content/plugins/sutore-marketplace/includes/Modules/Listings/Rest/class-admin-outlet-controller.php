@@ -101,7 +101,7 @@ final class AdminOutletController
             return RestResponse::fromWpError($result);
         }
 
-        return RestResponse::success(['message' => __('Outlet window ended. Unsold listings were taken off sale.', 'sutore-marketplace')]);
+        return RestResponse::success(['message' => __('Outlet window ended. Unsold products were taken off sale.', 'sutore-marketplace')]);
     }
 
     public function addItem(\WP_REST_Request $req): \WP_REST_Response

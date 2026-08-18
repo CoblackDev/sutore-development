@@ -44,7 +44,7 @@ final class WooCommerceHooks
         }
 
         echo '<div class="sutore-mp-order-item-seller" style="margin-top:8px;padding:8px;background:#f6f7f7;border:1px solid #dcdcde;">';
-        echo '<div style="font-weight:600;margin-bottom:4px;">' . esc_html__('Seller / fulfillment', 'sutore-marketplace') . '</div>';
+        echo '<div style="font-weight:600;margin-bottom:4px;">' . esc_html__('Seller / shipping', 'sutore-marketplace') . '</div>';
         echo '<div style="line-height:1.5;">' . implode('<br />', $html) . '</div>';
         echo '</div>';
     }

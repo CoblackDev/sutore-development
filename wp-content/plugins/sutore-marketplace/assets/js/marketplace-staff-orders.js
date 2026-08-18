@@ -105,7 +105,7 @@
       '" data-product-title="' +
       esc(text) +
       '" title="' +
-      esc(t('openListingDetail', 'Open listing detail')) +
+      esc(t('openListingDetail', 'Open product detail')) +
       '">' +
       esc(text) +
       '</a>'
@@ -978,7 +978,7 @@
         '<div class="sutore-mp-staff-order-product-status">' +
         (item.listing_status_label
           ? statusTag(item.listing_status, item.listing_status_label)
-          : '<span class="sutore-mp-staff-sub">' + esc(t('noListing', 'Not a marketplace listing')) + '</span>') +
+          : '<span class="sutore-mp-staff-sub">' + esc(t('noListing', 'Not a marketplace product')) + '</span>') +
         '</div></div>' +
         '<div class="sutore-mp-staff-order-product-meta">' +
         '<span>×' +
@@ -1510,7 +1510,7 @@
       .find('.sutore-mp-staff-orders-swap-replacement')
       .html(
         '<p class="sutore-mp-empty">' +
-          esc(t('selectReplacement', 'Select a replacement listing.')) +
+          esc(t('selectReplacement', 'Select a replacement product.')) +
           '</p>'
       );
     $shell.find('.sutore-mp-staff-orders-swap-candidates').empty();
@@ -1526,7 +1526,7 @@
   function renderSwapCandidates($shell, items) {
     var $box = $shell.find('.sutore-mp-staff-orders-swap-candidates');
     if (!items || !items.length) {
-      $box.html('<p class="sutore-mp-empty">' + esc(t('noCandidates', 'No eligible listings found.')) + '</p>');
+      $box.html('<p class="sutore-mp-empty">' + esc(t('noCandidates', 'No eligible products found.')) + '</p>');
       return;
     }
     var selected = $shell.data('swapSelected') || {};
@@ -1646,7 +1646,7 @@
       .find('.sutore-mp-staff-orders-swap-replacement')
       .html(
         '<p class="sutore-mp-empty">' +
-          esc(t('selectReplacement', 'Select a replacement listing.')) +
+          esc(t('selectReplacement', 'Select a replacement product.')) +
           '</p>'
       );
     $shell.find('.sutore-mp-staff-orders-swap-diff').prop('hidden', true).empty();
@@ -1670,7 +1670,7 @@
     var returnToQueue = returnToQueueChecked($overlay);
     clearModalAlert($overlay);
     if (!variationId || !newId) {
-      setModalAlert($overlay, t('selectReplacement', 'Select a replacement listing.'));
+      setModalAlert($overlay, t('selectReplacement', 'Select a replacement product.'));
       return;
     }
     if (selected.same_parent === false && !note) {
@@ -2128,7 +2128,7 @@
     var $overlay = $shell.find('.sutore-mp-staff-orders-attach-overlay');
     clearModalAlert($overlay);
     if (!candidate) {
-      setModalAlert($overlay, t('selectReplacement', 'Select a replacement listing.'));
+      setModalAlert($overlay, t('selectReplacement', 'Select a replacement product.'));
       return;
     }
     var replaceTarget = $shell.data('replaceTarget') || null;
@@ -2446,7 +2446,7 @@
       return variationId && !isPendingAdd(pending, variationId) && !findLineItem($shell, variationId);
     });
     if (!filtered.length) {
-      $box.html('<p class="sutore-mp-empty">' + esc(t('noCandidates', 'No eligible listings found.')) + '</p>');
+      $box.html('<p class="sutore-mp-empty">' + esc(t('noCandidates', 'No eligible products found.')) + '</p>');
       return;
     }
     var html = '<ul class="sutore-mp-staff-orders-candidate-list">';

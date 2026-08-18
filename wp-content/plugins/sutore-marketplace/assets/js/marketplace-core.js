@@ -361,10 +361,81 @@
           });
         } else if (field.type === 'textarea') {
           $input = $('<textarea class="sutore-mp-input" rows="3"/>');
+        } else if (field.type === 'product_search') {
+          $input = $('<input type="hidden"/>');
+          var $search = $('<input type="search" class="sutore-mp-input sutore-mp-confirm-product-search" autocomplete="off"/>');
+          if (field.placeholder) {
+            $search.attr('placeholder', field.placeholder);
+          }
+          var $results = $('<div class="sutore-mp-confirm-product-results" hidden/>');
+          var $picked = $('<p class="sutore-mp-confirm-product-chosen" hidden/>');
+          $field.append($search);
+          $field.append($results);
+          $field.append($picked);
+          var searchTimer = null;
+          var searchSeq = 0;
+          function hideProductResults() {
+            $results.empty().prop('hidden', true);
+          }
+          function pickProduct(item) {
+            var id = item && item.id ? String(item.id) : '';
+            var title = (item && item.title) || '';
+            var code = item && item.product_code ? ' (' + item.product_code + ')' : '';
+            $input.val(id);
+            $search.val(title + code);
+            if (id) {
+              $picked.text(title + code).prop('hidden', false);
+            } else {
+              $picked.prop('hidden', true).text('');
+            }
+            hideProductResults();
+          }
+          $search.on('input', function () {
+            var term = $.trim($search.val() || '');
+            if (term === '') {
+              $input.val('');
+              $picked.prop('hidden', true).text('');
+            }
+            if (searchTimer) {
+              window.clearTimeout(searchTimer);
+            }
+            searchTimer = window.setTimeout(function () {
+              var my = ++searchSeq;
+              if (term.length < 2) {
+                hideProductResults();
+                return;
+              }
+              cfg.api('marketplace_search_parent_products', { product_code: term }).done(function (res) {
+                if (my !== searchSeq) {
+                  return;
+                }
+                $results.empty();
+                var items = res && res.success && res.data && res.data.items ? res.data.items : [];
+                if (!items.length) {
+                  $results.append(
+                    $('<p class="sutore-mp-search-empty"/>').text(t('noMatchingProducts', 'No matching products.'))
+                  );
+                  $results.prop('hidden', false);
+                  return;
+                }
+                items.forEach(function (item) {
+                  var label = (item.title || '') + (item.product_code ? ' (' + item.product_code + ')' : '');
+                  $results.append(
+                    $('<button type="button" class="sutore-mp-pick-row"/>')
+                      .text(label)
+                      .on('click', function () {
+                        pickProduct(item);
+                      })
+                  );
+                });
+                $results.prop('hidden', false);
+              });
+            }, 280);
+          });
         } else {
           $input = $('<input type="text" class="sutore-mp-input"/>');
         }
-        if (field.placeholder && field.type !== 'select') {
+        if (field.placeholder && field.type !== 'select' && field.type !== 'product_search') {
           $input.attr('placeholder', field.placeholder);
         }
         if (field.inputmode) {
@@ -420,7 +491,11 @@
     }
 
     var first = fields[0] && $inputs[fields[0].name];
-    if (first) {
+    if (fields[0] && fields[0].type === 'product_search') {
+      window.setTimeout(function () {
+        $modal.find('.sutore-mp-confirm-product-search').trigger('focus');
+      }, 0);
+    } else if (first) {
       window.setTimeout(function () {
         first.trigger('focus');
       }, 0);

@@ -219,7 +219,7 @@ final class CampaignService
 
         $listing = $this->listings->find($listingId);
         if (!$listing || !$listing->variationId) {
-            return new \WP_Error('sutore_campaign_missing', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_campaign_missing', __('Product not found.', 'sutore-marketplace'));
         }
 
         if (!in_array($listing->listingStatus, [ListingStatus::PUBLISH, ListingStatus::QUEUED], true)) {
@@ -277,7 +277,7 @@ final class CampaignService
         if ($sellerValue > 0 && $sellerTl <= 0 && $sellerType === CampaignDiscountType::PERCENT) {
             return new \WP_Error(
                 'sutore_campaign_discount',
-                __('Seller discount would reduce asking below the minimum price step.', 'sutore-marketplace')
+                __('Seller discount would reduce the price below the minimum price step.', 'sutore-marketplace')
             );
         }
 
@@ -408,7 +408,7 @@ final class CampaignService
 
         $listing = $this->listings->find((int) $offer->variation_id);
         if (!$listing || !$listing->variationId) {
-            return new \WP_Error('sutore_campaign_missing', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_campaign_missing', __('Product not found.', 'sutore-marketplace'));
         }
 
         $askingBefore = (float) $offer->asking_before;
@@ -421,7 +421,7 @@ final class CampaignService
         if ($math['asking_effective'] <= 0) {
             return new \WP_Error(
                 'sutore_campaign_asking',
-                __('Seller discount would reduce asking below the minimum price step.', 'sutore-marketplace')
+                __('Seller discount would reduce the price below the minimum price step.', 'sutore-marketplace')
             );
         }
 
@@ -605,7 +605,7 @@ final class CampaignService
 
         $listing = $this->listings->find($listingId);
         if (!$listing || !$listing->variationId) {
-            return new \WP_Error('sutore_campaign_missing', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_campaign_missing', __('Product not found.', 'sutore-marketplace'));
         }
         $owns = ListingPolicy::assertOwnsListing($listing, $merchantId);
         if (is_wp_error($owns)) {
@@ -788,7 +788,7 @@ final class CampaignService
             'seller_discount_label' => CampaignDiscountType::ruleLabel(
                 isset($row->seller_discount_type) ? (string) $row->seller_discount_type : CampaignDiscountType::FIXED,
                 (float) $row->seller_discount_amount,
-                __('asking', 'sutore-marketplace')
+                __('price', 'sutore-marketplace')
             ),
             'platform_discount_label' => CampaignDiscountType::ruleLabel(
                 isset($row->platform_discount_type) ? (string) $row->platform_discount_type : CampaignDiscountType::FIXED,

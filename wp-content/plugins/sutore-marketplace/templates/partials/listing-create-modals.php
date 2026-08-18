@@ -190,13 +190,13 @@ $staff_create = !empty($staff_create);
             <div class="sutore-mp-size-prices-modal__body">
                 <div class="sutore-mp-competing-prices">
                     <p class="description">
-                        <?php esc_html_e('Compare other listings for this size by queue position, price, condition, and shipping.', 'sutore-marketplace'); ?>
+                        <?php esc_html_e('Compare other products for this size by queue position, price, condition, and shipping.', 'sutore-marketplace'); ?>
                     </p>
                     <p class="sutore-mp-competing-prices-locked sutore-mp-notice" hidden>
                         <?php esc_html_e('Confirmed or Premium seller level is required to view this list.', 'sutore-marketplace'); ?>
                     </p>
                     <p class="sutore-mp-competing-prices-empty sutore-mp-notice" hidden>
-                        <?php esc_html_e('No other Listing for sale or in queue for this size.', 'sutore-marketplace'); ?>
+                        <?php esc_html_e('No other product for sale or in queue for this size.', 'sutore-marketplace'); ?>
                     </p>
                     <div class="sutore-mp-staff-table-wrap sutore-mp-competing-prices-table-wrap" hidden>
                         <table class="sutore-mp-staff-table sutore-mp-competing-prices-table">
@@ -214,5 +214,60 @@ $staff_create = !empty($staff_create);
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="sutore-mp-catalog-request-overlay" hidden>
+        <div
+            class="sutore-mp-catalog-request-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sutore-mp-catalog-request-title"
+        >
+            <div class="sutore-mp-catalog-request-modal__handle" aria-hidden="true"><span></span></div>
+            <div class="sutore-mp-catalog-request-modal__head">
+                <h2 id="sutore-mp-catalog-request-title"><?php esc_html_e('Request this product', 'sutore-marketplace'); ?></h2>
+                <button
+                    type="button"
+                    class="sutore-mp-catalog-request-close"
+                    aria-label="<?php esc_attr_e('Close', 'sutore-marketplace'); ?>"
+                >×</button>
+            </div>
+            <form class="sutore-mp-catalog-request" novalidate>
+                <div class="sutore-mp-catalog-request-modal__body">
+                    <p class="description">
+                        <?php esc_html_e('Leave the SKU or a product link, the size, and a short note. We will notify you when it is added to the catalog.', 'sutore-marketplace'); ?>
+                    </p>
+                    <label class="sutore-mp-field-label" for="sutore-mp-catalog-request-sku"><?php esc_html_e('SKU or product link', 'sutore-marketplace'); ?></label>
+                    <input
+                        type="text"
+                        id="sutore-mp-catalog-request-sku"
+                        class="sutore-mp-input sutore-mp-catalog-request-sku"
+                        maxlength="500"
+                        required
+                    />
+                    <label class="sutore-mp-field-label" for="sutore-mp-catalog-request-size"><?php esc_html_e('Size', 'sutore-marketplace'); ?></label>
+                    <input
+                        type="text"
+                        id="sutore-mp-catalog-request-size"
+                        class="sutore-mp-input sutore-mp-catalog-request-size"
+                        maxlength="80"
+                        required
+                    />
+                    <label class="sutore-mp-field-label" for="sutore-mp-catalog-request-note"><?php esc_html_e('Short note', 'sutore-marketplace'); ?></label>
+                    <textarea
+                        id="sutore-mp-catalog-request-note"
+                        class="sutore-mp-input sutore-mp-catalog-request-note"
+                        rows="3"
+                        maxlength="500"
+                    ></textarea>
+                    <p class="sutore-mp-catalog-request-error" role="alert" hidden></p>
+                </div>
+                <div class="sutore-mp-catalog-request-modal__foot">
+                    <button type="submit" class="wp-element-button sutore-mp-catalog-request-submit">
+                        <?php esc_html_e('Send request', 'sutore-marketplace'); ?>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>

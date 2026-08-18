@@ -185,7 +185,7 @@ final class SettingsPage
     {
         echo '<h2>' . esc_html__('Merchant notifications', 'sutore-marketplace') . '</h2>';
         echo '<p class="description">' . esc_html__(
-            'Each merchant event is sent from one dispatcher. Choose Panel and/or SMS per event. Push will use this same matrix when the mobile app is added.',
+            'Each event is sent from one dispatcher. Merchant events and buyer-offer events share this matrix. Choose Panel and/or SMS per event. Push will use the same matrix when the mobile app is added.',
             'sutore-marketplace'
         ) . '</p>';
         echo '<table class="form-table"><tbody>';

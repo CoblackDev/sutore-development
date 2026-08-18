@@ -17,7 +17,7 @@ final class ListingOutletPolicy
 
         return new \WP_Error(
             'sutore_outlet_listing_locked',
-            __('This listing is in an outlet window, so it cannot be changed until the window ends.', 'sutore-marketplace')
+            __('This product is in an outlet window, so it cannot be changed until the window ends.', 'sutore-marketplace')
         );
     }
 }

@@ -13,7 +13,7 @@ final class SmsSettingsSection
     public function render(array $settings): void
     {
         echo '<p class="description">' . esc_html__(
-            'Shared SMS infrastructure for account OTP verification and order notifications. Order-specific SMS events and templates are configured under Settings → Order Flow.',
+            'Shared SMS infrastructure for account OTP verification and order notifications. Order-specific SMS events and templates are configured under Settings → Order Flow. IYS (commercial message consent) uses the same Netgsm account plus the brand code below.',
             'sutore-marketplace'
         ) . '</p>';
 
@@ -33,6 +33,7 @@ final class SmsSettingsSection
             'netgsm_password' => NetgsmSettings::resolvePasswordForSave(
                 sanitize_text_field((string) ($_POST['netgsm_password'] ?? ''))
             ),
+            'netgsm_brand_code' => sanitize_text_field((string) ($_POST['netgsm_brand_code'] ?? '')),
             'otp_enabled' => !empty($_POST['otp_enabled']),
             'otp_ttl_seconds' => max(60, (int) ($_POST['otp_ttl_seconds'] ?? 300)),
             'otp_ui_timer_seconds' => max(30, (int) ($_POST['otp_ui_timer_seconds'] ?? 120)),
@@ -88,6 +89,24 @@ final class SmsSettingsSection
         echo '<p class="description">' . esc_html__('Approved Netgsm message header (msgheader).', 'sutore-marketplace') . '</p>';
         echo '</td></tr>';
 
+        echo '<tr><th scope="row"><label for="netgsm_brand_code">' . esc_html__('IYS brand code', 'sutore-marketplace') . '</label></th><td>';
+        printf(
+            '<input type="text" name="netgsm_brand_code" id="netgsm_brand_code" value="%s" class="regular-text" autocomplete="off" />',
+            esc_attr((string) ($settings['netgsm_brand_code'] ?? ''))
+        );
+        echo '<p class="description">' . esc_html__(
+            'Netgsm IYS brandCode. Required to send ONAY/RET consent records. Leave empty to skip IYS until the brand is registered.',
+            'sutore-marketplace'
+        ) . '</p>';
+        if (NetgsmSettings::isIysConfigured()) {
+            echo '<p class="description"><strong>' . esc_html__('IYS status', 'sutore-marketplace') . ':</strong> '
+                . esc_html__('Configured', 'sutore-marketplace') . '</p>';
+        } else {
+            echo '<p class="description"><strong>' . esc_html__('IYS status', 'sutore-marketplace') . ':</strong> '
+                . esc_html__('Not configured — consent changes are stored locally only.', 'sutore-marketplace') . '</p>';
+        }
+        echo '</td></tr>';
+
         $encoding = strtoupper((string) ($settings['netgsm_encoding'] ?? 'TR'));
         echo '<tr><th scope="row"><label for="netgsm_encoding">' . esc_html__('Encoding', 'sutore-marketplace') . '</label></th><td>';
         echo '<select name="netgsm_encoding" id="netgsm_encoding">';
@@ -99,7 +118,7 @@ final class SmsSettingsSection
         echo '<label><input type="checkbox" name="sms_simulation_mode" value="1" ' . checked(!empty($settings['sms_simulation_mode']), true, false) . ' /> ';
         echo esc_html__('Simulate SMS delivery (no Netgsm API call)', 'sutore-marketplace') . '</label>';
         echo '<p class="description">' . esc_html__(
-            'For local/staging when Netgsm IP whitelist is not ready. OTP codes are shown in the verification modal instead of being sent by SMS. Order SMS are skipped. Disable before production.',
+            'For local/staging when Netgsm IP whitelist is not ready. OTP codes are shown in the verification modal instead of being sent by SMS. Order SMS and IYS consent records are skipped. Disable before production.',
             'sutore-marketplace'
         ) . '</p>';
         if (!empty($settings['sms_simulation_mode'])) {

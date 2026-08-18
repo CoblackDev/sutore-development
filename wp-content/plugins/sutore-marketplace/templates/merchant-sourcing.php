@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
             </div>
         </div>
         <p class="sutore-mp-panel-lead">
-            <?php esc_html_e('Accept an open request to add it to your listings. Accepted pre-orders are tracked under My Listings.', 'sutore-marketplace'); ?>
+            <?php esc_html_e('Accept an open request to add it to your products. Accepted pre-orders are tracked under My products.', 'sutore-marketplace'); ?>
         </p>
     </div>
     <div class="sutore-mp-sourcing-results" aria-live="polite" aria-busy="true">

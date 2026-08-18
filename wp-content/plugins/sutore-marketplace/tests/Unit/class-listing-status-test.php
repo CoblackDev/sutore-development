@@ -17,7 +17,10 @@ final class ListingStatusTest
 
     public function testPublishIsForSale(): void
     {
-        Harness::assertSame('For sale', ListingStatus::label(ListingStatus::PUBLISH));
+        Harness::assertSame(
+            __('For sale', 'sutore-marketplace'),
+            ListingStatus::label(ListingStatus::PUBLISH)
+        );
         Harness::assertTrue(in_array(ListingStatus::PUBLISH, ListingStatus::removableFromSale(), true));
     }
 

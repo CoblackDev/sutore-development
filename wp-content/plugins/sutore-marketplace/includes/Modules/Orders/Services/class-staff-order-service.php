@@ -413,7 +413,7 @@ final class StaffOrderService
             ) {
                 return new \WP_Error(
                     'sutore_marketplace_use_detach',
-                    __('Use detach for marketplace listings on this order.', 'sutore-marketplace'),
+                    __('Use detach for marketplace products on this order.', 'sutore-marketplace'),
                     ['status' => 400]
                 );
             }

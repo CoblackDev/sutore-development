@@ -135,10 +135,12 @@ function ask(int $units): int
 
 function seed_mysql_offset(int $seconds): string
 {
-    $base = strtotime(current_time('mysql'));
-    $ts = ($base !== false ? $base : time()) + $seconds;
+    $now = function_exists('current_datetime')
+        ? current_datetime()
+        : new DateTimeImmutable('now', wp_timezone());
+    $moved = $now->modify(($seconds >= 0 ? '+' : '') . $seconds . ' seconds');
 
-    return wp_date('Y-m-d H:i:s', $ts);
+    return ($moved ?: $now)->format('Y-m-d H:i:s');
 }
 
 function ensure_merchant_role(): void
@@ -562,8 +564,9 @@ function seed_open_pre_order(
     }
 
     if ($backdateForConfirmed) {
+        // Confirmed sellers wait sourcing_early_access_hours (24). Stay clearly past that window.
         $repo->update((int) $fresh->variationId, [
-            'created_at' => seed_mysql_offset(-26 * HOUR_IN_SECONDS),
+            'created_at' => seed_mysql_offset(-36 * HOUR_IN_SECONDS),
         ]);
     }
 
@@ -656,6 +659,7 @@ try {
         'payout_weekdays' => [3],
     ]);
     $REPORT['notes'][] = 'Order Flow → Notifications: merchant events use one dispatcher (Panel / SMS). Seed leaves SMS globally off. Campaign offer is panel-only until SMS is enabled on that row.';
+    $REPORT['notes'][] = 'IYS: Settings → SMS brand code stays empty in seed; consent checkbox still saves locally. Account deletion fires sutore_marketplace_marketing_opt_out.';
 
     Settings::update([
         'youth_discount_enabled' => true,
@@ -665,6 +669,7 @@ try {
         'catalog_product_request_levels' => 'verified,premium',
         'customer_offer_enabled' => true,
         'customer_offer_ttl_hours' => 48,
+        'customer_offer_auto_decline_hours' => 48,
         'customer_offer_min_percent' => 70,
         'customer_offer_max_per_day' => 10,
     ]);
@@ -779,7 +784,7 @@ try {
             'size_note' => '42',
         ], 0);
     }
-    $REPORT['notes'][] = 'Catalog requests: demo_seller_verified + demo_seller_premium have pending rows; verified also has a fulfilled notification (SEED-MARKET). demo_seller_normal cannot submit (level gate).';
+    $REPORT['notes'][] = 'Catalog requests: demo_seller_verified + demo_seller_premium have pending rows; verified also has a fulfilled notification (SEED-MARKET). Add Product empty search opens Request this product in a separate modal (search tab stays). demo_seller_normal cannot submit (level gate).';
 
     $platformCampaign = (new CommissionOverrideService())->create(0, [
         'commission_percent' => 50,
@@ -1038,7 +1043,7 @@ try {
     if ($referralFresh) {
         remember_listing('referral_first_sale', $referralFresh, 'Invited seller first sold — inviter reward + notification');
     }
-    $REPORT['notes'][] = 'demo_seller_verified: Notifications → referral reward; Merchant exclusive → invite code; commission override source=referral';
+    $REPORT['notes'][] = 'demo_seller_verified: Notifications → referral reward; Merchant exclusive → invite code; My Balance → commission override source=referral';
     $REPORT['notes'][] = 'demo_seller_referred: first sale sold; welcome referral override. Staff Sellers shows both.';
     seed_log('Referral scenario seeded (code ' . $inviteCode . ')');
 
@@ -1185,7 +1190,7 @@ try {
         $REPORT['notes'][] = 'sale_confirmed has expired cargo deadline';
     }
 
-    // --- Payout A8 scenarios (due list / future date / paid + ref / Alacaklarım) ---
+    // --- Payout A8 scenarios (due list / future date / paid + ref / My Balance) ---
     seed_log('Payout schedule scenarios…');
     wp_set_current_user($adminId);
     $today = PayoutSchedule::today();
@@ -1253,7 +1258,7 @@ try {
         'SEED-PAY-FUT',
         36,
         ListingStatus::VERIFIED,
-        'Pending payout on a future Wednesday — Alacaklarım date, not in due list'
+        'Pending payout on a future Wednesday — My Balance date, not in due list'
     );
     set_payout_schedule(
         (int) $future->variationId,
@@ -1289,7 +1294,7 @@ try {
 
     $REPORT['notes'][] = 'Payout settings: 7-day hold, Wednesday only (Order Flow → Payout)';
     $REPORT['notes'][] = 'Due list: payout_due_today + payout_due_overdue + payout_due_second — Manage Products → Due for payout → Export CSV → bulk Mark as Paid + payment_ref';
-    $REPORT['notes'][] = 'Alacaklarım (demo_seller_sale): payout_scheduled_future shows a future Wednesday; payout_paid_ref is paid with SEED-EFT-WED-001';
+    $REPORT['notes'][] = 'My Balance (demo_seller_sale): payout_scheduled_future shows a future Wednesday; payout_paid_ref is paid with SEED-EFT-WED-001';
     $REPORT['notes'][] = 'sale_verified pending (auto schedule); sale_delivered_to_customer paid; sale_chargeback reversed';
     $REPORT['notes'][] = 'Account deletion: blocks payment→shipped, open pre_order, delivered without paid payout; delivered+paid and chargeback do not block (rows kept). Staff close_pre_order marks unsourced. WC cancelled auto-detaches payment/sold/confirmed/pre_order; later pipeline notifies admins.';
     $REPORT['notes'][] = 'Payout: sale_verified ~6% locked; commission_after_campaign 12% locked; commission_gesture payout 0%; listing-zero-sold payout 0%';
@@ -1481,9 +1486,9 @@ try {
     ], false);
     $REPORT['notes'][] = 'Pre-order digest already sent for auto-opened #' . (int) $autoBoard['origin']->variationId
         . ' (staff-opened #' . (int) $staffBoard['origin']->variationId . ' is still new for digest)';
-    $REPORT['notes'][] = 'demo_seller_verified Pre-order: staff-opened size 42 — accept shows price '
+    $REPORT['notes'][] = 'demo_seller_verified Pre-order: staff-opened Seed Samba Pre-order size 42 (board opened 36h ago so Confirmed can see it) — accept shows price '
         . ask(50) . ' → ' . ask(48);
-    $REPORT['notes'][] = 'demo_seller_premium Pre-order: also sees fresh auto-opened size 43 (Confirmed waits 24h)';
+    $REPORT['notes'][] = 'demo_seller_premium Pre-order: staff-opened size 42 plus fresh auto-opened size 43 (Confirmed waits 24h and does not see 43)';
     $REPORT['notes'][] = 'demo_seller_normal: no Pre-order menu (Confirmed+ required)';
     $REPORT['notes'][] = 'Events: sourcing_fulfilled on accepted listing #'
         . (int) $fulfilledBoard['acceptor']->variationId;
@@ -1687,6 +1692,34 @@ try {
     }
     $REPORT['customer_offers']['pending'] = (int) $pending['offer_id'];
 
+    $oneSizeLiveId = (int) ($REPORT['listings']['one_size_axis']['id'] ?? 0);
+    if ($oneSizeLiveId <= 0) {
+        throw new RuntimeException('Customer offers: missing one-size listing');
+    }
+    $declinedSolo = $offerService->create($customerId, $oneSizeLiveId, (float) ask(14));
+    if (is_wp_error($declinedSolo)) {
+        throw new RuntimeException('Customer offer declined seed: ' . $declinedSolo->get_error_message());
+    }
+    $declinedSoloApply = $offerService->decline((int) $declinedSolo['offer_id'], $sellerVerified);
+    if (is_wp_error($declinedSoloApply)) {
+        throw new RuntimeException('Customer offer decline: ' . $declinedSoloApply->get_error_message());
+    }
+    $REPORT['customer_offers']['declined'] = (int) $declinedSolo['offer_id'];
+
+    $colorLiveId = (int) ($REPORT['listings']['color_axis']['id'] ?? 0);
+    if ($colorLiveId <= 0) {
+        throw new RuntimeException('Customer offers: missing color-axis listing');
+    }
+    $cancelled = $offerService->create($customerId, $colorLiveId, (float) ask(16));
+    if (is_wp_error($cancelled)) {
+        throw new RuntimeException('Customer offer cancelled seed: ' . $cancelled->get_error_message());
+    }
+    $cancelledApply = $offerService->cancel((int) $cancelled['offer_id'], $customerId);
+    if (is_wp_error($cancelledApply)) {
+        throw new RuntimeException('Customer offer cancel: ' . $cancelledApply->get_error_message());
+    }
+    $REPORT['customer_offers']['cancelled'] = (int) $cancelled['offer_id'];
+
     $forwarded = $offerService->create($customerYouthId, $queueWinnerId, (float) ask(15));
     if (is_wp_error($forwarded)) {
         throw new RuntimeException('Customer offer waterfall seed: ' . $forwarded->get_error_message());
@@ -1713,15 +1746,24 @@ try {
     $REPORT['customer_offers']['forwarded_to'] = (int) $forwardedRow->id;
     $REPORT['notes'][] = 'demo_customer My offers: accepted coupon on Seed Dunk Low Market size 43 (asking '
         . ask(30) . ', bid ' . ask(22) . ', code ' . (string) ($acceptedApply['coupon_code'] ?? '')
-        . '); pending offer on Seed Jordan 1 Queue size 43 (asking ' . ask(20) . ', bid ' . ask(16) . ').';
+        . '); pending offer on Seed Jordan 1 Queue size 43 (asking ' . ask(20) . ', bid ' . ask(16)
+        . '); declined offer on Seed Cap One Size (asking ' . ask(18) . ', bid ' . ask(14)
+        . '); cancelled offer on Seed Tee Color Axis (asking ' . ask(24) . ', bid ' . ask(16)
+        . '). Product titles open the product page. A cancelled offer cannot be accepted.';
+    $REPORT['notes'][] = 'demo_customer Notifications: offer-accepted (Dunk Low Market 43 coupon) and offer-declined (Cap One Size). Clicking accepted opens My offers.';
     $REPORT['notes'][] = 'demo_seller_verified Customer offers: pending bid ' . ask(16)
         . ' on Seed Jordan 1 Queue (asking ' . ask(20) . '). Accept issues a coupon; decline forwards to the queued seller.';
     $REPORT['notes'][] = 'demo_seller_queued Customer offers: forwarded bid ' . ask(15)
         . ' from demo_customer_youth after verified declined (queued asking ' . ask(35) . ').';
-    $REPORT['notes'][] = 'PDP: logged-in demo_customer on SEED-MARKET size 43 sees the accepted-offer state; asking on the page is unchanged.';
+    $REPORT['notes'][] = 'demo_customer_youth Notifications: offer forwarded after verified declined (still pending with queued seller).';
+    $REPORT['notes'][] = 'PDP: Make an offer sits beside Add to cart and opens a modal. demo_customer on SEED-MARKET size 43 sees Offer accepted (no second bid); asking on the page is unchanged. Quantity stepper is hidden (qty=1).';
+    $REPORT['notes'][] = 'Customer offers Settings → Campaigns: unanswered pending offers auto-decline after '
+        . '48 hours (then forward if a queued seller exists); accepted coupons last 48 hours.';
     seed_log('Customer offers: accepted=#' . (int) $accepted['offer_id']
         . ' coupon=' . (string) ($acceptedApply['coupon_code'] ?? '')
         . ' pending=#' . (int) $pending['offer_id']
+        . ' declined=#' . (int) $declinedSolo['offer_id']
+        . ' cancelled=#' . (int) $cancelled['offer_id']
         . ' forwarded-from=#' . (int) $forwarded['offer_id']);
 
     // --- Opportunity templates ---
@@ -1872,6 +1914,8 @@ try {
     seed_log('Customer offers: accepted=#' . ($REPORT['customer_offers']['accepted'] ?? 0)
         . ' coupon=' . ($REPORT['customer_offers']['coupon'] ?? '')
         . ' pending=#' . ($REPORT['customer_offers']['pending'] ?? 0)
+        . ' declined=#' . ($REPORT['customer_offers']['declined'] ?? 0)
+        . ' cancelled=#' . ($REPORT['customer_offers']['cancelled'] ?? 0)
         . ' forwarded-to=#' . ($REPORT['customer_offers']['forwarded_to'] ?? 0));
     if (($REPORT['notes'] ?? []) !== []) {
         seed_log('');
@@ -1889,11 +1933,11 @@ try {
     seed_log('Payout click-through:');
     seed_log('  WP Admin → Sutore Marketplace Settings → Order Flow → Payout (7 days, Wednesday)');
     seed_log('  Staff Manage Products → Filter → Due for payout → Export CSV → bulk Mark as Paid + payment_ref');
-    seed_log('  Login demo_seller_sale → merchant profile Alacaklarım (future date + paid line)');
+    seed_log('  Login demo_seller_sale → My Balance (future date + paid line)');
     seed_log('Payout click-through:');
     seed_log('  WP Admin → Sutore Marketplace Settings → Order Flow → Payout (7 days, Wednesday)');
     seed_log('  Staff Manage Products → Filter → Due for payout → Export CSV → bulk Mark as Paid + payment_ref');
-    seed_log('  Login demo_seller_sale → merchant profile Alacaklarım (future date + paid line)');
+    seed_log('  Login demo_seller_sale → My Balance (future date + paid line)');
 } catch (Throwable $e) {
     fwrite(STDERR, 'ERROR: ' . $e->getMessage() . PHP_EOL);
     fwrite(STDERR, $e->getTraceAsString() . PHP_EOL);

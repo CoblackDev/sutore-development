@@ -14,6 +14,12 @@ final class AdminAssets
             return;
         }
 
+        wp_enqueue_style(
+            'sutore-marketplace-admin',
+            SUTORE_MARKETPLACE_URL . 'assets/css/marketplace-admin.css',
+            [],
+            SUTORE_MARKETPLACE_VERSION
+        );
         wp_enqueue_script(
             self::SCRIPT,
             SUTORE_MARKETPLACE_URL . 'assets/js/marketplace-admin.js',
@@ -27,6 +33,14 @@ final class AdminAssets
             'i18n' => [
                 'error' => __('Error', 'sutore-marketplace'),
                 'updated' => __('Updated.', 'sutore-marketplace'),
+                'searchNameOrSku' => __('Search by product name or SKU…', 'sutore-marketplace'),
+                'noMatchingProducts' => __('No matching products.', 'sutore-marketplace'),
+                'selectProductFirst' => __('Select a product first', 'sutore-marketplace'),
+                /* translators: %s: product title and SKU */
+                'selectedProduct' => __('Selected: %s', 'sutore-marketplace'),
+                'remove' => __('Remove', 'sutore-marketplace'),
+                'pickProduct' => __('Select a catalog product.', 'sutore-marketplace'),
+                'pickVariation' => __('Select a variation.', 'sutore-marketplace'),
             ],
         ]);
     }
@@ -48,10 +62,10 @@ final class AdminAssets
             'coverTpl' => __('This campaign will cover %1$d products (%2$d merchants).', 'sutore-marketplace'),
             'coverZero' => __('No products match the current targeting.', 'sutore-marketplace'),
             /* translators: %d: count of matching listings already in a campaign */
-            'coverBusy' => __('No eligible products: %d matching listing(s) already have a campaign offer or active campaign.', 'sutore-marketplace'),
+            'coverBusy' => __('No eligible products: %d matching product(s) already have a campaign offer or active campaign.', 'sutore-marketplace'),
             /* translators: %d: number of additional products not shown in the sample list */
             'moreTpl' => __('…and %d more.', 'sutore-marketplace'),
-            'truncated' => __('Audience scan is capped at 2000 matching listings; the real audience may be larger.', 'sutore-marketplace'),
+            'truncated' => __('Audience scan is capped at 2000 matching products; the real audience may be larger.', 'sutore-marketplace'),
         ]);
     }
 }

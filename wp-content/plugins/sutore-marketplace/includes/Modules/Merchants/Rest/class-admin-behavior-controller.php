@@ -49,7 +49,7 @@ final class AdminBehaviorController
 
         if (!in_array((string) $target->event_type, ListingEventType::scorableTypes(), true)) {
             return RestResponse::fail(
-                __('Only scorable listing events can be reversed.', 'sutore-marketplace'),
+                __('Only scorable product events can be reversed.', 'sutore-marketplace'),
                 400,
                 'sutore_event_not_scorable'
             );

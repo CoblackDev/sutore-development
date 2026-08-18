@@ -32,7 +32,7 @@ $staffCreate = !empty($staff_create);
     <section class="sutore-mp-form-section sutore-mp-form-section-seller" data-section="seller" hidden>
             <h3 id="sutore-mp-seller-heading"><?php esc_html_e('Seller', 'sutore-marketplace'); ?></h3>
             <p class="description">
-                <?php esc_html_e('Choose the seller this listing will belong to.', 'sutore-marketplace'); ?>
+                <?php esc_html_e('Choose the seller this product will belong to.', 'sutore-marketplace'); ?>
             </p>
             <div class="sutore-mp-staff-merchant-picker">
                 <input
@@ -52,7 +52,7 @@ $staffCreate = !empty($staff_create);
     <section class="sutore-mp-form-section sutore-mp-form-section-product" data-section="product"<?php echo $isEdit ? ' hidden' : ''; ?>>
             <h3 id="sutore-mp-product-heading"><?php esc_html_e('Product', 'sutore-marketplace'); ?></h3>
             <p class="description">
-                <?php esc_html_e('Search by product code or SKU to attach a catalog product to this listing.', 'sutore-marketplace'); ?>
+                <?php esc_html_e('Search by product name or SKU to attach a catalog product to this product.', 'sutore-marketplace'); ?>
             </p>
             <div class="sutore-mp-search-wrap">
                 <input
@@ -61,7 +61,7 @@ $staffCreate = !empty($staff_create);
                     class="sutore-mp-input sutore-mp-product-code"
                     autocomplete="off"
                     aria-labelledby="sutore-mp-product-heading"
-                    placeholder="<?php esc_attr_e('Enter product code / SKU…', 'sutore-marketplace'); ?>"
+                    placeholder="<?php esc_attr_e('Search by product name or SKU…', 'sutore-marketplace'); ?>"
                 />
                 <span class="sutore-mp-spinner" hidden aria-hidden="true"></span>
             </div>
@@ -71,7 +71,7 @@ $staffCreate = !empty($staff_create);
     <section class="sutore-mp-form-section sutore-mp-form-section-size" data-section="size"<?php echo $isEdit ? ' hidden' : ''; ?>>
             <h3 class="sutore-mp-axis-heading"><?php esc_html_e('Variation', 'sutore-marketplace'); ?></h3>
             <p class="sutore-mp-axis-hint description">
-                <?php esc_html_e('Choose the variation for this listing.', 'sutore-marketplace'); ?>
+                <?php esc_html_e('Choose the variation for this product.', 'sutore-marketplace'); ?>
             </p>
             <div class="sutore-mp-sizes">
                 <div class="sutore-mp-size-options" role="group" aria-label="<?php esc_attr_e('Variation', 'sutore-marketplace'); ?>"></div>
@@ -151,14 +151,12 @@ $staffCreate = !empty($staff_create);
     </section>
     <?php endif; ?>
 
-    </section>
-
     <section class="sutore-mp-form-section sutore-mp-form-section-duration" data-section="duration">
-            <h3 id="sutore-mp-duration-heading"><?php esc_html_e('Listing duration', 'sutore-marketplace'); ?></h3>
+            <h3 id="sutore-mp-duration-heading"><?php esc_html_e('Sale duration', 'sutore-marketplace'); ?></h3>
             <p class="description sutore-mp-duration-hint">
-                <?php esc_html_e('Choose how long this listing stays on sale.', 'sutore-marketplace'); ?>
+                <?php esc_html_e('Choose how long this product stays on sale.', 'sutore-marketplace'); ?>
             </p>
-            <label class="screen-reader-text" for="sutore-mp-duration-days"><?php esc_html_e('Listing duration', 'sutore-marketplace'); ?></label>
+            <label class="screen-reader-text" for="sutore-mp-duration-days"><?php esc_html_e('Sale duration', 'sutore-marketplace'); ?></label>
             <select id="sutore-mp-duration-days" class="sutore-mp-input sutore-mp-duration-days"></select>
             <p class="description sutore-mp-duration-preview" aria-live="polite"></p>
     </section>
@@ -219,13 +217,13 @@ $staffCreate = !empty($staff_create);
     <section class="sutore-mp-form-section sutore-mp-form-section-competing sutore-mp-competing-prices" data-section="competing-prices" hidden>
                 <h3><?php esc_html_e('Size price list', 'sutore-marketplace'); ?></h3>
                 <p class="description">
-                    <?php esc_html_e('Compare other listings for this size by queue position, price, condition, and shipping.', 'sutore-marketplace'); ?>
+                    <?php esc_html_e('Compare other products for this size by queue position, price, condition, and shipping.', 'sutore-marketplace'); ?>
                 </p>
                 <p class="sutore-mp-competing-prices-locked sutore-mp-notice" hidden>
                     <?php esc_html_e('Confirmed or Premium seller level is required to view this list.', 'sutore-marketplace'); ?>
                 </p>
                 <p class="sutore-mp-competing-prices-empty sutore-mp-notice" hidden>
-                    <?php esc_html_e('No other Listing for sale or in queue for this size.', 'sutore-marketplace'); ?>
+                    <?php esc_html_e('No other product for sale or in queue for this size.', 'sutore-marketplace'); ?>
                 </p>
                 <div class="sutore-mp-staff-table-wrap sutore-mp-competing-prices-table-wrap" hidden>
                     <table class="sutore-mp-staff-table sutore-mp-competing-prices-table">

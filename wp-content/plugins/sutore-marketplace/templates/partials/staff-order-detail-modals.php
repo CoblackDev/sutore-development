@@ -88,7 +88,7 @@ if (!defined('ABSPATH')) {
                 <section class="sutore-mp-staff-orders-swap-card" data-role="replacement">
                     <h3 class="sutore-mp-staff-order-section-title"><?php esc_html_e('Replacement', 'sutore-marketplace'); ?></h3>
                     <div class="sutore-mp-staff-orders-swap-preview sutore-mp-staff-orders-swap-replacement">
-                        <p class="sutore-mp-empty"><?php esc_html_e('Select a replacement listing.', 'sutore-marketplace'); ?></p>
+                        <p class="sutore-mp-empty"><?php esc_html_e('Select a replacement product.', 'sutore-marketplace'); ?></p>
                     </div>
                 </section>
             </div>
@@ -104,7 +104,7 @@ if (!defined('ABSPATH')) {
                 placeholder="<?php esc_attr_e('Product, seller, variation ID…', 'sutore-marketplace'); ?>"
                 autocomplete="off"
             />
-            <div class="sutore-mp-staff-orders-swap-candidates" role="listbox" aria-label="<?php esc_attr_e('Replacement listings', 'sutore-marketplace'); ?>"></div>
+            <div class="sutore-mp-staff-orders-swap-candidates" role="listbox" aria-label="<?php esc_attr_e('Replacement products', 'sutore-marketplace'); ?>"></div>
             <label class="sutore-mp-field-label" for="sutore-mp-staff-orders-swap-note">
                 <?php esc_html_e('Staff note', 'sutore-marketplace'); ?>
             </label>
@@ -224,7 +224,7 @@ if (!defined('ABSPATH')) {
             </section>
             <p class="sutore-mp-staff-orders-modal-alert" role="alert" aria-live="assertive" hidden></p>
             <label class="sutore-mp-field-label" for="sutore-mp-staff-orders-attach-search">
-                <?php esc_html_e('Search listing', 'sutore-marketplace'); ?>
+                <?php esc_html_e('Search product', 'sutore-marketplace'); ?>
             </label>
             <input
                 type="search"
@@ -233,7 +233,7 @@ if (!defined('ABSPATH')) {
                 placeholder="<?php esc_attr_e('Product, seller, variation ID…', 'sutore-marketplace'); ?>"
                 autocomplete="off"
             />
-            <div class="sutore-mp-staff-orders-attach-candidates" role="listbox" aria-label="<?php esc_attr_e('Listings', 'sutore-marketplace'); ?>"></div>
+            <div class="sutore-mp-staff-orders-attach-candidates" role="listbox" aria-label="<?php esc_attr_e('Products', 'sutore-marketplace'); ?>"></div>
             <div class="sutore-mp-staff-orders-attach-replace-opts" hidden>
                 <label class="sutore-mp-staff-orders-check sutore-mp-staff-check">
                     <input

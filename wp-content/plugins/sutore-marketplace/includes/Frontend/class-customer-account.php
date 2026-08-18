@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Frontend;
 
+use SutoreMarketplace\Modules\Merchants\Services\NotificationService;
+use SutoreMarketplace\Modules\Merchants\Support\MerchantMeta;
+
 /**
- * Customer WooCommerce My Account: my-offers (shell + REST).
+ * Customer WooCommerce My Account: my-offers + notifications (shell + REST).
  */
 final class CustomerAccount
 {
     public const ENDPOINT_MY_OFFERS = 'my-offers';
+    public const ENDPOINT_NOTIFICATIONS = 'notifications';
 
-    private const ENDPOINTS_REVISION = '20260816-my-offers';
+    private const ENDPOINTS_REVISION = '20260818-customer-notifications';
 
     public function __construct(
         private readonly Assets $assets = new Assets(),
@@ -39,11 +43,15 @@ final class CustomerAccount
         if (isset($wp->query_vars[self::ENDPOINT_MY_OFFERS])) {
             $this->assets->enqueueMyOffers();
         }
+        if (isset($wp->query_vars[self::ENDPOINT_NOTIFICATIONS])) {
+            $this->assets->enqueueNotifications();
+        }
     }
 
     public function addEndpoints(): void
     {
         add_rewrite_endpoint(self::ENDPOINT_MY_OFFERS, EP_ROOT | EP_PAGES);
+        add_rewrite_endpoint(self::ENDPOINT_NOTIFICATIONS, EP_ROOT | EP_PAGES);
     }
 
     /**
@@ -53,6 +61,7 @@ final class CustomerAccount
     public function queryVars(array $vars): array
     {
         $vars[self::ENDPOINT_MY_OFFERS] = self::ENDPOINT_MY_OFFERS;
+        $vars[self::ENDPOINT_NOTIFICATIONS] = self::ENDPOINT_NOTIFICATIONS;
 
         return $vars;
     }
@@ -70,6 +79,19 @@ final class CustomerAccount
         $extra = [
             self::ENDPOINT_MY_OFFERS => __('My offers', 'sutore-marketplace'),
         ];
+        if (!MerchantMeta::canViewMerchantDashboard(get_current_user_id())) {
+            $unread = (new NotificationService())->unreadCount(get_current_user_id());
+            $label = __('Notifications', 'sutore-marketplace');
+            if ($unread > 0) {
+                $label = sprintf(
+                    /* translators: %d: unread notification count */
+                    __('%1$s (%2$d)', 'sutore-marketplace'),
+                    $label,
+                    $unread
+                );
+            }
+            $extra[self::ENDPOINT_NOTIFICATIONS] = $label;
+        }
         $result = [];
         $inserted = false;
         foreach ($items as $key => $label) {
@@ -106,7 +128,7 @@ final class CustomerAccount
     /** @return list<string> */
     public static function endpointSlugs(): array
     {
-        return [self::ENDPOINT_MY_OFFERS];
+        return [self::ENDPOINT_MY_OFFERS, self::ENDPOINT_NOTIFICATIONS];
     }
 
     public function maybeFlushRewrites(): void

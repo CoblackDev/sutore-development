@@ -106,9 +106,9 @@ final class ListingsController
 
     public function searchParents(\WP_REST_Request $req): \WP_REST_Response
     {
-        $code = sanitize_text_field((string) $req->get_param('product_code'));
+        $code = sanitize_text_field((string) ($req->get_param('product_code') ?: $req->get_param('q')));
         if ($code === '') {
-            return RestResponse::fail(__('Enter product code.', 'sutore-marketplace'), 400);
+            return RestResponse::fail(__('Enter a product name or SKU.', 'sutore-marketplace'), 400);
         }
 
         $cat = sanitize_title((string) $req->get_param('product_cat'));
@@ -141,7 +141,7 @@ final class ListingsController
         if ($variationId) {
             $listing = (new ListingRepository())->find($variationId);
             if (!$listing) {
-                return RestResponse::fail(__('Listing not found.', 'sutore-marketplace'), 404, 'not_found');
+                return RestResponse::fail(__('Product not found.', 'sutore-marketplace'), 404, 'not_found');
             }
             $owns = ListingPolicy::assertOwnsListing($listing);
             if (is_wp_error($owns)) {
@@ -202,7 +202,7 @@ final class ListingsController
     {
         $listing = (new ListingRepository())->find((int) $req['id']);
         if (!$listing) {
-            return new \WP_Error('not_found', __('Listing not found.', 'sutore-marketplace'), ['status' => 404]);
+            return new \WP_Error('not_found', __('Product not found.', 'sutore-marketplace'), ['status' => 404]);
         }
         $owns = ListingPolicy::assertOwnsListing($listing);
         if (is_wp_error($owns)) {
@@ -271,7 +271,7 @@ final class ListingsController
             }
         } elseif (!user_can($userId, 'manage_woocommerce')
             && !(new ListingEventsRepository())->merchantCanAccessListing($variationId, $userId)) {
-            return new \WP_Error('not_found', __('Listing not found.', 'sutore-marketplace'), ['status' => 404]);
+            return new \WP_Error('not_found', __('Product not found.', 'sutore-marketplace'), ['status' => 404]);
         }
 
         $activity = (new ListingActivityPresenter())->present(

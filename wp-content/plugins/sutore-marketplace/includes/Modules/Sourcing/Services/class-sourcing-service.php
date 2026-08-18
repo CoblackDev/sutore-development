@@ -126,19 +126,19 @@ final class SourcingService
             if (!$listing || (int) $listing->merchantId !== $merchantId) {
                 return new \WP_Error(
                     'sutore_pre_order_listing_forbidden',
-                    __('This listing does not belong to you.', 'sutore-marketplace')
+                    __('This product does not belong to you.', 'sutore-marketplace')
                 );
             }
             if ((int) $listing->parentProductId !== $parentId || (int) $listing->sizeTermId !== $sizeTermId) {
                 return new \WP_Error(
                     'sutore_pre_order_listing_mismatch',
-                    __('Listing does not match this pre-order product or size.', 'sutore-marketplace')
+                    __('Product does not match this pre-order product or size.', 'sutore-marketplace')
                 );
             }
             if ($listing->variationId !== $preOrder->variationId && ListingStatus::isProcessLocked($listing)) {
                 return new \WP_Error(
                     'sutore_pre_order_listing_locked',
-                    __('This listing is already in an order process.', 'sutore-marketplace')
+                    __('This product is already in an order process.', 'sutore-marketplace')
                 );
             }
 

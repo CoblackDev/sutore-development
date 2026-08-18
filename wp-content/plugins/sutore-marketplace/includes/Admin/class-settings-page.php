@@ -70,7 +70,7 @@ final class SettingsPage
 
             'pricing' => __('Pricing', 'sutore-marketplace'),
 
-            'listing' => __('Listing', 'sutore-marketplace'),
+            'listing' => __('Products', 'sutore-marketplace'),
 
             'behavior' => __('Behavior', 'sutore-marketplace'),
 
@@ -277,7 +277,7 @@ final class SettingsPage
             ? $s['listing_duration_max_by_level']
             : Settings::defaults()['listing_duration_max_by_level'];
 
-        echo '<tr><th scope="row"><label for="listing_expire_duration_days">' . esc_html__('Default listing duration (days)', 'sutore-marketplace') . '</label></th><td>';
+        echo '<tr><th scope="row"><label for="listing_expire_duration_days">' . esc_html__('Default sale duration (days)', 'sutore-marketplace') . '</label></th><td>';
 
         echo '<select name="listing_expire_duration_days" id="listing_expire_duration_days">';
         foreach (\SutoreMarketplace\Modules\Listings\Domain\ListingDuration::ALLOWED_DAYS as $days) {
@@ -290,7 +290,7 @@ final class SettingsPage
         }
         echo '</select>';
 
-        echo '<p class="description">' . esc_html__('Pre-selected duration in the listing form when sellers create a listing.', 'sutore-marketplace') . '</p>';
+        echo '<p class="description">' . esc_html__('Pre-selected duration in the product form when sellers create a product.', 'sutore-marketplace') . '</p>';
 
         echo '</td></tr>';
 
@@ -401,7 +401,7 @@ final class SettingsPage
             '<input name="catalog_product_request_levels" type="text" id="catalog_product_request_levels" value="%s" class="regular-text" />',
             esc_attr((string) ($s['catalog_product_request_levels'] ?? 'verified,premium'))
         );
-        echo '<p class="description">' . esc_html__('Comma-separated seller levels that may request a missing catalog product (SKU or link) from the listing form. Default: verified,premium', 'sutore-marketplace') . '</p>';
+        echo '<p class="description">' . esc_html__('Comma-separated seller levels that may request a missing catalog product (SKU or link) from the product form. Default: verified,premium', 'sutore-marketplace') . '</p>';
         echo '</td></tr>';
 
         $tcMode = (string) ($s['tc_verification_mode'] ?? '');
@@ -432,7 +432,7 @@ final class SettingsPage
             . checked(!empty($s['youth_discount_enabled']), true, false) . ' /> ';
         echo esc_html__('Enable youth discount', 'sutore-marketplace') . '</label>';
         echo '<p class="description">' . esc_html__(
-            'Verified customers below the maximum age see an automatic cart fee (not a coupon). Seller asking and seller net (asking minus commission) stay unchanged. The discount is capped by remaining service fee + guarantee fee + commission.',
+            'Verified customers below the maximum age see an automatic cart fee (not a coupon). Seller price and seller net (price minus commission) stay unchanged. The discount is capped by remaining service fee + guarantee fee + commission.',
             'sutore-marketplace'
         ) . '</p>';
         echo '</td></tr>';
@@ -786,22 +786,34 @@ final class SettingsPage
 
         echo '<h2>' . esc_html__('Customer price offers', 'sutore-marketplace') . '</h2>';
         echo '<p class="description">' . esc_html__(
-            'Customers bid against seller asking. Accepting issues a personal, time-limited coupon for that listing — the public price does not change.',
+            'Customers bid against seller price. Accepting issues a personal, time-limited coupon for that product — the public price does not change.',
             'sutore-marketplace'
         ) . '</p>';
         echo '<table class="form-table" role="presentation"><tbody>';
         echo '<tr><th scope="row">' . esc_html__('Enable customer offers', 'sutore-marketplace') . '</th><td>';
         echo '<label><input name="customer_offer_enabled" type="checkbox" value="1" '
             . checked(!empty($s['customer_offer_enabled']), true, false) . ' /> ';
-        echo esc_html__('Allow logged-in customers to send a price offer to the listing currently for sale.', 'sutore-marketplace');
+        echo esc_html__('Allow logged-in customers to send a price offer to the product currently for sale.', 'sutore-marketplace');
         echo '</label></td></tr>';
-        echo '<tr><th scope="row"><label for="customer_offer_ttl_hours">' . esc_html__('Offer lifetime (hours)', 'sutore-marketplace') . '</label></th><td>';
+        echo '<tr><th scope="row"><label for="customer_offer_auto_decline_hours">' . esc_html__('Auto-decline unanswered offers (hours)', 'sutore-marketplace') . '</label></th><td>';
+        printf(
+            '<input name="customer_offer_auto_decline_hours" type="number" id="customer_offer_auto_decline_hours" value="%s" class="small-text" min="1" max="168" step="1" />',
+            esc_attr((string) ($s['customer_offer_auto_decline_hours'] ?? 48))
+        );
+        echo '<p class="description">' . esc_html__(
+            'Pending offers with no seller response are declined after this many hours. If another seller is queued for the same size, the bid is forwarded.',
+            'sutore-marketplace'
+        ) . '</p></td></tr>';
+        echo '<tr><th scope="row"><label for="customer_offer_ttl_hours">' . esc_html__('Accepted coupon lifetime (hours)', 'sutore-marketplace') . '</label></th><td>';
         printf(
             '<input name="customer_offer_ttl_hours" type="number" id="customer_offer_ttl_hours" value="%s" class="small-text" min="1" max="168" step="1" />',
             esc_attr((string) ($s['customer_offer_ttl_hours'] ?? 48))
         );
-        echo '</td></tr>';
-        echo '<tr><th scope="row"><label for="customer_offer_min_percent">' . esc_html__('Minimum bid (% of asking)', 'sutore-marketplace') . '</label></th><td>';
+        echo '<p class="description">' . esc_html__(
+            'How long the personal coupon stays valid after a seller accepts an offer.',
+            'sutore-marketplace'
+        ) . '</p></td></tr>';
+        echo '<tr><th scope="row"><label for="customer_offer_min_percent">' . esc_html__('Minimum bid (% of the price)', 'sutore-marketplace') . '</label></th><td>';
         printf(
             '<input name="customer_offer_min_percent" type="number" id="customer_offer_min_percent" value="%s" class="small-text" min="1" max="99" step="1" />',
             esc_attr((string) ($s['customer_offer_min_percent'] ?? 70))
@@ -817,7 +829,7 @@ final class SettingsPage
 
         echo '<p class="description">' . esc_html__(
 
-            'Timed strikethrough discounts only. Permanent markdowns are a silent asking drop. System suggestions waive fees up to service + guarantee.',
+            'Timed strikethrough discounts only. Permanent markdowns are a silent price drop. System suggestions waive fees up to service + guarantee.',
 
             'sutore-marketplace'
 
@@ -951,6 +963,7 @@ final class SettingsPage
             $patch['campaign_aging_day_2'] = $day2;
 
             $patch['customer_offer_enabled'] = !empty($_POST['customer_offer_enabled']);
+            $patch['customer_offer_auto_decline_hours'] = max(1, min(168, (int) ($_POST['customer_offer_auto_decline_hours'] ?? 48)));
             $patch['customer_offer_ttl_hours'] = max(1, min(168, (int) ($_POST['customer_offer_ttl_hours'] ?? 48)));
             $patch['customer_offer_min_percent'] = max(1, min(99, (int) ($_POST['customer_offer_min_percent'] ?? 70)));
             $patch['customer_offer_max_per_day'] = max(1, min(50, (int) ($_POST['customer_offer_max_per_day'] ?? 10)));

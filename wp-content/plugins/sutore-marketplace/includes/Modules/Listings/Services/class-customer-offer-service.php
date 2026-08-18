@@ -52,13 +52,13 @@ final class CustomerOfferService
 
         $listing = $this->listings->find($variationId);
         if (!$listing || !$listing->variationId) {
-            return new \WP_Error('sutore_customer_offer_listing', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_customer_offer_listing', __('Product not found.', 'sutore-marketplace'));
         }
 
         if ((int) $listing->merchantId === $customerId) {
             return new \WP_Error(
                 'sutore_customer_offer_own',
-                __('You cannot make an offer on your own listing.', 'sutore-marketplace')
+                __('You cannot make an offer on your own product.', 'sutore-marketplace')
             );
         }
 
@@ -70,7 +70,7 @@ final class CustomerOfferService
         if ($listing->listingStatus !== ListingStatus::PUBLISH) {
             return new \WP_Error(
                 'sutore_customer_offer_not_on_sale',
-                __('Offers can only be sent to the listing that is currently for sale.', 'sutore-marketplace')
+                __('Offers can only be sent to the product that is currently for sale.', 'sutore-marketplace')
             );
         }
 
@@ -83,6 +83,14 @@ final class CustomerOfferService
             return new \WP_Error(
                 'sutore_customer_offer_pending',
                 __('You already have a pending offer on this product and size.', 'sutore-marketplace')
+            );
+        }
+
+        $acceptedExisting = $this->offers->findAcceptedForListingAndCustomer((int) $listing->variationId, $customerId);
+        if ($acceptedExisting) {
+            return new \WP_Error(
+                'sutore_customer_offer_accepted',
+                __('You already have an accepted offer on this product.', 'sutore-marketplace')
             );
         }
 
@@ -108,7 +116,7 @@ final class CustomerOfferService
         if ((int) $bid >= (int) $asking) {
             return new \WP_Error(
                 'sutore_customer_offer_bid_high',
-                __('Your offer must be below the current asking price. Add the product to your cart to buy at the listed price.', 'sutore-marketplace')
+                __('Your offer must be below the current price. Add the product to your cart to buy at the listed price.', 'sutore-marketplace')
             );
         }
         if ((int) $bid < $minBid) {
@@ -116,7 +124,7 @@ final class CustomerOfferService
                 'sutore_customer_offer_bid_low',
                 sprintf(
                     /* translators: 1: minimum bid, 2: percent */
-                    __('The minimum offer is %1$s (%2$s%% of asking).', 'sutore-marketplace'),
+                    __('The minimum offer is %1$s (%2$s%% of the price).', 'sutore-marketplace'),
                     MarketplacePricing::formatTl((float) $minBid),
                     (string) CustomerOfferGuardrails::minPercent()
                 )
@@ -131,7 +139,7 @@ final class CustomerOfferService
             );
         }
 
-        $expiresAt = CampaignDatetime::plusHours(CustomerOfferGuardrails::ttlHours());
+        $expiresAt = CampaignDatetime::plusHours(CustomerOfferGuardrails::autoDeclineHours());
         $offerId = $this->offers->create([
             'customer_id' => $customerId,
             'listing_id' => (int) $listing->variationId,
@@ -169,17 +177,16 @@ final class CustomerOfferService
         if (!$offer || (int) $offer->customer_id !== $customerId) {
             return new \WP_Error('sutore_customer_offer_missing', __('Offer not found.', 'sutore-marketplace'));
         }
-        if ((string) $offer->status !== CustomerOfferStatus::PENDING) {
+        $cancelled = $this->offers->updateIfStatus($offerId, CustomerOfferStatus::PENDING, [
+            'status' => CustomerOfferStatus::CANCELLED,
+            'responded_at' => current_time('mysql'),
+        ]);
+        if (!$cancelled) {
             return new \WP_Error(
                 'sutore_customer_offer_status',
                 __('This offer can no longer be cancelled.', 'sutore-marketplace')
             );
         }
-
-        $this->offers->update($offerId, [
-            'status' => CustomerOfferStatus::CANCELLED,
-            'responded_at' => current_time('mysql'),
-        ]);
 
         $this->events->log('customer_offer_cancelled', [
             'offer_id' => $offerId,
@@ -207,7 +214,7 @@ final class CustomerOfferService
 
         $listing = $this->listings->find((int) $offer->listing_id);
         if (!$listing || !$listing->variationId) {
-            return new \WP_Error('sutore_customer_offer_listing', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_customer_offer_listing', __('Product not found.', 'sutore-marketplace'));
         }
         if ((int) $listing->merchantId !== $merchantId) {
             return new \WP_Error('sutore_customer_offer_missing', __('Offer not found.', 'sutore-marketplace'));
@@ -215,7 +222,7 @@ final class CustomerOfferService
         if (!in_array($listing->listingStatus, [ListingStatus::PUBLISH, ListingStatus::QUEUED], true)) {
             return new \WP_Error(
                 'sutore_customer_offer_not_on_sale',
-                __('This listing is no longer available for an offer.', 'sutore-marketplace')
+                __('This product is no longer available for an offer.', 'sutore-marketplace')
             );
         }
 
@@ -225,13 +232,21 @@ final class CustomerOfferService
         }
 
         $expiresAt = CampaignDatetime::plusHours(CustomerOfferGuardrails::ttlHours());
-        $this->offers->update($offerId, [
+        $claimed = $this->offers->updateIfStatus($offerId, CustomerOfferStatus::PENDING, [
             'status' => CustomerOfferStatus::ACCEPTED,
             'coupon_id' => $coupon['coupon_id'],
             'coupon_code' => $coupon['coupon_code'],
             'expires_at' => $expiresAt,
             'responded_at' => current_time('mysql'),
         ]);
+        if (!$claimed) {
+            $this->discardUnusedCoupon((int) $coupon['coupon_id']);
+
+            return new \WP_Error(
+                'sutore_customer_offer_status',
+                __('This offer can no longer be accepted.', 'sutore-marketplace')
+            );
+        }
 
         $this->events->log('customer_offer_accepted', [
             'offer_id' => $offerId,
@@ -241,6 +256,10 @@ final class CustomerOfferService
         ], (int) $listing->variationId, $merchantId, 'merchant_visible');
 
         $this->mailCustomerAccepted($offer, $listing, $coupon['coupon_code'], $expiresAt);
+        $this->notifyCustomer($offer, NotificationType::CUSTOMER_OFFER_ACCEPTED, [
+            'coupon_code' => $coupon['coupon_code'],
+            'expires_at' => $expiresAt,
+        ]);
 
         return [
             'offer_id' => $offerId,
@@ -255,25 +274,12 @@ final class CustomerOfferService
         if (!$offer || (int) $offer->merchant_id !== $merchantId) {
             return new \WP_Error('sutore_customer_offer_missing', __('Offer not found.', 'sutore-marketplace'));
         }
-        if ((string) $offer->status !== CustomerOfferStatus::PENDING) {
+        if (!$this->closePendingAsDeclined($offer, 'merchant')) {
             return new \WP_Error(
                 'sutore_customer_offer_status',
                 __('This offer can no longer be declined.', 'sutore-marketplace')
             );
         }
-
-        $this->offers->update($offerId, [
-            'status' => CustomerOfferStatus::DECLINED,
-            'responded_at' => current_time('mysql'),
-        ]);
-
-        $this->events->log('customer_offer_declined', [
-            'offer_id' => $offerId,
-            'customer_id' => (int) $offer->customer_id,
-            'bid_amount' => (float) $offer->bid_amount,
-        ], (int) $offer->listing_id, $merchantId, 'merchant_visible');
-
-        $this->forwardToNextSeller($offer);
 
         return true;
     }
@@ -352,8 +358,37 @@ final class CustomerOfferService
         if ($listing->campaignStatus !== 'none') {
             return new \WP_Error(
                 'sutore_customer_offer_campaign_busy',
-                __('This listing is in a campaign, so it cannot receive a customer offer.', 'sutore-marketplace')
+                __('This product is in a campaign, so it cannot receive a customer offer.', 'sutore-marketplace')
             );
+        }
+
+        return true;
+    }
+
+    /**
+     * Mark a pending offer declined and forward it when another seller is queued.
+     */
+    private function closePendingAsDeclined(object $offer, string $reason): bool
+    {
+        $claimed = $this->offers->updateIfStatus((int) $offer->id, CustomerOfferStatus::PENDING, [
+            'status' => CustomerOfferStatus::DECLINED,
+            'responded_at' => current_time('mysql'),
+        ]);
+        if (!$claimed) {
+            return false;
+        }
+
+        $this->events->log('customer_offer_declined', [
+            'offer_id' => (int) $offer->id,
+            'customer_id' => (int) $offer->customer_id,
+            'bid_amount' => (float) $offer->bid_amount,
+            'reason' => $reason,
+        ], (int) $offer->listing_id, (int) $offer->merchant_id, 'merchant_visible');
+
+        if ($this->forwardToNextSeller($offer)) {
+            $this->notifyCustomer($offer, NotificationType::CUSTOMER_OFFER_FORWARDED);
+        } else {
+            $this->notifyCustomer($offer, NotificationType::CUSTOMER_OFFER_DECLINED);
         }
 
         return true;
@@ -361,42 +396,44 @@ final class CustomerOfferService
 
     private function expirePending(object $offer): void
     {
-        $this->offers->update((int) $offer->id, [
-            'status' => CustomerOfferStatus::EXPIRED,
-            'responded_at' => current_time('mysql'),
-        ]);
-        $this->events->log('customer_offer_expired', [
-            'offer_id' => (int) $offer->id,
-            'reason' => 'timeout',
-        ], (int) $offer->listing_id, (int) $offer->merchant_id, 'merchant_visible');
-        $this->forwardToNextSeller($offer);
+        $this->closePendingAsDeclined($offer, 'timeout');
+    }
+
+    private function discardUnusedCoupon(int $couponId): void
+    {
+        if ($couponId <= 0 || !function_exists('wc_get_coupon_id_by_code')) {
+            return;
+        }
+
+        $coupon = new \WC_Coupon($couponId);
+        if ($coupon->get_id() > 0 && $coupon->get_usage_count() <= 0) {
+            $coupon->delete(true);
+        }
     }
 
     private function expireAccepted(object $offer): void
     {
-        $couponId = (int) ($offer->coupon_id ?? 0);
-        if ($couponId > 0 && function_exists('wc_get_coupon_id_by_code')) {
-            $coupon = new \WC_Coupon($couponId);
-            if ($coupon->get_id() > 0 && $coupon->get_usage_count() <= 0) {
-                $coupon->delete(true);
-            }
-        }
+        $this->discardUnusedCoupon((int) ($offer->coupon_id ?? 0));
 
-        $this->offers->update((int) $offer->id, [
+        $expired = $this->offers->updateIfStatus((int) $offer->id, CustomerOfferStatus::ACCEPTED, [
             'status' => CustomerOfferStatus::EXPIRED,
             'responded_at' => current_time('mysql'),
         ]);
+        if (!$expired) {
+            return;
+        }
         $this->events->log('customer_offer_expired', [
             'offer_id' => (int) $offer->id,
             'reason' => 'coupon_expired',
         ], (int) $offer->listing_id, (int) $offer->merchant_id, 'merchant_visible');
+        $this->notifyCustomer($offer, NotificationType::CUSTOMER_OFFER_EXPIRED);
     }
 
-    private function forwardToNextSeller(object $offer): void
+    private function forwardToNextSeller(object $offer): bool
     {
         $next = $this->nextListingForOffer($offer);
         if (!$next) {
-            return;
+            return false;
         }
 
         $originId = (int) ($offer->origin_offer_id ?? 0);
@@ -404,7 +441,7 @@ final class CustomerOfferService
             $originId = (int) $offer->id;
         }
 
-        $expiresAt = CampaignDatetime::plusHours(CustomerOfferGuardrails::ttlHours());
+        $expiresAt = CampaignDatetime::plusHours(CustomerOfferGuardrails::autoDeclineHours());
         $offerId = $this->offers->create([
             'customer_id' => (int) $offer->customer_id,
             'listing_id' => (int) $next->variationId,
@@ -429,6 +466,8 @@ final class CustomerOfferService
         ], (int) $next->variationId, (int) $next->merchantId, 'merchant_visible');
 
         $this->notifyMerchant($next, $offerId, (float) $offer->bid_amount);
+
+        return true;
     }
 
     private function nextListingForOffer(object $offer): ?Listing
@@ -549,6 +588,27 @@ final class CustomerOfferService
             'bid_amount' => $bid,
             'asking' => (float) $listing->asking,
         ], 0);
+    }
+
+    private function notifyCustomer(object $offer, string $type, array $extra = []): void
+    {
+        $customerId = (int) $offer->customer_id;
+        if ($customerId <= 0) {
+            return;
+        }
+
+        $listing = $this->listings->find((int) $offer->listing_id);
+        $product = ($listing && $listing->parentProductId > 0)
+            ? (get_the_title($listing->parentProductId) ?: __('Product', 'sutore-marketplace'))
+            : __('Product', 'sutore-marketplace');
+
+        $this->notifications->dispatch($customerId, $type, array_merge([
+            'product' => $product,
+            'variation_id' => (int) $offer->listing_id,
+            'offer_id' => (int) $offer->id,
+            'bid_amount' => (float) $offer->bid_amount,
+            'coupon_code' => (string) ($offer->coupon_code ?? ''),
+        ], $extra), 0);
     }
 
     private function mailCustomerAccepted(object $offer, Listing $listing, string $couponCode, string $expiresAt): void

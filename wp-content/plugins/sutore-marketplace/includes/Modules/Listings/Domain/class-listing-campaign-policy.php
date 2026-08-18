@@ -63,7 +63,7 @@ final class ListingCampaignPolicy
         if (self::isActiveCampaign($listing)) {
             return new \WP_Error(
                 'sutore_marketplace_campaign_active',
-                __('This listing is already in a campaign.', 'sutore-marketplace')
+                __('This product is already in a campaign.', 'sutore-marketplace')
             );
         }
 
@@ -79,7 +79,7 @@ final class ListingCampaignPolicy
                 'sutore_campaign_cooldown',
                 sprintf(
                     /* translators: %s: cooldown end datetime */
-                    __('This listing can join another campaign after %s.', 'sutore-marketplace'),
+                    __('This product can join another campaign after %s.', 'sutore-marketplace'),
                     CampaignDatetime::formatLabel((string) $listing->campaignCooledUntil)
                 )
             );
@@ -96,14 +96,14 @@ final class ListingCampaignPolicy
         if (self::isPendingOffer($listing)) {
             return new \WP_Error(
                 'sutore_marketplace_campaign_offer_pending',
-                __('Respond to the campaign offer before updating this listing price.', 'sutore-marketplace')
+                __('Respond to the campaign offer before updating this product price.', 'sutore-marketplace')
             );
         }
 
         if (self::isActiveCampaign($listing) && $newAsking > (float) $listing->asking) {
             return new \WP_Error(
                 'sutore_marketplace_campaign_asking_raise',
-                __('This listing is in a campaign, so you cannot increase the asking price.', 'sutore-marketplace')
+                __('This product is in a campaign, so you cannot increase the price.', 'sutore-marketplace')
             );
         }
 
@@ -121,7 +121,7 @@ final class ListingCampaignPolicy
 
         return new \WP_Error(
             'sutore_marketplace_campaign_offer_pending',
-            __('Respond to the campaign offer before updating this listing.', 'sutore-marketplace')
+            __('Respond to the campaign offer before updating this product.', 'sutore-marketplace')
         );
     }
 }

@@ -116,14 +116,14 @@ final class ProductConditionHooks
     {
         return [
             'conditions' => [
-                'description' => __('Active defect keys for the on-sale listing.', 'sutore-marketplace'),
+                'description' => __('Active defect keys for the on-sale product.', 'sutore-marketplace'),
                 'type' => 'array',
                 'items' => ['type' => 'string'],
                 'context' => ['view', 'edit'],
                 'readonly' => true,
             ],
             'condition_labels' => [
-                'description' => __('Translated defect labels for the on-sale listing.', 'sutore-marketplace'),
+                'description' => __('Translated defect labels for the on-sale product.', 'sutore-marketplace'),
                 'type' => 'array',
                 'items' => ['type' => 'string'],
                 'context' => ['view', 'edit'],

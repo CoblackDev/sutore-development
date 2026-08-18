@@ -29,3 +29,10 @@
 .onsale {
   display: none !important;
 }
+
+.single-product form.cart .quantity,
+.single-product .woocommerce-variation-add-to-cart .quantity,
+.single-product .wp-block-woocommerce-add-to-cart-form .quantity,
+.single-product .wc-block-components-quantity-selector {
+  display: none !important;
+}

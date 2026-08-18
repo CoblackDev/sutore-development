@@ -191,14 +191,14 @@ final class AdminCampaignsController
             if ($truncated) {
                 $message .= ' ' . sprintf(
                     /* translators: %d: scan cap */
-                    __('Audience scan is capped at %d matching listings; the real audience may be larger.', 'sutore-marketplace'),
+                    __('Audience scan is capped at %d matching products; the real audience may be larger.', 'sutore-marketplace'),
                     2000
                 );
             }
         } elseif ($matchedCount > 0 && $busyCount > 0) {
             $message = sprintf(
                 /* translators: %d: count of matching listings already in a campaign */
-                __('No eligible products: %d matching listing(s) already have a campaign offer or active campaign.', 'sutore-marketplace'),
+                __('No eligible products: %d matching product(s) already have a campaign offer or active campaign.', 'sutore-marketplace'),
                 $busyCount
             );
         } else {
@@ -263,7 +263,7 @@ final class AdminCampaignsController
 
         return RestResponse::success([
             'listing' => $result->toArray(),
-            'message' => __('Listing approved.', 'sutore-marketplace'),
+            'message' => __('Product approved.', 'sutore-marketplace'),
         ]);
     }
 
@@ -283,7 +283,7 @@ final class AdminCampaignsController
 
         return RestResponse::success([
             'listing' => $result->toArray(),
-            'message' => __('Listing removed from sale.', 'sutore-marketplace'),
+            'message' => __('Product removed from sale.', 'sutore-marketplace'),
         ]);
     }
 

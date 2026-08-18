@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
             </div>
         </div>
         <p class="sutore-mp-panel-lead">
-            <?php esc_html_e('Review customer price offers. Accepting issues a personal coupon — your public asking price stays the same.', 'sutore-marketplace'); ?>
+            <?php esc_html_e('Review customer price offers. Accepting issues a personal coupon — your public price stays the same.', 'sutore-marketplace'); ?>
         </p>
     </div>
 
@@ -44,6 +44,7 @@ if (!defined('ABSPATH')) {
                     <option value=""><?php esc_html_e('All', 'sutore-marketplace'); ?></option>
                     <option value="accepted"><?php esc_html_e('Accepted', 'sutore-marketplace'); ?></option>
                     <option value="declined"><?php esc_html_e('Declined', 'sutore-marketplace'); ?></option>
+                    <option value="cancelled"><?php esc_html_e('Cancelled', 'sutore-marketplace'); ?></option>
                     <option value="expired"><?php esc_html_e('Expired', 'sutore-marketplace'); ?></option>
                 </select>
             </div>

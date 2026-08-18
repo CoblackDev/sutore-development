@@ -129,14 +129,14 @@
     if (!listingId) {
       return t(
         'sourcingAcceptConfirmCreate',
-        'A new listing will be created for this pre-order. Continue?'
+        'A new product will be created for this pre-order. Continue?'
       );
     }
 
     if (createNewListing) {
       return t(
         'sourcingAcceptConfirmKeepExisting',
-        'Your existing listing (%1$s, %2$s) will stay unchanged, and a new listing will be created for this pre-order. Continue?'
+        'Your existing product (%1$s, %2$s) will stay unchanged, and a new product will be created for this pre-order. Continue?'
       )
         .replace('%1$s', variationLabel)
         .replace('%2$s', existingPrice || '—');
@@ -145,7 +145,7 @@
     if (existingAsking && offerAsking && existingAsking !== offerAsking) {
       return t(
         'sourcingAcceptConfirmReusePriceChange',
-        'Your existing listing (%1$s) will be used for this pre-order, and its price will be updated from %2$s to %3$s. Continue?'
+        'Your existing product (%1$s) will be used for this pre-order, and its price will be updated from %2$s to %3$s. Continue?'
       )
         .replace('%1$s', variationLabel)
         .replace('%2$s', existingPrice || '—')
@@ -154,7 +154,7 @@
 
     return t(
       'sourcingAcceptConfirmReuse',
-      'Your existing listing (%1$s, %2$s) will be used for this pre-order. A new listing will not be created. Continue?'
+      'Your existing product (%1$s, %2$s) will be used for this pre-order. A new product will not be created. Continue?'
     )
       .replace('%1$s', variationLabel)
       .replace('%2$s', existingPrice || '—');
@@ -275,7 +275,7 @@
       var existingPrice = matching.asking_display || '—';
       var existingMessage = t(
         'sourcingExistingListingNotice',
-        'You already have a listing for this product and size (%1$s, %2$s). It will be used for this pre-order; a new listing will not be created.'
+        'You already have a product for this product and size (%1$s, %2$s). It will be used for this pre-order; a new product will not be created.'
       ).replace('%2$s', existingPrice);
       var messageParts = existingMessage.split('%1$s');
       var variationLabel = variationId
@@ -306,7 +306,7 @@
             $('<input type="checkbox" class="wc-block-components-checkbox__input sutore-mp-sourcing-create-new-check"/>'),
             $('<svg class="wc-block-components-checkbox__mark" aria-hidden="true" viewBox="0 0 24 20"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path></svg>'),
             $('<span class="wc-block-components-checkbox__label"/>').text(
-              t('sourcingKeepExistingListing', 'Keep my existing listing; I will supply a new product.')
+              t('sourcingKeepExistingListing', 'Keep my existing product; I will supply a new product.')
             )
           )
         )

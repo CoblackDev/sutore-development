@@ -605,6 +605,17 @@ body.sutore-mp-modal-open {
   text-underline-offset: 0.12em;
 }
 
+a.sutore-mp-card-title,
+a.sutore-mp-card-thumb-link {
+  color: inherit;
+}
+
+a.sutore-mp-card-thumb-link {
+  display: block;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
 .sutore-mp-card-code,
 .sutore-mp-card-meta {
   opacity: 0.72;
@@ -960,6 +971,40 @@ body.sutore-mp-modal-open {
 
 .sutore-mp-confirm-field.is-checkbox .sutore-mp-field-label {
   font-weight: inherit;
+}
+
+.sutore-mp-confirm-product-results {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid #dcdcde;
+  background: #fff;
+}
+
+.sutore-mp-confirm-product-results[hidden] {
+  display: none;
+}
+
+.sutore-mp-confirm-product-results button {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sutore-mp-confirm-product-results button:hover,
+.sutore-mp-confirm-product-results button:focus {
+  background: #f0f0f1;
+}
+
+.sutore-mp-confirm-product-chosen {
+  margin: 6px 0 0;
 }
 
 .sutore-mp-confirm-error {

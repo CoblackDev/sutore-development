@@ -23,6 +23,7 @@ use SutoreMarketplace\Shared\Database\Schema;
 use SutoreMarketplace\Shared\Hooks\CartPricingHooks;
 use SutoreMarketplace\Shared\Hooks\CartQuantityHooks;
 use SutoreMarketplace\Shared\Hooks\CheckoutIdentityHooks;
+use SutoreMarketplace\Shared\Hooks\IysConsentHooks;
 use SutoreMarketplace\Shared\Hooks\YouthDiscountHooks;
 use SutoreMarketplace\Shared\Hooks\CloudflareTunnelHooks;
 use SutoreMarketplace\Shared\Hooks\Cron;
@@ -55,6 +56,7 @@ final class Plugin
 
         Settings::ensureDefaults();
         SmsQueue::register();
+        (new IysConsentHooks())->register();
         (new CloudflareTunnelHooks())->register();
 
         ListingsModule::boot();

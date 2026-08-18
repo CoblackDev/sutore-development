@@ -20,7 +20,7 @@ $staffCreate = !empty($staff_create);
         <div class="sutore-mp-form-section sutore-mp-bulk-section-upload">
             <h3><?php esc_html_e('CSV file', 'sutore-marketplace'); ?></h3>
             <p class="description">
-                <?php esc_html_e('Upload a CSV file to create multiple listings at once. Review the preview, then confirm to queue a background import.', 'sutore-marketplace'); ?>
+                <?php esc_html_e('Upload a CSV file to create multiple products at once. Review the preview, then confirm to queue a background import.', 'sutore-marketplace'); ?>
             </p>
             <input
                 id="sutore-mp-bulk-file"

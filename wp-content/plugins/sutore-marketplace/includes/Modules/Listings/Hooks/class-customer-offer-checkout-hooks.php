@@ -20,7 +20,8 @@ final class CustomerOfferCheckoutHooks
         add_filter('woocommerce_coupon_is_valid', [$this, 'validateOfferCoupon'], 25, 3);
         add_action('woocommerce_applied_coupon', [$this, 'autoAddOfferProduct']);
         add_action('woocommerce_add_to_cart', [$this, 'maybeApplyOfferCoupon'], 20, 6);
-        add_action('woocommerce_before_add_to_cart_button', [$this, 'renderPdpForm'], 30);
+        add_action('woocommerce_after_add_to_cart_button', [$this, 'renderOfferTrigger'], 20);
+        add_action('wp_footer', [$this, 'renderOfferModal']);
         add_action('wp_enqueue_scripts', [$this, 'enqueuePdpAssets']);
     }
 
@@ -134,26 +135,54 @@ final class CustomerOfferCheckoutHooks
         }
     }
 
-    public function renderPdpForm(): void
+    public function renderOfferTrigger(): void
     {
         if (!is_product() || !CustomerOfferGuardrails::enabled()) {
             return;
         }
 
-        echo '<div class="sutore-mp-pdp-offer" hidden data-sutore-pdp-offer>';
-        echo '<p class="sutore-mp-pdp-offer__lead"></p>';
-        echo '<form class="sutore-mp-pdp-offer__form" action="#">';
-        echo '<label class="sutore-mp-pdp-offer__label" for="sutore-mp-pdp-offer-bid">';
-        echo esc_html__('Your offer (seller asking, TL)', 'sutore-marketplace');
-        echo '</label>';
-        echo '<div class="sutore-mp-pdp-offer__row">';
-        echo '<input type="number" id="sutore-mp-pdp-offer-bid" name="bid_amount" class="sutore-mp-pdp-offer__input" min="1" step="1" />';
-        echo '<button type="submit" class="wp-element-button sutore-mp-pdp-offer__submit">';
+        $themeButton = function_exists('wc_wp_theme_get_element_class_name')
+            ? (string) wc_wp_theme_get_element_class_name('button')
+            : '';
+        $btnClass = 'button sutore-mp-pdp-offer-btn';
+        if ($themeButton !== '') {
+            $btnClass .= ' ' . $themeButton;
+        }
+
+        echo '<button type="button" class="' . esc_attr($btnClass) . '" hidden data-sutore-pdp-offer-open aria-haspopup="dialog">';
         echo esc_html__('Make an offer', 'sutore-marketplace');
         echo '</button>';
+    }
+
+    public function renderOfferModal(): void
+    {
+        if (!is_product() || !CustomerOfferGuardrails::enabled()) {
+            return;
+        }
+
+        echo '<div class="sutore-mp-pdp-offer-overlay" hidden data-sutore-pdp-offer-modal>';
+        echo '<div class="sutore-mp-pdp-offer-modal" role="dialog" aria-modal="true" aria-labelledby="sutore-mp-pdp-offer-title" tabindex="-1">';
+        echo '<div class="sutore-mp-pdp-offer-modal__head">';
+        echo '<h2 id="sutore-mp-pdp-offer-title" class="sutore-mp-pdp-offer-modal__title">';
+        echo esc_html__('Make an offer', 'sutore-marketplace');
+        echo '</h2>';
+        echo '<button type="button" class="sutore-mp-pdp-offer-modal__close" data-sutore-pdp-offer-close aria-label="'
+            . esc_attr__('Close', 'sutore-marketplace') . '">&times;</button>';
         echo '</div>';
+        echo '<div class="sutore-mp-pdp-offer-modal__body">';
+        echo '<p class="sutore-mp-pdp-offer__lead" data-sutore-pdp-offer-lead></p>';
+        echo '<form class="sutore-mp-pdp-offer__form" action="#">';
+        echo '<label class="sutore-mp-pdp-offer__label" for="sutore-mp-pdp-offer-bid">';
+        echo esc_html__('Your offer (seller price, TL)', 'sutore-marketplace');
+        echo '</label>';
+        echo '<input type="number" id="sutore-mp-pdp-offer-bid" name="bid_amount" class="sutore-mp-pdp-offer__input" min="1" step="1" inputmode="numeric" />';
+        echo '<button type="submit" class="button alt wp-element-button sutore-mp-pdp-offer__submit">';
+        echo esc_html__('Send offer', 'sutore-marketplace');
+        echo '</button>';
         echo '</form>';
         echo '<p class="sutore-mp-pdp-offer__status" role="status"></p>';
+        echo '</div>';
+        echo '</div>';
         echo '</div>';
     }
 
@@ -190,11 +219,17 @@ final class CustomerOfferCheckoutHooks
                 : '',
             'i18n' => [
                 'makeOffer' => __('Make an offer', 'sutore-marketplace'),
+                'sendOffer' => __('Send offer', 'sutore-marketplace'),
                 'loginToOffer' => __('Log in to make an offer.', 'sutore-marketplace'),
                 'pending' => __('You already have a pending offer on this size.', 'sutore-marketplace'),
                 'accepted' => __('Your offer was accepted. Use your coupon at checkout.', 'sutore-marketplace'),
+                'offerPending' => __('Offer pending', 'sutore-marketplace'),
+                'offerAccepted' => __('Offer accepted', 'sutore-marketplace'),
                 'minBid' => __('Minimum offer', 'sutore-marketplace'),
-                'asking' => __('Seller asking', 'sutore-marketplace'),
+                'asking' => __('Seller price', 'sutore-marketplace'),
+                'listedPrice' => __('Listed price', 'sutore-marketplace'),
+                'yourOffer' => __('Your offer', 'sutore-marketplace'),
+                'bidHigh' => __('Your offer must be below the current price. Add the product to your cart to buy at the listed price.', 'sutore-marketplace'),
                 'sent' => __('Your offer was sent to the seller.', 'sutore-marketplace'),
                 'error' => __('Error', 'sutore-marketplace'),
                 'viewOffers' => __('View my offers', 'sutore-marketplace'),

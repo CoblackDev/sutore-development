@@ -1,0 +1,122 @@
+.sutore-mp-admin-product-picker {
+	position: relative;
+	max-width: 36rem;
+}
+
+.sutore-mp-admin-product-picker .sutore-mp-admin-product-search {
+	width: 100%;
+	max-width: 100%;
+}
+
+.sutore-mp-admin-product-results {
+	position: absolute;
+	z-index: 20;
+	left: 0;
+	right: 0;
+	margin: 2px 0 0;
+	padding: 0;
+	list-style: none;
+	max-height: 240px;
+	overflow: auto;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.sutore-mp-admin-product-results[hidden] {
+	display: none;
+}
+
+.sutore-mp-admin-product-results button {
+	display: block;
+	width: 100%;
+	margin: 0;
+	padding: 8px 10px;
+	border: 0;
+	background: none;
+	text-align: left;
+	cursor: pointer;
+}
+
+.sutore-mp-admin-product-results button:hover,
+.sutore-mp-admin-product-results button:focus {
+	background: #f0f0f1;
+}
+
+.sutore-mp-admin-product-results .sutore-mp-admin-product-empty {
+	margin: 0;
+	padding: 8px 10px;
+	color: #646970;
+}
+
+.sutore-mp-admin-product-chosen,
+.sutore-mp-admin-product-chips {
+	margin: 8px 0 0;
+}
+
+.sutore-mp-admin-product-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 0;
+	list-style: none;
+}
+
+.sutore-mp-admin-product-chips li {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	background: #f0f0f1;
+	border-radius: 3px;
+}
+
+.sutore-mp-admin-product-chips button {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: #b32d2e;
+	cursor: pointer;
+	font-size: 14px;
+	line-height: 1;
+}
+
+.sutore-mp-admin-product-chosen {
+	margin-top: 6px;
+}
+
+.sutore-mp-confirm-product-results {
+	margin: 6px 0 0;
+	padding: 0;
+	list-style: none;
+	max-height: 180px;
+	overflow: auto;
+	border: 1px solid #dcdcde;
+	background: #fff;
+}
+
+.sutore-mp-confirm-product-results[hidden] {
+	display: none;
+}
+
+.sutore-mp-confirm-product-results button {
+	display: block;
+	width: 100%;
+	margin: 0;
+	padding: 8px 10px;
+	border: 0;
+	background: none;
+	text-align: left;
+	cursor: pointer;
+}
+
+.sutore-mp-confirm-product-results button:hover,
+.sutore-mp-confirm-product-results button:focus {
+	background: #f0f0f1;
+}
+
+.sutore-mp-confirm-product-chosen {
+	margin: 6px 0 0;
+	color: #1d2327;
+}

@@ -23,13 +23,27 @@ final class CustomerOfferGuardrailsTest
         });
     }
 
+    public function testMaxBidIsAskingMinusOneStep(): void
+    {
+        Fixtures::withMarketplaceSettings([
+            'listing_price_step' => 25,
+        ], static function (): void {
+            $max = CustomerOfferGuardrails::maxBidForAsking(200);
+            Harness::assertSame(175, $max);
+            Harness::assertTrue($max < 200);
+            Harness::assertTrue($max % 25 === 0);
+        });
+    }
+
     public function testTtlAndDailyCapBounds(): void
     {
         Fixtures::withMarketplaceSettings([
             'customer_offer_ttl_hours' => 48,
+            'customer_offer_auto_decline_hours' => 24,
             'customer_offer_max_per_day' => 10,
         ], static function (): void {
             Harness::assertSame(48, CustomerOfferGuardrails::ttlHours());
+            Harness::assertSame(24, CustomerOfferGuardrails::autoDeclineHours());
             Harness::assertSame(10, CustomerOfferGuardrails::maxPerDay());
         });
     }

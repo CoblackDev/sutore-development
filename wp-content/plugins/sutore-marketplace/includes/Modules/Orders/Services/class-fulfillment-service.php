@@ -51,7 +51,7 @@ final class FulfillmentService
     {
         $listingId = (int) $listing->variationId;
         if ($listingId <= 0) {
-            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('Product not found.', 'sutore-marketplace'));
         }
 
         $existing = $this->repo->findActiveByVariationId($listingId);
@@ -128,7 +128,7 @@ final class FulfillmentService
     {
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
         if ($row->fulfillment_status !== ListingStatus::PAYMENT) {
             return new \WP_Error('sutore_marketplace_fulfillment_status', __('Only sales awaiting payment confirmation can be confirmed.', 'sutore-marketplace'));
@@ -137,7 +137,7 @@ final class FulfillmentService
         $bridge = $this->bridge();
         $listing = $bridge->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('Product not found.', 'sutore-marketplace'));
         }
 
         $sold = $bridge->markSold($listingId, (int) $row->order_id, (int) $row->order_item_id);
@@ -370,7 +370,7 @@ final class FulfillmentService
     {
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
         if ((string) $row->fulfillment_status !== ListingStatus::SHIPPED) {
             return new \WP_Error('sutore_marketplace_fulfillment_status', __('Invalid status.', 'sutore-marketplace'));
@@ -474,7 +474,7 @@ final class FulfillmentService
 
         $listing = $this->bridge()->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('Product not found.', 'sutore-marketplace'));
         }
 
         $marked = $this->markAsPreOrder($listingId, 'seller_cancelled');
@@ -518,7 +518,7 @@ final class FulfillmentService
 
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
 
         $caps = ListingStatus::staffCapabilities((string) $row->fulfillment_status);
@@ -584,7 +584,7 @@ final class FulfillmentService
 
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
 
         $caps = ListingStatus::staffCapabilities((string) $row->fulfillment_status);
@@ -624,7 +624,7 @@ final class FulfillmentService
     {
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
 
         $caps = ListingStatus::staffCapabilities((string) $row->fulfillment_status);
@@ -652,7 +652,7 @@ final class FulfillmentService
     {
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
 
         $caps = ListingStatus::staffCapabilities((string) $row->fulfillment_status);
@@ -677,7 +677,7 @@ final class FulfillmentService
     {
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
 
         $caps = ListingStatus::staffCapabilities((string) $row->fulfillment_status);
@@ -700,14 +700,14 @@ final class FulfillmentService
     {
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
 
         $caps = ListingStatus::staffCapabilities((string) $row->fulfillment_status);
         if (empty($caps['delete']) || $this->isLinkedToOrder($row)) {
             return new \WP_Error(
                 'sutore_marketplace_fulfillment_status',
-                __('This listing cannot be deleted right now. (In order or payment process.)', 'sutore-marketplace')
+                __('This product cannot be deleted right now. (In order or payment process.)', 'sutore-marketplace')
             );
         }
 
@@ -865,7 +865,7 @@ final class FulfillmentService
         if (!$listing) {
             return new \WP_Error(
                 'sutore_marketplace_fulfillment_listing',
-                __('Listing not found.', 'sutore-marketplace')
+                __('Product not found.', 'sutore-marketplace')
             );
         }
 
@@ -886,7 +886,7 @@ final class FulfillmentService
         if (!$listing) {
             return new \WP_Error(
                 'sutore_marketplace_fulfillment_listing',
-                __('Listing not found.', 'sutore-marketplace')
+                __('Product not found.', 'sutore-marketplace')
             );
         }
 
@@ -905,7 +905,7 @@ final class FulfillmentService
     {
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
 
         if (!ListingStatus::allowsPayout((string) $row->fulfillment_status)) {
@@ -917,7 +917,7 @@ final class FulfillmentService
 
         $listing = $this->bridge()->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('Product not found.', 'sutore-marketplace'));
         }
 
         $payoutService = new PayoutLineService();
@@ -1014,7 +1014,7 @@ final class FulfillmentService
     {
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
 
         $caps = ListingStatus::staffCapabilities((string) $row->fulfillment_status);
@@ -1026,13 +1026,13 @@ final class FulfillmentService
         $oldListing = $bridge->find($listingId);
         $newListing = $bridge->find($newListingId);
         if (!$newListing) {
-            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('No new listing found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('No new product found.', 'sutore-marketplace'));
         }
 
         if ((int) $newListing->variationId === $listingId) {
             return new \WP_Error(
                 'sutore_marketplace_fulfillment_listing',
-                __('Replacement listing must be different from the current listing.', 'sutore-marketplace')
+                __('Replacement product must be different from the current product.', 'sutore-marketplace')
             );
         }
 
@@ -1053,14 +1053,14 @@ final class FulfillmentService
         if ($newListing->listingStatus !== 'publish' || !$newListing->isWinner) {
             return new \WP_Error(
                 'sutore_marketplace_fulfillment_listing',
-                __('Replacement listing must be the active queue winner.', 'sutore-marketplace')
+                __('Replacement product must be the active queue winner.', 'sutore-marketplace')
             );
         }
 
         if ((int) $newListing->orderId > 0 || $this->repo->findActiveByVariationId((int) $newListing->variationId)) {
             return new \WP_Error(
                 'sutore_marketplace_fulfillment_listing',
-                __('Replacement listing is already linked to an active fulfillment.', 'sutore-marketplace')
+                __('Replacement product is already linked to an active sale.', 'sutore-marketplace')
             );
         }
 
@@ -1160,7 +1160,7 @@ final class FulfillmentService
         if ($returnToQueue) {
             return new \WP_Error(
                 'sutore_marketplace_detach_no_relist',
-                __('Order-detached listings cannot be put back on sale. Create a new listing instead.', 'sutore-marketplace')
+                __('Order-detached products cannot be put back on sale. Create a new product instead.', 'sutore-marketplace')
             );
         }
 
@@ -1174,7 +1174,7 @@ final class FulfillmentService
     {
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
 
         if (!in_array((string) $row->fulfillment_status, [ListingStatus::PAYMENT, ListingStatus::SOLD], true)) {
@@ -1193,7 +1193,7 @@ final class FulfillmentService
 
         $listing = $this->bridge()->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('Product not found.', 'sutore-marketplace'));
         }
 
         $this->repo->update($listingId, [
@@ -1248,7 +1248,7 @@ final class FulfillmentService
 
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
 
         if ((string) $row->fulfillment_status !== ListingStatus::PRE_ORDER) {
@@ -1331,7 +1331,7 @@ final class FulfillmentService
         if (!$preOrder || $preOrder->listingStatus !== ListingStatus::PRE_ORDER) {
             return new \WP_Error(
                 'sutore_pre_order_missing',
-                __('Pre-order listing not found.', 'sutore-marketplace')
+                __('Pre-order product not found.', 'sutore-marketplace')
             );
         }
 
@@ -1344,20 +1344,20 @@ final class FulfillmentService
 
         $newListing = $this->bridge()->find($newListingId);
         if (!$newListing) {
-            return new \WP_Error('sutore_pre_order_listing', __('Replacement listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_pre_order_listing', __('Replacement product not found.', 'sutore-marketplace'));
         }
 
         if ((int) $newListing->merchantId !== $acceptingMerchantId) {
             return new \WP_Error(
                 'sutore_pre_order_forbidden',
-                __('This listing does not belong to you.', 'sutore-marketplace')
+                __('This product does not belong to you.', 'sutore-marketplace')
             );
         }
 
         if ($newListingId !== $preOrderListingId && ListingStatus::isProcessLocked($newListing)) {
             return new \WP_Error(
                 'sutore_pre_order_listing_locked',
-                __('This listing is already in an order process.', 'sutore-marketplace')
+                __('This product is already in an order process.', 'sutore-marketplace')
             );
         }
 
@@ -1479,7 +1479,7 @@ final class FulfillmentService
     {
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
 
         $caps = ListingStatus::staffCapabilities((string) $row->fulfillment_status);
@@ -1634,27 +1634,27 @@ final class FulfillmentService
 
         $listing = $this->bridge()->find($listingId);
         if (!$listing || !$listing->variationId) {
-            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('Listing not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('Product not found.', 'sutore-marketplace'));
         }
 
         if (!ListingStatus::allowsManualOrderAttach($listing->listingStatus)) {
             return new \WP_Error(
                 'sutore_marketplace_fulfillment_status',
-                __('This listing cannot be added to an order in its current status.', 'sutore-marketplace')
+                __('This product cannot be added to an order in its current status.', 'sutore-marketplace')
             );
         }
 
         if ($listing->orderId || ListingStatus::isInSaleLifecycle($listing->listingStatus)) {
             return new \WP_Error(
                 'sutore_marketplace_already_linked',
-                __('Listing is already linked to an order.', 'sutore-marketplace')
+                __('Product is already linked to an order.', 'sutore-marketplace')
             );
         }
 
         if ($this->repo->findActiveByVariationId($listingId)) {
             return new \WP_Error(
                 'sutore_marketplace_already_linked',
-                __('Listing is already linked to an order.', 'sutore-marketplace')
+                __('Product is already linked to an order.', 'sutore-marketplace')
             );
         }
 
@@ -1676,7 +1676,7 @@ final class FulfillmentService
         if (!$allowOpen && !$order->has_status('processing')) {
             return new \WP_Error(
                 'sutore_marketplace_fulfillment_order',
-                __('Only processing orders can receive a manual listing attachment.', 'sutore-marketplace')
+                __('Only processing orders can receive a manual product attachment.', 'sutore-marketplace')
             );
         }
         if (!$startAsSold && !$startAsPayment) {
@@ -1921,7 +1921,7 @@ final class FulfillmentService
     ): true|\WP_Error {
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
 
         if (!ListingStatus::allowsDetach((string) $row->fulfillment_status)) {
@@ -1941,7 +1941,7 @@ final class FulfillmentService
         if ($returnToQueue) {
             return new \WP_Error(
                 'sutore_marketplace_detach_no_relist',
-                __('Order-detached listings cannot be put back on sale. Create a new listing instead.', 'sutore-marketplace')
+                __('Order-detached products cannot be put back on sale. Create a new product instead.', 'sutore-marketplace')
             );
         }
 
@@ -2415,7 +2415,7 @@ final class FulfillmentService
         }
         $listing = $this->bridge()->find($listingId);
         if (!$listing) {
-            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('No listings.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_listing', __('No products.', 'sutore-marketplace'));
         }
 
         $order = wc_get_order((int) $row->order_id);
@@ -2564,7 +2564,7 @@ final class FulfillmentService
     ): true|\WP_Error {
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
         if ((string) $row->fulfillment_status !== $expectedFrom) {
             return new \WP_Error('sutore_marketplace_fulfillment_status', __('Invalid status.', 'sutore-marketplace'));
@@ -2627,7 +2627,7 @@ final class FulfillmentService
 
         $row = $this->repo->find($listingId);
         if (!$row) {
-            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Fulfillment not found.', 'sutore-marketplace'));
+            return new \WP_Error('sutore_marketplace_fulfillment_missing', __('Sale record not found.', 'sutore-marketplace'));
         }
 
         $caps = ListingStatus::staffCapabilities((string) $row->fulfillment_status);

@@ -178,16 +178,16 @@
         title: t('catalogRequestFulfillTitle', 'Mark this product as added to the catalog?'),
         text: t(
           'catalogRequestFulfillText',
-          'The seller will be notified that they can open a listing. Optionally link the WooCommerce parent product ID.'
+          'The seller will be notified that they can open a product. Optionally link the WooCommerce parent product ID.'
         ),
         confirmLabel: t('catalogRequestFulfill', 'Mark added'),
         fields: [
           {
             name: 'parent_product_id',
-            label: t('catalogRequestParentId', 'Catalog product ID (optional)'),
-            type: 'number',
-            inputmode: 'numeric',
-            required: false
+            label: t('catalogRequestParentSearch', 'Catalog product (optional)'),
+            type: 'product_search',
+            required: false,
+            placeholder: t('searchNameOrSku', 'Search by product name or SKU…')
           }
         ],
         onConfirm: function (values) {
@@ -213,7 +213,7 @@
 
     showConfirm(
       t('catalogRequestFulfillTitle', 'Mark this product as added to the catalog?'),
-      t('catalogRequestFulfillText', 'The seller will be notified that they can open a listing.'),
+      t('catalogRequestFulfillText', 'The seller will be notified that they can open a product.'),
       t('catalogRequestFulfill', 'Mark added'),
       function () {
         api('marketplace_admin_catalog_request_fulfill', { id: id }).done(function (res) {

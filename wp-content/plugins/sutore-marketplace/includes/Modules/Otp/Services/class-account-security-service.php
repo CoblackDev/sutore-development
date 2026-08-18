@@ -7,6 +7,7 @@ namespace SutoreMarketplace\Modules\Otp\Services;
 use SutoreMarketplace\Modules\Merchants\Support\MerchantMeta;
 use SutoreMarketplace\Modules\Otp\Domain\OtpPurpose;
 use SutoreMarketplace\Modules\Otp\Settings\OtpSettings;
+use SutoreMarketplace\Shared\Sms\IysConsentService;
 
 final class AccountSecurityService
 {
@@ -39,6 +40,10 @@ final class AccountSecurityService
         $lastName = sanitize_text_field((string) ($input['user_lastname'] ?? $input['last_name'] ?? ''));
         $email = sanitize_email((string) ($input['user_email'] ?? $input['email'] ?? ''));
         $phone = OtpPhoneResolver::normalize((string) ($input['user_phone'] ?? $input['phone'] ?? ''));
+        $oldEmail = (string) $user->user_email;
+        $oldPhone = OtpPhoneResolver::forUser($userId);
+        $oldConsent = MerchantMeta::marketingConsent($userId);
+        $newConsent = !empty($input['marketing_consent'] ?? false);
 
         wp_update_user([
             'ID' => $userId,
@@ -48,7 +53,8 @@ final class AccountSecurityService
         ]);
 
         MerchantMeta::setPhone($userId, $phone);
-        MerchantMeta::setMarketingConsent($userId, !empty($input['marketing_consent'] ?? false));
+        MerchantMeta::setMarketingConsent($userId, $newConsent);
+        (new IysConsentService())->sync($oldEmail, $oldPhone, $email, $phone, $oldConsent, $newConsent);
 
         return [
             'success' => true,

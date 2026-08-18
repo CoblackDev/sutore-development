@@ -42,6 +42,9 @@ final class NotificationTemplates
         $merchantUrl = function_exists('wc_get_account_endpoint_url')
             ? wc_get_account_endpoint_url('merchant-area')
             : home_url('/hesabim/merchant-area/');
+        $balanceUrl = function_exists('wc_get_account_endpoint_url')
+            ? wc_get_account_endpoint_url('balance')
+            : home_url('/hesabim/balance/');
         $campaignsUrl = function_exists('wc_get_account_endpoint_url')
             ? wc_get_account_endpoint_url('campaign-offers')
             : home_url('/hesabim/campaign-offers/');
@@ -157,7 +160,7 @@ final class NotificationTemplates
                     : __('Product verified. Your payout has been created.', 'sutore-marketplace');
                 $entityType = 'fulfillment';
                 $entityId = $variationId ?: null;
-                $actionUrl = $merchantUrl;
+                $actionUrl = $balanceUrl;
                 $dedupeKey = 'fulfillment.verified:' . $variationId;
                 break;
 
@@ -184,7 +187,7 @@ final class NotificationTemplates
                 }
                 $entityType = 'payout';
                 $entityId = $variationId ?: null;
-                $actionUrl = $merchantUrl;
+                $actionUrl = $balanceUrl;
                 $dedupeKey = 'payout.pending:' . $variationId;
                 break;
 
@@ -197,7 +200,7 @@ final class NotificationTemplates
                     : __('Payment for your sale has been completed.', 'sutore-marketplace');
                 $entityType = 'payout';
                 $entityId = $variationId ?: null;
-                $actionUrl = $merchantUrl;
+                $actionUrl = $balanceUrl;
                 $dedupeKey = 'payout.paid:' . $variationId;
                 break;
 
@@ -210,7 +213,7 @@ final class NotificationTemplates
                     : __('Payout for this sale was canceled.', 'sutore-marketplace');
                 $entityType = 'payout';
                 $entityId = $variationId ?: null;
-                $actionUrl = $merchantUrl;
+                $actionUrl = $balanceUrl;
                 $dedupeKey = 'payout.reversed:' . $variationId;
                 break;
 
@@ -237,8 +240,8 @@ final class NotificationTemplates
                 break;
 
             case NotificationType::LISTING_EXPIRED:
-                $title = sprintf(__('Listing expired: %s', 'sutore-marketplace'), $product);
-                $body = __('Listing expired. You can re-enter the queue by setting a new price.', 'sutore-marketplace');
+                $title = sprintf(__('Product expired: %s', 'sutore-marketplace'), $product);
+                $body = __('Product expired. You can re-enter the queue by setting a new price.', 'sutore-marketplace');
                 $entityType = 'listing';
                 $entityId = $variationId ?: null;
                 $dedupeKey = 'listing.expired:' . $variationId;
@@ -247,7 +250,7 @@ final class NotificationTemplates
             case NotificationType::LISTING_BULK_IMPORT_COMPLETED:
                 $title = sprintf(
                     /* translators: %d: number of listings created */
-                    __('Bulk import: %d listings created', 'sutore-marketplace'),
+                    __('Bulk import: %d products created', 'sutore-marketplace'),
                     $createdCount
                 );
                 $body = sprintf(
@@ -328,10 +331,10 @@ final class NotificationTemplates
                 $body = $bidLabel !== ''
                     ? sprintf(
                         /* translators: %s: bid amount */
-                        __('A customer offered %s for this listing. Accept to issue a personal coupon, or decline to pass it to the next seller in queue.', 'sutore-marketplace'),
+                        __('A customer offered %s for this product. Accept to issue a personal coupon, or decline to pass it to the next seller in queue.', 'sutore-marketplace'),
                         $bidLabel
                     )
-                    : __('A customer sent a price offer on this listing.', 'sutore-marketplace');
+                    : __('A customer sent a price offer on this product.', 'sutore-marketplace');
                 $entityType = 'customer_offer';
                 $entityId = $offerId ?: null;
                 $priceOffersUrl = function_exists('wc_get_account_endpoint_url')
@@ -342,6 +345,73 @@ final class NotificationTemplates
                     $actionUrl = add_query_arg('offer', $offerId, $priceOffersUrl);
                 }
                 $dedupeKey = 'customer.offer:' . ($offerId ?: $variationId);
+                break;
+
+            case NotificationType::CUSTOMER_OFFER_ACCEPTED:
+                $couponCode = sanitize_text_field((string) ($context['coupon_code'] ?? ''));
+                $title = $product !== ''
+                    ? sprintf(
+                        /* translators: %s: product title */
+                        __('Your offer on %s was accepted', 'sutore-marketplace'),
+                        $product
+                    )
+                    : __('Your offer was accepted', 'sutore-marketplace');
+                $body = $couponCode !== ''
+                    ? sprintf(
+                        /* translators: %s: coupon code */
+                        __('Use coupon %s at checkout. This coupon is only for you and this product.', 'sutore-marketplace'),
+                        $couponCode
+                    )
+                    : __('The seller accepted your offer. Use your personal coupon at checkout.', 'sutore-marketplace');
+                $entityType = 'customer_offer';
+                $entityId = $offerId ?: null;
+                $actionUrl = self::myOffersUrl();
+                $dedupeKey = 'customer.offer_accepted:' . ($offerId ?: $variationId);
+                break;
+
+            case NotificationType::CUSTOMER_OFFER_DECLINED:
+                $title = $product !== ''
+                    ? sprintf(
+                        /* translators: %s: product title */
+                        __('Your offer on %s was declined', 'sutore-marketplace'),
+                        $product
+                    )
+                    : __('Your offer was declined', 'sutore-marketplace');
+                $body = __('The seller declined your offer.', 'sutore-marketplace');
+                $entityType = 'customer_offer';
+                $entityId = $offerId ?: null;
+                $actionUrl = self::myOffersUrl();
+                $dedupeKey = 'customer.offer_declined:' . ($offerId ?: $variationId);
+                break;
+
+            case NotificationType::CUSTOMER_OFFER_EXPIRED:
+                $title = $product !== ''
+                    ? sprintf(
+                        /* translators: %s: product title */
+                        __('Your offer on %s expired', 'sutore-marketplace'),
+                        $product
+                    )
+                    : __('Your offer expired', 'sutore-marketplace');
+                $body = __('This offer is no longer valid.', 'sutore-marketplace');
+                $entityType = 'customer_offer';
+                $entityId = $offerId ?: null;
+                $actionUrl = self::myOffersUrl();
+                $dedupeKey = 'customer.offer_expired:' . ($offerId ?: $variationId);
+                break;
+
+            case NotificationType::CUSTOMER_OFFER_FORWARDED:
+                $title = $product !== ''
+                    ? sprintf(
+                        /* translators: %s: product title */
+                        __('Your offer on %s is still pending', 'sutore-marketplace'),
+                        $product
+                    )
+                    : __('Your offer is still pending', 'sutore-marketplace');
+                $body = __('The seller did not accept. Your offer was sent to the next seller.', 'sutore-marketplace');
+                $entityType = 'customer_offer';
+                $entityId = $offerId ?: null;
+                $actionUrl = self::myOffersUrl();
+                $dedupeKey = 'customer.offer_forwarded:' . ($offerId ?: $variationId);
                 break;
 
             case NotificationType::REFERRAL_REWARDED:
@@ -388,10 +458,10 @@ final class NotificationTemplates
                 $body = $product !== ''
                     ? sprintf(
                         /* translators: %s: product name or SKU */
-                        __('%s was added to the catalog. You can open a listing now.', 'sutore-marketplace'),
+                        __('%s was added to the catalog. You can open a product now.', 'sutore-marketplace'),
                         $product
                     )
-                    : __('The product you requested was added to the catalog. You can open a listing now.', 'sutore-marketplace');
+                    : __('The product you requested was added to the catalog. You can open a product now.', 'sutore-marketplace');
                 $entityType = 'catalog_product_request';
                 $entityId = $requestId ?: null;
                 $actionUrl = $listingsUrl;
@@ -407,8 +477,8 @@ final class NotificationTemplates
                 $outletUrl = function_exists('wc_get_account_endpoint_url')
                     ? wc_get_account_endpoint_url('outlet')
                     : home_url('/hesabim/outlet/');
-                $title = sprintf(__('Outlet listing is live: %s', 'sutore-marketplace'), $product);
-                $body = __('Your outlet listing is now on sale at the committed asking until the window ends.', 'sutore-marketplace');
+                $title = sprintf(__('Outlet product is live: %s', 'sutore-marketplace'), $product);
+                $body = __('Your outlet product is now on sale at the committed price until the window ends.', 'sutore-marketplace');
                 $entityType = 'outlet_optin';
                 $entityId = $variationId ?: null;
                 $actionUrl = $outletUrl;
@@ -452,6 +522,15 @@ final class NotificationTemplates
             'action_url' => esc_url_raw($actionUrl),
             'dedupe_key' => $dedupeKey,
         ];
+    }
+
+    private static function myOffersUrl(): string
+    {
+        if (function_exists('wc_get_account_endpoint_url')) {
+            return wc_get_account_endpoint_url('my-offers');
+        }
+
+        return home_url('/hesabim/my-offers/');
     }
 
     private static function formatPrice(mixed $value): string

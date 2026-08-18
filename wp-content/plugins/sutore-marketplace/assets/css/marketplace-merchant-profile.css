@@ -11,6 +11,26 @@
   margin-bottom: 0.75rem;
 }
 
+.sutore-mp-merchant-profile__highlights {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+  margin-bottom: 1rem;
+  align-items: stretch;
+}
+
+@media (min-width: 600px) {
+  .sutore-mp-merchant-profile__highlights:has(.sutore-mp-merchant-profile__referral) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.sutore-mp-merchant-profile__highlights > .sutore-mp-merchant-profile__stat,
+.sutore-mp-merchant-profile__highlights > .sutore-mp-merchant-profile__referral {
+  margin: 0;
+  min-width: 0;
+}
+
 .sutore-mp-merchant-profile__stats {
   display: grid;
   gap: 0.75rem;
@@ -84,10 +104,13 @@
 }
 
 .sutore-mp-merchant-profile__referral {
-  margin: 1rem 0 0;
+  margin: 0;
   padding: 0.85rem 1rem;
   border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
   border-radius: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .sutore-mp-merchant-profile__referral h3 {
@@ -103,6 +126,7 @@
 
 .sutore-mp-merchant-profile__referral-link {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
   margin: 0;

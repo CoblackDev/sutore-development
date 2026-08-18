@@ -8,7 +8,8 @@
     sales: t('notifCategorySales', 'Sale'),
     fulfillment: t('notifCategoryFulfillment', 'Shipping'),
     payout: t('notifCategoryPayout', 'Payout'),
-    listing: t('notifCategoryListing', 'Listing'),
+    listing: t('notifCategoryListing', 'Product'),
+    customer: t('notifCategoryCustomer', 'Offers'),
     system: t('notifCategorySystem', 'System')
   };
 

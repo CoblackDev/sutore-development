@@ -152,8 +152,8 @@ final class ListingActivityPresenter
         if ($eventType === 'order_listing_swapped') {
             if (!empty($payload['role'])) {
                 $parts[] = $payload['role'] === 'incoming'
-                    ? __('Incoming listing', 'sutore-marketplace')
-                    : __('Outgoing listing', 'sutore-marketplace');
+                    ? __('Incoming product', 'sutore-marketplace')
+                    : __('Outgoing product', 'sutore-marketplace');
             }
             if (!empty($payload['old_variation_id']) && !empty($payload['new_variation_id'])) {
                 /* translators: 1: previous variation ID 2: new variation ID */
@@ -192,7 +192,7 @@ final class ListingActivityPresenter
             if (isset($payload['asking_before'], $payload['asking_effective'])) {
                 /* translators: 1: previous asking, 2: new asking */
                 $parts[] = sprintf(
-                    __('Asking %1$s TL → %2$s TL', 'sutore-marketplace'),
+                    __('Price %1$s TL → %2$s TL', 'sutore-marketplace'),
                     number_format_i18n((int) $payload['asking_before']),
                     number_format_i18n((int) $payload['asking_effective'])
                 );
@@ -207,7 +207,7 @@ final class ListingActivityPresenter
             if (isset($payload['asking_restored'])) {
                 /* translators: %s: restored asking price */
                 $parts[] = sprintf(
-                    __('Asking restored: %s TL', 'sutore-marketplace'),
+                    __('Price restored: %s TL', 'sutore-marketplace'),
                     number_format_i18n((int) $payload['asking_restored'])
                 );
             }
@@ -349,7 +349,7 @@ final class ListingActivityPresenter
         return match ($source) {
             'merchant' => __('Deleted by merchant', 'sutore-marketplace'),
             'admin' => __('Deleted by admin', 'sutore-marketplace'),
-            'staff_fulfillment' => __('Deleted from fulfillment panel', 'sutore-marketplace'),
+            'staff_fulfillment' => __('Deleted from the products panel', 'sutore-marketplace'),
             'account_purge' => __('Deleted during account purge', 'sutore-marketplace'),
             'orphan_variation' => __('Orphan variation removed', 'sutore-marketplace'),
             default => sprintf(
@@ -380,7 +380,7 @@ final class ListingActivityPresenter
     {
         return match ($reason) {
             'split' => __('Detached by staff', 'sutore-marketplace'),
-            'swap_out' => __('Removed during listing swap', 'sutore-marketplace'),
+            'swap_out' => __('Removed during product swap', 'sutore-marketplace'),
             'chargeback' => __('Detached due to refund', 'sutore-marketplace'),
             'cancelled' => __('Detached due to cancellation', 'sutore-marketplace'),
             'unsourced' => __('Could not be sourced', 'sutore-marketplace'),
