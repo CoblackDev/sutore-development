@@ -84,6 +84,11 @@ final class AccountSecurityService
         }
 
         wp_set_password((string) ($input['new_password'] ?? ''), $userId);
+        if (get_current_user_id() === $userId && function_exists('wp_destroy_other_sessions')) {
+            wp_destroy_other_sessions();
+        } else {
+            \WP_Session_Tokens::get_instance($userId)->destroy_all();
+        }
 
         return [
             'success' => true,

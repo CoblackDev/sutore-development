@@ -74,7 +74,15 @@ final class ListingsBulkController
         $params = $req->get_json_params() ?: $req->get_params();
         $csv = (string) ($params['csv'] ?? '');
         if ($csv === '' && !empty($_FILES['file']['tmp_name'])) {
-            $csv = (string) file_get_contents((string) $_FILES['file']['tmp_name']);
+            $tmp = (string) $_FILES['file']['tmp_name'];
+            if (!is_uploaded_file($tmp)) {
+                return RestResponse::fail(__('Upload a CSV file.', 'sutore-marketplace'), 400);
+            }
+            $size = filesize($tmp);
+            if ($size === false || $size > ListingBulkImportService::MAX_BYTES) {
+                return RestResponse::fail(__('CSV file is too large.', 'sutore-marketplace'), 413);
+            }
+            $csv = (string) file_get_contents($tmp);
         }
 
         if (trim($csv) === '') {

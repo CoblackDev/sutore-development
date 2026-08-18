@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Modules\Orders\Services;
 
 use SutoreMarketplace\Modules\Orders\Settings\Settings;
+use SutoreMarketplace\Shared\Security\OutboundUrl;
 use SutoreMarketplace\Shared\Security\SecretBox;
 
 final class WebhookNotifier
@@ -13,7 +14,7 @@ final class WebhookNotifier
     public static function dispatch(string $event, array $payload): void
     {
         $url = trim((string) Settings::get('webhook_url', ''));
-        if ($url === '') {
+        if ($url === '' || !OutboundUrl::isSafe($url)) {
             return;
         }
 

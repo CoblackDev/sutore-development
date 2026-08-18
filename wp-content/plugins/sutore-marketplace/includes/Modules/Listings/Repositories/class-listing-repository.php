@@ -512,16 +512,17 @@ final class ListingRepository
                     $like
                 ));
                 $ids = array_unique(array_map('intval', array_merge($parentIds ?: [], $metaParents ?: [])));
+                $clauses = [];
                 if ($ids) {
-                    $in = implode(',', $ids);
-                    $where[] = "(l.parent_product_id IN ({$in}) OR CAST(l.variation_id AS CHAR) = %s OR CAST(l.order_id AS CHAR) = %s)";
-                    $params[] = $search;
-                    $params[] = $search;
-                } else {
-                    $where[] = '(CAST(l.variation_id AS CHAR) = %s OR CAST(l.order_id AS CHAR) = %s)';
-                    $params[] = $search;
-                    $params[] = $search;
+                    $clauses[] = 'l.parent_product_id IN (' . implode(',', $ids) . ')';
                 }
+                if (ctype_digit($search)) {
+                    $clauses[] = 'l.variation_id = %d';
+                    $clauses[] = 'l.order_id = %d';
+                    $params[] = (int) $search;
+                    $params[] = (int) $search;
+                }
+                $where[] = $clauses !== [] ? '(' . implode(' OR ', $clauses) . ')' : '1=0';
             }
         }
 

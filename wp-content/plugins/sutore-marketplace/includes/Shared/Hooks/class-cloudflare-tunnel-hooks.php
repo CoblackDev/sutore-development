@@ -16,7 +16,7 @@ final class CloudflareTunnelHooks
 {
     public function register(): void
     {
-        if (!$this->isTunnelRequest()) {
+        if (!$this->isAllowedEnvironment() || !$this->isTunnelRequest()) {
             return;
         }
 
@@ -61,6 +61,19 @@ final class CloudflareTunnelHooks
         return $url;
     }
 
+    private function isAllowedEnvironment(): bool
+    {
+        if (defined('SUTORE_CLOUDFLARE_TUNNEL') && SUTORE_CLOUDFLARE_TUNNEL) {
+            return true;
+        }
+
+        if (function_exists('wp_get_environment_type')) {
+            return in_array(wp_get_environment_type(), ['local', 'development'], true);
+        }
+
+        return false;
+    }
+
     private function isTunnelRequest(): bool
     {
         $host = $this->requestHost();
@@ -85,7 +98,6 @@ final class CloudflareTunnelHooks
     private function requestHost(): string
     {
         $candidates = [
-            (string) ($_SERVER['HTTP_X_FORWARDED_HOST'] ?? ''),
             (string) ($_SERVER['HTTP_HOST'] ?? ''),
         ];
 

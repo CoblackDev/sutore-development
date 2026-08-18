@@ -100,6 +100,15 @@ final class CustomerOfferQueryPresenter
             return $empty;
         }
 
+        $onSale = $listing->listingStatus === ListingStatus::PUBLISH
+            && $listing->campaignStatus === 'none';
+
+        if ($customerId <= 0 && !$onSale) {
+            $empty['reason'] = $listing->listingStatus !== ListingStatus::PUBLISH ? 'not_on_sale' : 'campaign';
+
+            return $empty;
+        }
+
         $asking = (float) $listing->asking;
         $empty['asking'] = $asking;
         $empty['customer_price'] = MarketplacePricing::customerPrice($listing);
@@ -110,11 +119,7 @@ final class CustomerOfferQueryPresenter
         $empty['size_label'] = ProductSizeLookup::labelForTermId((int) $listing->sizeTermId);
 
         if ($customerId <= 0) {
-            $eligible = $listing->listingStatus === ListingStatus::PUBLISH
-                && $listing->campaignStatus === 'none';
-            $empty['reason'] = $eligible ? 'login' : (
-                $listing->listingStatus !== ListingStatus::PUBLISH ? 'not_on_sale' : 'campaign'
-            );
+            $empty['reason'] = 'login';
             $empty['can_offer'] = false;
 
             return $empty;

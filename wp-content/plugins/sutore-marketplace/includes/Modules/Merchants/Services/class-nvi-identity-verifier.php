@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Modules\Merchants\Services;
 
 use SutoreMarketplace\Shared\Settings\Settings;
+use SutoreMarketplace\Shared\Security\OutboundUrl;
 
 /**
  * NVI KPS Public TC kimlik doğrulama (HTTP SOAP).
@@ -50,6 +51,12 @@ final class NviIdentityVerifier
     private static function callService(string $tc, string $firstName, string $lastName, int $birthYear): bool|\WP_Error
     {
         $endpoint = Settings::tcVerificationNviEndpoint();
+        if (!OutboundUrl::isSafe($endpoint)) {
+            return new \WP_Error(
+                'sutore_nvi_service_error',
+                __('Could not reach the TC identity verification service. Please try again later.', 'sutore-marketplace')
+            );
+        }
         $envelope = '<?xml version="1.0" encoding="utf-8"?>'
             . '<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
             . '<soap:Body>'

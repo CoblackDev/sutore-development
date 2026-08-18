@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Shared\Settings;
 
+use SutoreMarketplace\Shared\Security\OutboundUrl;
+
 final class Settings
 {
     public const OPTION_KEY = 'sutore_marketplace_settings';
@@ -309,12 +311,13 @@ final class Settings
 
     public static function tcVerificationNviEndpoint(): string
     {
+        $fallback = 'https://tckimlik.nvi.gov.tr/Service/KPSPublic.asmx';
         $url = esc_url_raw((string) self::get('tc_verification_nvi_endpoint', ''));
         if ($url === '') {
-            return 'https://tckimlik.nvi.gov.tr/Service/KPSPublic.asmx';
+            return $fallback;
         }
 
-        return $url;
+        return OutboundUrl::isSafe($url) ? $url : $fallback;
     }
 
     private static function isLocalDevelopment(): bool

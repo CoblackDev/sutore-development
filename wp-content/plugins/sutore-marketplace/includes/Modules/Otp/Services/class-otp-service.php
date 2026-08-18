@@ -14,6 +14,7 @@ final class OtpService
     private const TRANSIENT_SESSION = 'sutore_otp_session_';
     private const TRANSIENT_REQUEST = 'sutore_otp_request_';
     private const TRANSIENT_ATTEMPTS = 'sutore_otp_attempts_';
+    private const TRANSIENT_PHONE = 'sutore_otp_phone_';
 
     /**
      * @param array<string, mixed> $payload
@@ -44,18 +45,24 @@ final class OtpService
             return new \WP_Error('sutore_otp_phone_missing', __('A valid phone number is required for SMS verification.', 'sutore-marketplace'));
         }
 
+        $phoneLimit = $this->assertPhoneNotRateLimited($phone);
+        if ($phoneLimit instanceof \WP_Error) {
+            return $phoneLimit;
+        }
+
         $code = $this->generateCode();
         $ttl = OtpSettings::ttlSeconds();
         $expiresAt = time() + $ttl;
 
         $this->storeSession($userId, [
-            'code_hash' => wp_hash_password($code),
+            'code_hash' => $this->hashCode($code),
             'expires_at' => $expiresAt,
             'purpose' => $purpose,
             'phone' => $phone,
         ], $ttl);
         $this->clearAttempts($userId);
         $this->bumpRequestCount($userId);
+        $this->bumpPhoneCount($phone);
 
         OtpSmsGateway::send($phone, OtpSettings::smsMessage($code));
 
@@ -123,7 +130,7 @@ final class OtpService
         }
 
         $hash = (string) ($session['code_hash'] ?? '');
-        if ($hash === '' || !wp_check_password($code, $hash, $userId)) {
+        if ($hash === '' || !hash_equals($hash, $this->hashCode($code))) {
             return $this->failAttempt($userId, new \WP_Error(
                 'sutore_otp_invalid',
                 __('Incorrect verification code. Please try again.', 'sutore-marketplace')
@@ -169,6 +176,11 @@ final class OtpService
         return (string) random_int($min, $max);
     }
 
+    private function hashCode(string $code): string
+    {
+        return hash_hmac('sha256', $code, wp_salt('auth'));
+    }
+
     private function assertRequestNotRateLimited(int $userId): true|\WP_Error
     {
         $state = get_transient(self::TRANSIENT_REQUEST . $userId);
@@ -193,6 +205,36 @@ final class OtpService
         $count = is_array($state) ? (int) ($state['count'] ?? 0) : 0;
         $window = OtpSettings::rateLimitWindowSeconds();
         set_transient($key, ['count' => $count + 1, 'started_at' => time()], $window);
+    }
+
+    private function assertPhoneNotRateLimited(string $phone): true|\WP_Error
+    {
+        $state = get_transient($this->phoneRateKey($phone));
+        $count = is_array($state) ? (int) ($state['count'] ?? 0) : 0;
+        $maxRequests = max(1, (int) ceil(OtpSettings::maxAttempts() * 2));
+
+        if ($count >= $maxRequests) {
+            return new \WP_Error(
+                'sutore_otp_request_rate_limited',
+                __('Too many verification requests. Please try again later.', 'sutore-marketplace'),
+                ['status' => 429]
+            );
+        }
+
+        return true;
+    }
+
+    private function bumpPhoneCount(string $phone): void
+    {
+        $key = $this->phoneRateKey($phone);
+        $state = get_transient($key);
+        $count = is_array($state) ? (int) ($state['count'] ?? 0) : 0;
+        set_transient($key, ['count' => $count + 1, 'started_at' => time()], OtpSettings::rateLimitWindowSeconds());
+    }
+
+    private function phoneRateKey(string $phone): string
+    {
+        return self::TRANSIENT_PHONE . hash('sha256', $phone);
     }
 
     private function assertNotRateLimited(int $userId): true|\WP_Error

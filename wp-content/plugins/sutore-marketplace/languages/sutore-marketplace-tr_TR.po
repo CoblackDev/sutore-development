@@ -610,6 +610,9 @@ msgstr "CSV dosyası"
 msgid "CSV file is empty."
 msgstr "CSV dosyası boş."
 
+msgid "CSV file is too large."
+msgstr "CSV dosyası çok büyük."
+
 msgid "CSV must include a header row and at least one data row."
 msgstr "CSV bir başlık satırı ve en az bir veri satırı içermelidir."
 

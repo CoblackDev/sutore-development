@@ -24,6 +24,8 @@ final class ListingBulkImportService
 {
     public const MAX_ROWS = 200;
 
+    public const MAX_BYTES = 262144;
+
     public const BATCH_SIZE = 10;
 
     private const TRANSIENT_PREFIX = 'sutore_mp_bulk_';
@@ -74,6 +76,14 @@ final class ListingBulkImportService
         $owner = $this->resolveBulkOwner($actorId, $forMerchantId);
         if (is_wp_error($owner)) {
             return $owner;
+        }
+
+        if (strlen($csv) > self::MAX_BYTES) {
+            return new \WP_Error(
+                'sutore_bulk_csv_limit',
+                __('CSV file is too large.', 'sutore-marketplace'),
+                ['status' => 413]
+            );
         }
 
         $parsed = $this->parseCsv($csv);

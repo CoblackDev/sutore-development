@@ -39,8 +39,27 @@ final class InvoiceStorage
     public function isReadable(?string $path): bool
     {
         $path = (string) $path;
+        if ($path === '' || !is_file($path) || !is_readable($path)) {
+            return false;
+        }
 
-        return $path !== '' && is_readable($path) && is_file($path);
+        $uploads = wp_upload_dir();
+        if (!empty($uploads['error'])) {
+            return false;
+        }
+
+        $dir = realpath(trailingslashit((string) $uploads['basedir']) . 'sutore-marketplace-invoices');
+        $real = realpath($path);
+        if ($dir === false || $real === false) {
+            return false;
+        }
+
+        $prefix = $dir . DIRECTORY_SEPARATOR;
+        if (!str_starts_with($real, $prefix)) {
+            return false;
+        }
+
+        return strtolower(pathinfo($real, PATHINFO_EXTENSION)) === 'pdf';
     }
 
     private function protect(string $dir): void

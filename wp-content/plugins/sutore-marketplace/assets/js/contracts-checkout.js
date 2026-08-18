@@ -337,9 +337,14 @@
       return;
     }
 
+    var safeTitle = String(title)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
     labelSpan.innerHTML = text.replace(
       title,
-      '<a class="sutore-contracts-open" href="#" role="button">' + title + '</a>'
+      '<a class="sutore-contracts-open" href="#" role="button">' + safeTitle + '</a>'
     );
   }
 

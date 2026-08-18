@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Modules\Orders\Rest;
 
 use SutoreMarketplace\Admin\AdminMenu;
+use SutoreMarketplace\Modules\Listings\Domain\ListingPolicy;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutStatus;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule;
 use SutoreMarketplace\Modules\Merchants\Services\PayoutExportService;
@@ -100,7 +101,7 @@ final class FulfillmentsController
 
     public function canAccessMerchant(): bool
     {
-        return is_user_logged_in();
+        return $this->isMerchantOrStaff();
     }
 
     public function canAccessStaff(): bool
@@ -110,7 +111,19 @@ final class FulfillmentsController
 
     public function canAccessMerchantOrStaff(): bool
     {
-        return is_user_logged_in();
+        return $this->isMerchantOrStaff();
+    }
+
+    private function isMerchantOrStaff(): bool
+    {
+        if (!is_user_logged_in()) {
+            return false;
+        }
+        if (current_user_can(AdminMenu::CAP)) {
+            return true;
+        }
+
+        return !is_wp_error(ListingPolicy::assertCanManage());
     }
 
     public function query(\WP_REST_Request $req): \WP_REST_Response

@@ -342,15 +342,23 @@ final class FulfillmentRepository
                     $like
                 ));
                 $ids = array_unique(array_map('intval', array_merge($parentIds ?: [], $metaParents ?: [])));
-                $idClause = $ids !== []
-                    ? 'l.parent_product_id IN (' . implode(',', $ids) . ') OR '
-                    : '';
-                $where[] = "({$idClause}CAST(l.variation_id AS CHAR) = %s OR CAST(l.order_id AS CHAR) = %s OR u.display_name LIKE %s OR u.user_email LIKE %s OR u.user_login LIKE %s)";
-                $params[] = $search;
-                $params[] = $search;
+                $clauses = [];
+                if ($ids !== []) {
+                    $clauses[] = 'l.parent_product_id IN (' . implode(',', $ids) . ')';
+                }
+                if (ctype_digit($search)) {
+                    $clauses[] = 'l.variation_id = %d';
+                    $clauses[] = 'l.order_id = %d';
+                    $params[] = (int) $search;
+                    $params[] = (int) $search;
+                }
+                $clauses[] = 'u.display_name LIKE %s';
+                $clauses[] = 'u.user_email LIKE %s';
+                $clauses[] = 'u.user_login LIKE %s';
                 $params[] = $like;
                 $params[] = $like;
                 $params[] = $like;
+                $where[] = '(' . implode(' OR ', $clauses) . ')';
             }
         }
 
