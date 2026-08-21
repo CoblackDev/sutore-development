@@ -145,10 +145,26 @@ final class FulfillmentCommandSupport
             return new \WP_Error('sutore_marketplace_fulfillment_status', __('Invalid status.', 'sutore-marketplace'));
         }
 
+        $actor = $this->resolveActor();
+        $listing = $this->bridge()->find($listingId);
+        $orderId = (int) $row->order_id;
+        $itemId = (int) $row->order_item_id;
+        $order = $orderId > 0 ? wc_get_order($orderId) : false;
+        if ($order instanceof \WC_Order && $itemId > 0) {
+            $this->refundPaidLineThenRemove(
+                $order,
+                $itemId,
+                $listing,
+                $actor,
+                $listingId,
+                __('Staff removed this item from the order.', 'sutore-marketplace')
+            );
+        }
+
         $this->detachListingFromOrder($listingId, $listingStatus, [
             'reason' => $capabilityKey,
-            'order_id' => (int) $row->order_id,
-            'order_item_id' => (int) $row->order_item_id,
+            'order_id' => $orderId,
+            'order_item_id' => $itemId,
             'variation_id' => $listingId,
             'staff_note' => $note,
             'operation_id' => $result->operationId(),
@@ -157,7 +173,7 @@ final class FulfillmentCommandSupport
         $listing = $this->bridge()->find($listingId);
         $this->logListingEvent($eventType, $listing, [
             'variation_id' => $listingId,
-            'order_id' => (int) $row->order_id,
+            'order_id' => $orderId,
             'staff_note' => $note,
             'to_status' => $toStatus,
             'operation_id' => $result->operationId(),
@@ -165,7 +181,7 @@ final class FulfillmentCommandSupport
 
         WebhookNotifier::dispatch('fulfillment.' . $toStatus, [
             'variation_id' => $listingId,
-            'order_id' => (int) $row->order_id,
+            'order_id' => $orderId,
             'operation_id' => $result->operationId(),
         ], $result->operationId());
 
@@ -432,22 +448,22 @@ final class FulfillmentCommandSupport
         $order->add_order_note($note, false, $actor['user_id'] > 0, $meta);
     }
 
-    public function refundOrderLineIfPaid(\WC_Order $order, int $itemId): void
+    public function refundOrderLineIfPaid(\WC_Order $order, int $itemId, string $reason = ''): bool
     {
         if ($itemId <= 0 || !$order->is_paid()) {
-            return;
+            return false;
         }
 
         $item = $order->get_item($itemId);
         if (!$item instanceof \WC_Order_Item_Product) {
-            return;
+            return false;
         }
 
         $qty = (int) $item->get_quantity();
         $total = (float) $item->get_total();
         $tax = (float) $item->get_total_tax();
         if ($qty <= 0 || ($total + $tax) <= 0) {
-            return;
+            return false;
         }
 
         $refundTax = [];
@@ -458,10 +474,12 @@ final class FulfillmentCommandSupport
             }
         }
 
-        wc_create_refund([
+        $refund = wc_create_refund([
             'order_id' => $order->get_id(),
             'amount' => round($total + $tax, 2),
-            'reason' => __('Pre-order could not be sourced.', 'sutore-marketplace'),
+            'reason' => $reason !== ''
+                ? $reason
+                : __('Marketplace item detached — gateway refund required.', 'sutore-marketplace'),
             'line_items' => [
                 $itemId => [
                     'qty' => $qty,
@@ -472,6 +490,64 @@ final class FulfillmentCommandSupport
             'restock_items' => false,
             'refund_payment' => false,
         ]);
+
+        return !is_wp_error($refund) && $refund instanceof \WC_Order_Refund;
+    }
+
+    /**
+     * Refund paid line while the WC item still exists, then remove it and flag manual gateway follow-up.
+     *
+     * @param array{user_id: int, login: string} $actor
+     */
+    public function refundPaidLineThenRemove(
+        \WC_Order $order,
+        int $itemId,
+        ?Listing $listing,
+        array $actor,
+        int $listingId,
+        string $refundReason = ''
+    ): bool {
+        $refunded = false;
+        if ($itemId > 0 && $order->is_paid() && $order->get_item($itemId)) {
+            $refunded = $this->refundOrderLineIfPaid($order, $itemId, $refundReason);
+            $order = wc_get_order($order->get_id()) ?: $order;
+        }
+
+        if ($itemId > 0 && $order->get_item($itemId)) {
+            $this->addSplitOrderNote($order, $listing, $actor);
+            $order->remove_item($itemId);
+            $order->calculate_totals();
+            $order->save();
+        }
+
+        if ($refunded) {
+            $this->flagManualRefundPending($order, $listingId, $itemId);
+        }
+
+        return $refunded;
+    }
+
+    public function flagManualRefundPending(\WC_Order $order, int $listingId, int $itemId): void
+    {
+        $payload = [
+            'order_id' => (int) $order->get_id(),
+            'order_item_id' => $itemId,
+            'variation_id' => $listingId,
+            'refund_payment' => false,
+        ];
+
+        $this->logListingEvent('manual_refund_pending', $this->bridge()->find($listingId), $payload);
+
+        $meta = [];
+        if (class_exists(\Automattic\WooCommerce\Internal\Orders\OrderNoteGroup::class)) {
+            $meta['note_group'] = \Automattic\WooCommerce\Internal\Orders\OrderNoteGroup::FULFILLMENT;
+        }
+        $order->add_order_note(
+            __('Marketplace refund recorded in WooCommerce. Complete the payment-gateway refund manually.', 'sutore-marketplace'),
+            false,
+            false,
+            $meta
+        );
     }
 
     public function cancelOrderIfNoOpenItems(\WC_Order $order): void

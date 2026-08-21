@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Shared\Effects;
 
 use SutoreMarketplace\Modules\Orders\Settings\Settings as OrderSettings;
+use SutoreMarketplace\Shared\Hooks\CronRegistry;
 use SutoreMarketplace\Shared\Security\OutboundUrl;
 use SutoreMarketplace\Shared\Security\SecretBox;
 use SutoreMarketplace\Shared\Sms\IysClient;
@@ -31,10 +32,19 @@ final class OutboundEffectService
     public static function register(): void
     {
         add_action(self::HOOK, [self::class, 'processHook'], 10, 1);
-        add_action('sutore_marketplace_effects_retry', [self::class, 'drainDue']);
-        if (!wp_next_scheduled('sutore_marketplace_effects_retry')) {
-            wp_schedule_event(time() + MINUTE_IN_SECONDS, 'hourly', 'sutore_marketplace_effects_retry');
+        add_action(CronRegistry::EFFECTS_RETRY_HOOK, [self::class, 'drainDue']);
+    }
+
+    public static function scheduleRetry(): void
+    {
+        if (!wp_next_scheduled(CronRegistry::EFFECTS_RETRY_HOOK)) {
+            wp_schedule_event(time() + MINUTE_IN_SECONDS, 'hourly', CronRegistry::EFFECTS_RETRY_HOOK);
         }
+    }
+
+    public static function unscheduleRetry(): void
+    {
+        CronRegistry::clearHook(CronRegistry::EFFECTS_RETRY_HOOK);
     }
 
     public static function processHook(int $effectId): void

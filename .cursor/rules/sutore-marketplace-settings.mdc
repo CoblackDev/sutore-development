@@ -8,23 +8,37 @@ alwaysApply: false
 
 Yeni bir ayar eklenecekse mutlaka admin ayarlar sayfasından yönetilebilir olmalı.
 
+## Settings API (zorunlu)
+
+- Kayıt: `Admin\SettingsApi` → `register_setting()` + `sanitize_callback`
+- Form: `method="post" action="options.php"` + `settings_fields(…)`
+- Sanitize: `Admin\SettingsSanitizer` (capability + `wp_unslash` + tip sanitize)
+- Custom `$_POST` save / soft `wp_verify_nonce` **yasak**
+- Capability: `StaffCapabilities::MANAGE_SETTINGS` (`canManageSettings()`)
+- Gizli alanlar: password input, boş = koru
+
+Option group’lar:
+
+| Group | Option key |
+|-------|------------|
+| `sutore_marketplace` | `sutore_marketplace_settings` |
+| `sutore_marketplace_orders` | `sutore_marketplace_fulfillment_settings` |
+
 ## Merkezi ayarlar
 
-- Genel: `Shared\Settings\Settings` + `Admin\SettingsPage` tab'ları
-- Yeni genel ayar: `defaults()` + ilgili tab render/save
+- Genel: `Shared\Settings\Settings` + `Admin\SettingsPage` tab’ları
+- Yeni genel ayar: `defaults()` + ilgili tab render + sanitizer patch
 
 ## Modül ayarları
 
-- `Modules\{Modul}\Settings\Settings` (kendi `OPTION` key'i)
-- UI: ana `SettingsPage` tab'ı veya `Modules\{Modul}\Admin\` sayfası
+- `Modules\{Modul}\Settings\Settings` (kendi `OPTION` key’i)
+- UI: ana `SettingsPage` tab’ı veya `Modules\{Modul}\Admin\` sayfası
 - Okuma: `Settings::get()` wrapper; dağınık `get_option` kullanma
 
 ## Modül admin sayfaları
 
 Modüle özel CRUD/liste sayfaları `Modules\{Modul}\Admin\` altında; menü kaydı `Admin\AdminMenu` içinde kalır.
 
-## Form güvenliği
+## WC product / coupon meta
 
-- Nonce: `sutore_marketplace_settings_nonce` (genel ayarlar)
-- Capability: `AdminMenu::CAP`
-- Gizli alanlar: password input, boş = koru
+Settings API değil; WC hook içinde `wp_unslash` + sanitize zorunlu.

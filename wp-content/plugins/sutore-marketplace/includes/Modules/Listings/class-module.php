@@ -46,18 +46,4 @@ final class Module
         (new CustomerOfferCronHooks())->register();
         (new CustomerOfferCheckoutHooks())->register();
     }
-
-    public static function activate(): void
-    {
-        CampaignCronHooks::schedule();
-        OutletCronHooks::schedule();
-        CustomerOfferCronHooks::schedule();
-    }
-
-    public static function deactivate(): void
-    {
-        CampaignCronHooks::unschedule();
-        OutletCronHooks::unschedule();
-        CustomerOfferCronHooks::unschedule();
-    }
 }

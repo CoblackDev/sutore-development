@@ -20,6 +20,8 @@ final class ListingOrderBridge
     private const CLAIMABLE = [
         ListingStatus::PUBLISH,
         ListingStatus::QUEUED,
+        ListingStatus::PENDING,
+        ListingStatus::ORDER_DETACHED,
     ];
 
     public function __construct(
@@ -297,8 +299,15 @@ final class ListingOrderBridge
     public function claimPreOrderForSwap(int $preOrderListingId): array|\WP_Error
     {
         $listing = $this->listings->find($preOrderListingId);
-        if (!$listing || $listing->listingStatus !== ListingStatus::PRE_ORDER) {
+        if (!$listing) {
             return new \WP_Error('sutore_pre_order_missing', __('Pre-order not found.', 'sutore-marketplace'));
+        }
+
+        if ($listing->listingStatus !== ListingStatus::PRE_ORDER) {
+            return new \WP_Error(
+                'sutore_pre_order_claimed',
+                __('This pre-order was already accepted by another seller.', 'sutore-marketplace')
+            );
         }
 
         $orderId = (int) ($listing->orderId ?? 0);
@@ -310,7 +319,7 @@ final class ListingOrderBridge
             );
         }
 
-        $operationId = 'preorder:claim:' . $preOrderListingId . ':' . $orderId . ':' . $orderItemId;
+        // Fresh operation id per attempt so a concurrent loser cannot match last_operation_id.
         $result = $this->listings->transition($preOrderListingId, ListingStatus::PRE_ORDER, [
             'listing_status' => ListingStatus::ORDER_DETACHED,
             'order_id' => null,
@@ -325,19 +334,7 @@ final class ListingOrderBridge
             'confirm_punished' => 0,
             'merchant_snapshot' => null,
             'is_winner' => 0,
-        ], $operationId);
-
-        if ($result->isAlreadyDone()) {
-            return [
-                'order_id' => $orderId,
-                'order_item_id' => $orderItemId,
-                'parent_product_id' => (int) $listing->parentProductId,
-                'size_term_id' => (int) $listing->sizeTermId,
-                'merchant_id' => (int) $listing->merchantId,
-                'asking' => (int) $listing->asking,
-                'operation_id' => $result->operationId(),
-            ];
-        }
+        ], '');
 
         if (!$result->isChanged()) {
             return new \WP_Error(

@@ -6,11 +6,11 @@ namespace SutoreMarketplace\Bootstrap;
 
 use SutoreMarketplace\Admin\AdminMenu;
 use SutoreMarketplace\Admin\ProductMetaFields;
+use SutoreMarketplace\Admin\SettingsApi;
+use SutoreMarketplace\Cli\Commands as CliCommands;
 use SutoreMarketplace\Frontend\CustomerAccount;
 use SutoreMarketplace\Frontend\MerchantAccount;
 use SutoreMarketplace\Frontend\StaffAccount;
-use SutoreMarketplace\Admin\StaffCapabilities;
-use SutoreMarketplace\Modules\Listings\Domain\ListingCapabilities;
 use SutoreMarketplace\Modules\Contracts\Module as ContractsModule;
 use SutoreMarketplace\Modules\Coupons\Module as CouponsModule;
 use SutoreMarketplace\Modules\Invoices\Module as InvoicesModule;
@@ -59,9 +59,6 @@ final class Plugin
             Schema::install();
         }
 
-        ListingCapabilities::reconcileMerchantRole();
-        StaffCapabilities::reconcile();
-
         Settings::ensureDefaults();
         OutboundEffectService::register();
         SmsQueue::register();
@@ -93,7 +90,10 @@ final class Plugin
 
         if (is_admin()) {
             (new AdminMenu())->register();
+            (new SettingsApi())->register();
             (new ProductMetaFields())->register();
         }
+
+        CliCommands::register();
     }
 }

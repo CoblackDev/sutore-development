@@ -39,8 +39,7 @@ final class StaffCapabilities
 
     public static function canManageOps(?int $userId = null): bool
     {
-        return self::userCan(self::MANAGE_OPS, $userId)
-            || self::userCan('manage_woocommerce', $userId);
+        return self::userCan(self::MANAGE_OPS, $userId);
     }
 
     public static function canManageSettings(?int $userId = null): bool

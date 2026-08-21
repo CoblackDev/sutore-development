@@ -284,6 +284,19 @@ final class MerchantFulfillmentCommands
         $customerPhone = (string) $order->get_billing_phone();
 
         if (!(int) $row->confirm_notice_sent) {
+            $claimed = $this->repo->claimWhile(
+                $listingId,
+                ListingStatus::SOLD,
+                ['confirm_notice_sent' => 0],
+                [
+                    'confirm_notice_sent' => 1,
+                    'confirm_deadline_at' => DeadlineCalculator::fromNow(Settings::confirmGraceSeconds()),
+                ]
+            );
+            if (!$claimed) {
+                return;
+            }
+
             $this->support->dispatchMerchantNotification(
                 NotificationType::SALE_CONFIRM_REMINDER,
                 $listing,
@@ -293,10 +306,6 @@ final class MerchantFulfillmentCommands
                     'confirm_hours' => (int) (Settings::confirmGraceSeconds() / HOUR_IN_SECONDS),
                 ]
             );
-            $this->repo->update($listingId, [
-                'confirm_notice_sent' => 1,
-                'confirm_deadline_at' => DeadlineCalculator::fromNow(Settings::confirmGraceSeconds()),
-            ]);
             $this->support->logListingEvent('fulfillment_confirm_reminder', $listing, [
                 'variation_id' => $listingId,
                 'order_id' => (int) $row->order_id,
@@ -372,6 +381,16 @@ final class MerchantFulfillmentCommands
         }
 
         if (!(int) $row->cargo_notice_sent && $now >= $deadlineTs - Settings::cargoReminderSeconds()) {
+            $claimed = $this->repo->claimWhile(
+                $listingId,
+                ListingStatus::CONFIRMED,
+                ['cargo_notice_sent' => 0],
+                ['cargo_notice_sent' => 1]
+            );
+            if (!$claimed) {
+                return;
+            }
+
             $shipmentType = (string) $order->get_meta(ShipmentMeta::TYPE);
             $this->support->dispatchMerchantNotification(
                 NotificationType::SALE_CARGO_REMINDER,
@@ -382,7 +401,6 @@ final class MerchantFulfillmentCommands
                     'cargo_hours' => (int) (Settings::cargoDeadlineSecondsForShipmentType($shipmentType) / HOUR_IN_SECONDS),
                 ]
             );
-            $this->repo->update($listingId, ['cargo_notice_sent' => 1]);
             $this->support->logListingEvent('fulfillment_cargo_reminder', $listing, [
                 'variation_id' => $listingId,
                 'order_id' => (int) $row->order_id,
@@ -391,7 +409,16 @@ final class MerchantFulfillmentCommands
         }
 
         if (!(int) $row->cargo_expired_flag && $now >= $deadlineTs) {
-            $this->repo->update($listingId, ['cargo_expired_flag' => 1]);
+            $claimed = $this->repo->claimWhile(
+                $listingId,
+                ListingStatus::CONFIRMED,
+                ['cargo_expired_flag' => 0],
+                ['cargo_expired_flag' => 1]
+            );
+            if (!$claimed) {
+                return;
+            }
+
             Notifications::sendEvent('seller_cargo_expired', (string) $order->get_billing_phone(), $vars, true);
             $this->support->dispatchMerchantNotification(
                 NotificationType::SALE_CARGO_EXPIRED,

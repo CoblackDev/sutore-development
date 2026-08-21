@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Modules\Listings\Domain;
 
+use SutoreMarketplace\Admin\StaffCapabilities;
 use SutoreMarketplace\Modules\Merchants\Repositories\RestrictionsRepository;
 use SutoreMarketplace\Modules\Merchants\Support\MerchantMeta;
 use SutoreMarketplace\Modules\Merchants\Services\BehaviorScoreService;
@@ -41,7 +42,7 @@ final class ListingPolicy
             return true;
         }
 
-        if (user_can($userId, 'manage_woocommerce')) {
+        if (StaffCapabilities::canManageOps($userId)) {
             return true;
         }
 
@@ -64,7 +65,7 @@ final class ListingPolicy
             return $actorId;
         }
 
-        if (!user_can($actorId, 'manage_woocommerce')) {
+        if (!StaffCapabilities::canManageOps($actorId)) {
             return new \WP_Error(
                 'sutore_marketplace_forbidden',
                 __('You do not have permission for this action.', 'sutore-marketplace'),
@@ -114,7 +115,7 @@ final class ListingPolicy
     {
         $userId = $userId ?: get_current_user_id();
 
-        return user_can($userId, 'manage_woocommerce');
+        return StaffCapabilities::canManageOps($userId);
     }
 
     public static function canUseFastShipment(?int $userId = null): bool
@@ -175,7 +176,7 @@ final class ListingPolicy
     public static function canViewCompetingPrices(?int $userId = null): bool
     {
         $userId = $userId ?: get_current_user_id();
-        if (user_can($userId, 'manage_woocommerce')) {
+        if (StaffCapabilities::canManageOps($userId)) {
             return true;
         }
 
@@ -188,7 +189,7 @@ final class ListingPolicy
     public static function canAccessSourcingBoard(?int $userId = null): bool
     {
         $userId = $userId ?: get_current_user_id();
-        if (user_can($userId, 'manage_woocommerce')) {
+        if (StaffCapabilities::canManageOps($userId)) {
             return true;
         }
 
@@ -240,7 +241,7 @@ final class ListingPolicy
     public static function canViewPreOrderListing(string $listingCreatedAt, ?int $userId = null): bool
     {
         $userId = $userId ?: get_current_user_id();
-        if (user_can($userId, 'manage_woocommerce')) {
+        if (StaffCapabilities::canManageOps($userId)) {
             return true;
         }
 

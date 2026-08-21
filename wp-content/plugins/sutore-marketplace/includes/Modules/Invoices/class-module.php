@@ -16,14 +16,4 @@ final class Module
         (new InvoicesController())->register();
         (new InvoiceStorage())->directory();
     }
-
-    public static function activate(): void
-    {
-        InvoiceCronHooks::schedule();
-    }
-
-    public static function deactivate(): void
-    {
-        InvoiceCronHooks::unschedule();
-    }
 }

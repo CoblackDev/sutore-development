@@ -21,7 +21,6 @@ final class InvoiceCronHooks
         add_filter('cron_schedules', [self::class, 'registerInterval']);
         add_action(self::HOOK, [$this, 'run']);
         add_action(self::HOOK_ONE, [$this, 'runOne']);
-        add_action('init', [self::class, 'schedule']);
     }
 
     /**

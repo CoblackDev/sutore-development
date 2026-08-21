@@ -17,7 +17,7 @@ $displayPhone = $phone;
         <p class="sutore-mp-account-security__lead">
             <?php echo esc_html__('Update your name, email, phone, and marketing preferences.', 'sutore-marketplace'); ?>
         </p>
-        <form id="sutore-mp-account-details-form" class="sutore-mp-account-security__form" autocomplete="off">
+        <form id="sutore-mp-account-details-form" class="sutore-mp-account-security__form" autocomplete="off" data-registered-phone="<?php echo esc_attr($displayPhone); ?>">
             <p class="woocommerce-form-row woocommerce-form-row--first form-row form-row-first">
                 <label for="sutore_user_name"><?php echo esc_html__('First name', 'sutore-marketplace'); ?>&nbsp;<span class="required">*</span></label>
                 <input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="user_name" id="sutore_user_name" value="<?php echo esc_attr($user->first_name); ?>" required />

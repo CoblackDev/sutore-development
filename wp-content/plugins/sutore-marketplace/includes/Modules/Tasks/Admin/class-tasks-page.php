@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Modules\Tasks\Admin;
 
 use SutoreMarketplace\Admin\AdminAssets;
-use SutoreMarketplace\Admin\AdminMenu;
+use SutoreMarketplace\Admin\StaffCapabilities;
 use SutoreMarketplace\Modules\Tasks\Domain\OpportunityCardFamily;
 use SutoreMarketplace\Modules\Tasks\Domain\OpportunityTemplate;
 use SutoreMarketplace\Modules\Tasks\Repositories\TasksRepository;
@@ -15,7 +15,7 @@ final class TasksPage
 {
     public function render(): void
     {
-        if (!current_user_can(AdminMenu::CAP)) {
+        if (!StaffCapabilities::canManageOps()) {
             return;
         }
 

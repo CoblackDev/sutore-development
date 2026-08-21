@@ -17,9 +17,18 @@ final class EventRetentionHooks
     public function register(): void
     {
         add_action(self::HOOK, [$this, 'run']);
+    }
+
+    public static function schedule(): void
+    {
         if (!wp_next_scheduled(self::HOOK)) {
             wp_schedule_event(time() + HOUR_IN_SECONDS, 'daily', self::HOOK);
         }
+    }
+
+    public static function unschedule(): void
+    {
+        CronRegistry::clearHook(self::HOOK);
     }
 
     public function run(): void

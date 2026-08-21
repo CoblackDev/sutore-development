@@ -28,17 +28,6 @@ final class Module
         (new StaffOrdersController())->register();
     }
 
-    public static function activate(): void
-    {
-        Settings::ensureDefaults();
-        CronHooks::schedule();
-    }
-
-    public static function deactivate(): void
-    {
-        CronHooks::unschedule();
-    }
-
     public static function registerAssets(): void
     {
         wp_register_style(

@@ -15,6 +15,7 @@ use SutoreMarketplace\Modules\Listings\Domain\ListingCampaignPolicy;
 use SutoreMarketplace\Modules\Listings\Domain\ListingExpireDisplay;
 use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
 use SutoreMarketplace\Modules\Listings\Domain\ProductCodeLookup;
+use SutoreMarketplace\Modules\Listings\Domain\ProductListChrome;
 use SutoreMarketplace\Modules\Listings\Domain\ProductSizeLookup;
 use SutoreMarketplace\Modules\Listings\Domain\ProductThumbnail;
 use SutoreMarketplace\Modules\Listings\Repositories\CampaignOfferRepository;
@@ -37,6 +38,12 @@ final class ListingQueryPresenter
     /** @var array<string, object> */
     private array $pendingOffers = [];
 
+    /** @var array<int, array{title:string,code:string,thumbnail:string,permalink:string}> */
+    private array $productChrome = [];
+
+    /** @var array<int, string> */
+    private array $sizeLabels = [];
+
     public function __construct(
         private readonly ListingRepository $listings = new ListingRepository(),
         private readonly ListingService $listingService = new ListingService(),
@@ -56,6 +63,7 @@ final class ListingQueryPresenter
         $args['page'] = $page;
         $args['per_page'] = $perPage;
 
+        // Listing expiry is cron-only (Shared\Hooks\Cron) — never runExpiryPass on list GET.
         $result = $this->listings->query($args);
         $listingIds = array_values(array_filter(array_map(
             static fn (Listing $listing): int => (int) ($listing->variationId ?? 0),
@@ -63,7 +71,7 @@ final class ListingQueryPresenter
         )));
         ListingIntegration::primeFulfillmentCache($listingIds);
         $this->primeCampaignMaps($result['items']);
-        $this->primeProductCaches($result['items']);
+        $this->primeProductChrome($result['items']);
 
         $orderIdByVariation = [];
         foreach ($result['items'] as $listing) {
@@ -79,7 +87,7 @@ final class ListingQueryPresenter
             $item = $this->enrich($listing);
             $variationId = (int) ($listing->variationId ?? 0);
             $invoices = $invoiceMap[$variationId] ?? [];
-            if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
+            if (!\SutoreMarketplace\Admin\StaffCapabilities::canManageOps()) {
                 $invoices = array_values(array_filter(
                     $invoices,
                     static fn (object $row): bool => (string) $row->kind === InvoiceKind::SELLER_COMMISSION
@@ -89,16 +97,48 @@ final class ListingQueryPresenter
             $items[] = $item;
         }
 
+        $sizeFilters = $this->sizeFiltersForMerchant((int) ($args['merchant_id'] ?? 0));
+
         $this->campaignMap = [];
         $this->acceptedOffers = [];
         $this->pendingOffers = [];
+        $this->productChrome = [];
+        $this->sizeLabels = [];
+        ListingIntegration::clearPayoutCache();
 
         return [
             'items' => $items,
             'total' => $result['total'],
             'page' => $page,
             'per_page' => $perPage,
+            'size_filters' => $sizeFilters,
         ];
+    }
+
+    /**
+     * @return list<array{term_id:int,name:string}>
+     */
+    private function sizeFiltersForMerchant(int $merchantId): array
+    {
+        if ($merchantId <= 0) {
+            return [];
+        }
+
+        $termIds = $this->listings->distinctSizeTermIdsForMerchant($merchantId);
+        $labels = ProductSizeLookup::labelsForTermIds($termIds);
+        $filters = [];
+        foreach ($termIds as $termId) {
+            $label = $labels[$termId] ?? '';
+            if ($label === '') {
+                continue;
+            }
+            $filters[] = [
+                'term_id' => $termId,
+                'name' => $label,
+            ];
+        }
+
+        return $filters;
     }
 
     /** @return array<string, mixed> */
@@ -124,15 +164,36 @@ final class ListingQueryPresenter
 
         $campaignStatus = (string) $listing->campaignStatus;
         $productId = $listing->variationId ?: $listing->parentProductId;
-        $product = wc_get_product($productId);
-        $productName = $product ? (string) $product->get_name() : (string) get_the_title($listing->parentProductId);
+        $chrome = $this->productChrome[$productId]
+            ?? $this->productChrome[(int) $listing->parentProductId]
+            ?? null;
+        if ($chrome === null) {
+            $chromeMap = ProductListChrome::mapForIds([$productId, (int) $listing->parentProductId]);
+            $chrome = $chromeMap[$productId] ?? $chromeMap[(int) $listing->parentProductId] ?? [
+                'title' => '',
+                'code' => '',
+                'thumbnail' => '',
+                'permalink' => '',
+            ];
+        }
+        $productName = $chrome['title'] !== ''
+            ? $chrome['title']
+            : (string) get_the_title($listing->parentProductId);
+        $sizeTermId = (int) $listing->sizeTermId;
+        $sizeLabel = $this->sizeLabels[$sizeTermId] ?? ProductSizeLookup::labelForTermId($sizeTermId);
         $item = array_merge($listing->toArray(), [
             'id' => (int) $listing->variationId,
             'parent_title' => $productName,
-            'product_code' => ProductCodeLookup::codeForProduct($listing->parentProductId),
-            'thumbnail' => ProductThumbnail::url($listing->parentProductId),
-            'size_label' => ProductSizeLookup::labelForTermId((int) $listing->sizeTermId),
-            'permalink' => get_permalink($listing->parentProductId) ?: '',
+            'product_code' => $chrome['code'] !== ''
+                ? $chrome['code']
+                : ProductCodeLookup::codeForProduct($listing->parentProductId),
+            'thumbnail' => $chrome['thumbnail'] !== ''
+                ? $chrome['thumbnail']
+                : ProductThumbnail::url($listing->parentProductId),
+            'size_label' => $sizeLabel,
+            'permalink' => $chrome['permalink'] !== ''
+                ? $chrome['permalink']
+                : (get_permalink($listing->parentProductId) ?: ''),
             'listing_status_label' => ListingStatus::label($listing->listingStatus),
             'remaining_label' => ListingExpireDisplay::label(
                 $listing->expireAt,
@@ -195,26 +256,20 @@ final class ListingQueryPresenter
     /**
      * @param list<Listing> $listings
      */
-    private function primeProductCaches(array $listings): void
+    private function primeProductChrome(array $listings): void
     {
-        $ids = [];
+        $productIds = [];
+        $termIds = [];
         foreach ($listings as $listing) {
-            $ids[] = $listing->parentProductId;
+            $productIds[] = (int) $listing->parentProductId;
             if ($listing->variationId > 0) {
-                $ids[] = $listing->variationId;
+                $productIds[] = (int) $listing->variationId;
             }
-        }
-        $ids = array_values(array_unique(array_filter($ids)));
-        if ($ids === [] || !function_exists('wc_get_products')) {
-            return;
+            $termIds[] = (int) $listing->sizeTermId;
         }
 
-        wc_get_products([
-            'include' => $ids,
-            'limit' => count($ids),
-            'status' => ['publish', 'private', 'draft'],
-            'type' => ['simple', 'variable', 'variation'],
-        ]);
+        $this->productChrome = ProductListChrome::mapForIds($productIds);
+        $this->sizeLabels = ProductSizeLookup::labelsForTermIds($termIds);
     }
 
     /**

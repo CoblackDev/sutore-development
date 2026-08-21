@@ -67,7 +67,7 @@ final class OtpService
 
         $sent = OtpSmsGateway::send($phone, OtpSettings::smsMessage($code));
         if (!$sent) {
-            $this->clearSession($userId);
+            $this->clearSession($userId, $purpose);
 
             return new \WP_Error(
                 'sutore_otp_sms_failed',
@@ -83,11 +83,15 @@ final class OtpService
             'masked_phone' => OtpPhoneResolver::mask($phone),
         ];
 
-        if (SmsSimulationSettings::isEnabled() && defined('WP_DEBUG') && WP_DEBUG) {
+        if (SmsSimulationSettings::isEnabled()) {
             $response['simulation'] = true;
-            $response['debug_code'] = $code;
-        } elseif (SmsSimulationSettings::isEnabled()) {
-            $response['simulation'] = true;
+            if (
+                defined('WP_DEBUG')
+                && WP_DEBUG
+                && wp_get_environment_type() !== 'production'
+            ) {
+                $response['debug_code'] = $code;
+            }
         }
 
         return $response;
@@ -99,14 +103,10 @@ final class OtpService
     public function verifyAndConsume(int $userId, string $purpose, string $code, array $payload = []): true|\WP_Error
     {
         if (!OtpSettings::isEnabled()) {
-            if (wp_get_environment_type() === 'production') {
-                return new \WP_Error(
-                    'sutore_otp_disabled',
-                    __('SMS verification is required for this action.', 'sutore-marketplace')
-                );
-            }
-
-            return true;
+            return new \WP_Error(
+                'sutore_otp_disabled',
+                __('SMS verification is required for this action.', 'sutore-marketplace')
+            );
         }
 
         $code = trim($code);
@@ -119,7 +119,7 @@ final class OtpService
             return $rateLimit;
         }
 
-        $session = $this->getSession($userId);
+        $session = $this->getSession($userId, $purpose);
         if ($session === null) {
             return $this->failAttempt($userId, new \WP_Error(
                 'sutore_otp_purpose_mismatch',
@@ -158,7 +158,7 @@ final class OtpService
             ));
         }
 
-        $this->clearSession($userId);
+        $this->clearSession($userId, $purpose);
 
         return true;
     }
@@ -178,13 +178,19 @@ final class OtpService
                 OtpPhoneResolver::normalize((string) ($payload['user_phone'] ?? $payload['phone'] ?? '')),
                 !empty($payload['marketing_consent']) ? '1' : '0',
             ],
+            OtpPurpose::ACCOUNT_DETAILS_NEW_PHONE => [
+                OtpPhoneResolver::normalize((string) ($payload['user_phone'] ?? $payload['phone'] ?? '')),
+            ],
             OtpPurpose::MERCHANT_PROFILE => [
                 sanitize_text_field((string) ($payload['account_name'] ?? $payload['first_name'] ?? '')),
                 sanitize_text_field((string) ($payload['account_lastname'] ?? $payload['last_name'] ?? '')),
+                strtolower(sanitize_email((string) ($payload['account_email'] ?? $payload['email'] ?? ''))),
                 OtpPhoneResolver::normalize((string) ($payload['account_phone'] ?? $payload['phone'] ?? '')),
                 preg_replace('/\D/', '', (string) ($payload['account_tckno'] ?? $payload['tckno'] ?? '')) ?? '',
                 sanitize_text_field((string) ($payload['account_iban'] ?? $payload['iban'] ?? '')),
                 sanitize_text_field((string) ($payload['account_birth_year'] ?? $payload['birth_year'] ?? '')),
+                sanitize_text_field((string) ($payload['account_city'] ?? $payload['city'] ?? '')),
+                sanitize_text_field((string) ($payload['account_state'] ?? $payload['state'] ?? '')),
             ],
             OtpPurpose::PASSWORD_CHANGE => [
                 'password_change',
@@ -213,10 +219,12 @@ final class OtpService
         }
 
         if ($purpose === OtpPurpose::ACCOUNT_DETAILS) {
-            return OtpPhoneResolver::forUser(
-                $userId,
-                (string) ($payload['user_phone'] ?? $payload['phone'] ?? '')
-            );
+            // Identity challenge always goes to the registered number — never the payload candidate.
+            return OtpPhoneResolver::forUser($userId);
+        }
+
+        if ($purpose === OtpPurpose::ACCOUNT_DETAILS_NEW_PHONE) {
+            return OtpPhoneResolver::normalize((string) ($payload['user_phone'] ?? $payload['phone'] ?? ''));
         }
 
         return OtpPhoneResolver::forUser($userId);
@@ -327,16 +335,24 @@ final class OtpService
         return $error;
     }
 
+    private function sessionKey(int $userId, string $purpose = ''): string
+    {
+        $suffix = $purpose !== '' ? '_' . sanitize_key($purpose) : '';
+
+        return self::TRANSIENT_SESSION . $userId . $suffix;
+    }
+
     /** @param array{code_hash:string,expires_at:int,purpose:string,phone:string} $session */
     private function storeSession(int $userId, array $session, int $ttl): void
     {
-        set_transient(self::TRANSIENT_SESSION . $userId, $session, $ttl);
+        $purpose = (string) ($session['purpose'] ?? '');
+        set_transient($this->sessionKey($userId, $purpose), $session, $ttl);
     }
 
     /** @return array{code_hash?:string,expires_at?:int,purpose?:string,phone?:string}|null */
-    private function getSession(int $userId): ?array
+    private function getSession(int $userId, string $purpose = ''): ?array
     {
-        $session = get_transient(self::TRANSIENT_SESSION . $userId);
+        $session = get_transient($this->sessionKey($userId, $purpose));
         if (is_array($session) && ($session['code_hash'] ?? '') !== '') {
             return $session;
         }
@@ -344,9 +360,9 @@ final class OtpService
         return null;
     }
 
-    private function clearSession(int $userId): void
+    private function clearSession(int $userId, string $purpose = ''): void
     {
-        delete_transient(self::TRANSIENT_SESSION . $userId);
+        delete_transient($this->sessionKey($userId, $purpose));
         $this->clearAttempts($userId);
     }
 

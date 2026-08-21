@@ -372,7 +372,7 @@ final class Assets
      */
     public function enqueueStaffOrderDetail(): void
     {
-        if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
+        if (!\SutoreMarketplace\Admin\StaffCapabilities::canManageOps()) {
             return;
         }
 
@@ -511,7 +511,7 @@ final class Assets
      */
     public function enqueueStaffMerchantDetail(): void
     {
-        if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
+        if (!\SutoreMarketplace\Admin\StaffCapabilities::canManageOps()) {
             return;
         }
 
@@ -689,7 +689,7 @@ final class Assets
 
     public function enqueueStaffCatalogRequests(): void
     {
-        if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
+        if (!\SutoreMarketplace\Admin\StaffCapabilities::canManageOps()) {
             return;
         }
 
@@ -726,7 +726,7 @@ final class Assets
 
     public function enqueueStaffManageProducts(): void
     {
-        if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
+        if (!\SutoreMarketplace\Admin\StaffCapabilities::canManageOps()) {
             return;
         }
 
@@ -760,7 +760,7 @@ final class Assets
      */
     public function enqueueStaffProductDetail(): void
     {
-        if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
+        if (!\SutoreMarketplace\Admin\StaffCapabilities::canManageOps()) {
             return;
         }
 
@@ -1015,6 +1015,7 @@ final class Assets
             'otpPlaceholder' => __('Verification code', 'sutore-marketplace'),
             'otpConfirm' => __('Verify', 'sutore-marketplace'),
             'otpSending' => __('Sending verification code…', 'sutore-marketplace'),
+            'otpNewPhoneSending' => __('Sending a code to your new phone…', 'sutore-marketplace'),
             'otpMaskedPhone' => __('Code sent to %s', 'sutore-marketplace'),
             'otpDebugLabel' => __('Test code (simulation):', 'sutore-marketplace'),
         ];

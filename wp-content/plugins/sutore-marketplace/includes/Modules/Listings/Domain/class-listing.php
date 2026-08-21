@@ -25,6 +25,7 @@ final class Listing
         public readonly bool $isImported = false,
         public readonly ?string $productDesc = null,
         public readonly bool $isWinner = false,
+        public readonly ?string $approvedAt = null,
         public readonly ?string $createdAt = null,
         public readonly ?string $updatedAt = null,
         public readonly array $conditions = [],
@@ -75,6 +76,9 @@ final class Listing
             isImported: !empty($row->is_imported),
             productDesc: $row->product_desc ?? null,
             isWinner: !empty($row->is_winner),
+            approvedAt: isset($row->approved_at) && $row->approved_at !== null && $row->approved_at !== ''
+                ? (string) $row->approved_at
+                : null,
             createdAt: $row->created_at ?? null,
             updatedAt: $row->updated_at ?? null,
             conditions: $conditions,
@@ -140,6 +144,7 @@ final class Listing
             'is_imported' => $this->isImported,
             'product_desc' => $this->productDesc,
             'is_winner' => $this->isWinner,
+            'approved_at' => $this->approvedAt,
             'conditions' => $this->conditions,
             'order_id' => $this->orderId,
             'order_item_id' => $this->orderItemId,

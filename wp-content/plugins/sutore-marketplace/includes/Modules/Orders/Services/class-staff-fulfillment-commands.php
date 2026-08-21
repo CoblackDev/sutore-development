@@ -218,10 +218,27 @@ final class StaffFulfillmentCommands
         ]);
 
         (new PayoutLineService())->reverseForListing($listingId);
+
+        $actor = $this->support->resolveActor();
+        $listing = $this->support->bridge()->find($listingId);
+        $orderId = (int) $row->order_id;
+        $itemId = (int) $row->order_item_id;
+        $order = $orderId > 0 ? wc_get_order($orderId) : false;
+        if ($order instanceof \WC_Order && $itemId > 0) {
+            $this->support->refundPaidLineThenRemove(
+                $order,
+                $itemId,
+                $listing,
+                $actor,
+                $listingId,
+                __('Hub rejected this item.', 'sutore-marketplace')
+            );
+        }
+
         $this->support->detachListingFromOrder($listingId, ListingStatus::NOT_SALE, [
             'reason' => 'hub_rejected',
-            'order_id' => (int) $row->order_id,
-            'order_item_id' => (int) $row->order_item_id,
+            'order_id' => $orderId,
+            'order_item_id' => $itemId,
             'variation_id' => $listingId,
             'staff_note' => $note,
         ]);
@@ -284,10 +301,27 @@ final class StaffFulfillmentCommands
         ]);
 
         (new PayoutLineService())->reverseForListing($listingId);
+
+        $actor = $this->support->resolveActor();
+        $listing = $this->support->bridge()->find($listingId);
+        $orderId = (int) $row->order_id;
+        $itemId = (int) $row->order_item_id;
+        $order = $orderId > 0 ? wc_get_order($orderId) : false;
+        if ($order instanceof \WC_Order && $itemId > 0) {
+            $this->support->refundPaidLineThenRemove(
+                $order,
+                $itemId,
+                $listing,
+                $actor,
+                $listingId,
+                __('Chargeback / payment dispute.', 'sutore-marketplace')
+            );
+        }
+
         $this->support->detachListingFromOrder($listingId, ListingStatus::CHARGEBACK, [
             'reason' => 'chargeback',
-            'order_id' => (int) $row->order_id,
-            'order_item_id' => (int) $row->order_item_id,
+            'order_id' => $orderId,
+            'order_item_id' => $itemId,
             'variation_id' => $listingId,
             'staff_note' => $note,
         ]);

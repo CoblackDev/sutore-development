@@ -8,6 +8,7 @@ final class OtpPurpose
 {
     public const MERCHANT_PROFILE = 'merchant_profile';
     public const ACCOUNT_DETAILS = 'account_details';
+    public const ACCOUNT_DETAILS_NEW_PHONE = 'account_details_new_phone';
     public const PASSWORD_CHANGE = 'password_change';
     public const ACCOUNT_DELETE = 'account_delete';
 
@@ -17,6 +18,7 @@ final class OtpPurpose
         return [
             self::MERCHANT_PROFILE,
             self::ACCOUNT_DETAILS,
+            self::ACCOUNT_DETAILS_NEW_PHONE,
             self::PASSWORD_CHANGE,
             self::ACCOUNT_DELETE,
         ];
@@ -32,6 +34,7 @@ final class OtpPurpose
         return match ($purpose) {
             self::MERCHANT_PROFILE => __('Merchant profile', 'sutore-marketplace'),
             self::ACCOUNT_DETAILS => __('Account details', 'sutore-marketplace'),
+            self::ACCOUNT_DETAILS_NEW_PHONE => __('New phone verification', 'sutore-marketplace'),
             self::PASSWORD_CHANGE => __('Password change', 'sutore-marketplace'),
             self::ACCOUNT_DELETE => __('Account deletion', 'sutore-marketplace'),
             default => $purpose,

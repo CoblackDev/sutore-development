@@ -14,6 +14,7 @@ final class Autoloader
         'Modules' => 'Modules',
         'Admin' => 'Admin',
         'Frontend' => 'Frontend',
+        'Cli' => 'Cli',
     ];
 
     public static function register(): void

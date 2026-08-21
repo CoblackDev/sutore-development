@@ -14,7 +14,6 @@ final class OutletCronHooks
     {
         add_filter('cron_schedules', [CampaignCronHooks::class, 'registerInterval']);
         add_action(self::HOOK, [$this, 'run']);
-        add_action('init', [self::class, 'schedule']);
     }
 
     public static function schedule(): void

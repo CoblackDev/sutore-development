@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Frontend;
 
-use SutoreMarketplace\Admin\AdminMenu;
+use SutoreMarketplace\Admin\StaffCapabilities;
 use SutoreMarketplace\Modules\Listings\Domain\CatalogProductRequestStatus;
 use SutoreMarketplace\Modules\Listings\Repositories\CatalogProductRequestRepository;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutStatus;
@@ -12,7 +12,7 @@ use SutoreMarketplace\Modules\Shipping\Domain\ShipmentType;
 
 /**
  * Staff-only WooCommerce My Account endpoints for marketplace ops.
- * Access: AdminMenu::CAP (manage_woocommerce) — shop_manager + administrator.
+ * Access: StaffCapabilities::canManageOps() — shop_manager + administrator.
  */
 final class StaffAccount
 {
@@ -317,7 +317,7 @@ final class StaffAccount
 
     private function currentUserCanManage(): bool
     {
-        return is_user_logged_in() && current_user_can(AdminMenu::CAP);
+        return is_user_logged_in() && StaffCapabilities::canManageOps();
     }
 
     public function maybeFlushRewrites(): void

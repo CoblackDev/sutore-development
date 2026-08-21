@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Modules\Orders\Services;
 
-use SutoreMarketplace\Admin\AdminMenu;
+use SutoreMarketplace\Admin\StaffCapabilities;
 use SutoreMarketplace\Modules\Invoices\Repositories\InvoiceRepository;
 use SutoreMarketplace\Modules\Invoices\Services\InvoicePresenter;
 use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
+use SutoreMarketplace\Modules\Listings\Domain\ProductListChrome;
+use SutoreMarketplace\Modules\Listings\Domain\ProductSizeLookup;
 use SutoreMarketplace\Modules\Listings\Domain\ProductThumbnail;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 use SutoreMarketplace\Modules\Listings\Services\ListingActivityPresenter;
@@ -222,8 +224,19 @@ final class StaffFulfillmentPresenter
         }
 
         $variationIds = [];
+        $productIds = [];
+        $sizeTermIds = [];
         foreach ($rows as $row) {
-            $variationIds[] = (int) ($row->variation_id ?? 0);
+            $variationId = (int) ($row->variation_id ?? 0);
+            $variationIds[] = $variationId;
+            if ($variationId > 0) {
+                $productIds[] = $variationId;
+            }
+            $parentId = (int) ($row->parent_product_id ?? 0);
+            if ($parentId > 0) {
+                $productIds[] = $parentId;
+            }
+            $sizeTermIds[] = (int) ($row->size_term_id ?? 0);
         }
         $payoutMap = $this->payouts->findByVariationIds($variationIds);
         $orderIdByVariation = [];
@@ -234,13 +247,41 @@ final class StaffFulfillmentPresenter
             }
         }
         $invoiceMap = $this->invoices->findForVariations($orderIdByVariation);
+        $chrome = ProductListChrome::mapForIds($productIds);
+        $sizeLabels = ProductSizeLookup::labelsForTermIds($sizeTermIds);
+        $titles = [];
+        foreach ($rows as $row) {
+            $variationId = (int) ($row->variation_id ?? 0);
+            $parentId = (int) ($row->parent_product_id ?? 0);
+            $sizeTermId = (int) ($row->size_term_id ?? 0);
+            $title = $chrome[$variationId]['title'] ?? '';
+            if ($title === '' || $title === (string) $variationId) {
+                $title = $chrome[$parentId]['title'] ?? '';
+            }
+            $sizeLabel = $sizeLabels[$sizeTermId] ?? '';
+            if ($sizeLabel !== '' && $title !== '' && stripos($title, $sizeLabel) === false) {
+                $title = trim($title . ' ' . $sizeLabel);
+            }
+            $title = trim(str_replace(['&#8211;', '–'], '', $title));
+            if ($title === '' || $title === (string) $variationId) {
+                $title = sprintf(
+                    /* translators: %d: listing id */
+                    __('Product #%d', 'sutore-marketplace'),
+                    $variationId
+                );
+            }
+            $titles[$variationId] = $title;
+        }
 
         $out = [];
         foreach ($rows as $row) {
             $merchantId = (int) ($row->merchant_id ?? 0);
+            $variationId = (int) ($row->variation_id ?? 0);
             $item = $this->presentRow(
                 $row,
-                $merchantNames[$merchantId] ?? ('#' . $merchantId)
+                $merchantNames[$merchantId] ?? ('#' . $merchantId),
+                $titles[$variationId] ?? null,
+                $chrome
             );
             $variationId = (int) ($item['variation_id'] ?? $item['id'] ?? 0);
             $payout = $payoutMap[$variationId] ?? null;
@@ -348,36 +389,46 @@ final class StaffFulfillmentPresenter
     }
 
     /**
+     * @param array<int, array{title:string,code:string,thumbnail:string,permalink:string}>|null $chrome
      * @return array<string, mixed>
      */
-    public function presentRow(object $row, ?string $merchantName = null): array
-    {
+    public function presentRow(
+        object $row,
+        ?string $merchantName = null,
+        ?string $productTitle = null,
+        ?array $chrome = null
+    ): array {
         $variationId = (int) $row->variation_id;
         $orderId = (int) $row->order_id;
         $merchantId = (int) $row->merchant_id;
         $hasOrderLink = $this->fulfillmentService->isLinkedToOrder($row);
 
-        // Facade row is the listings row — prefer in-row fields over a re-find.
+        // Facade row is the listings row — never re-find on list path.
         $parentId = isset($row->parent_product_id) ? (int) $row->parent_product_id : 0;
         $sizeTermId = isset($row->size_term_id) ? (int) $row->size_term_id : 0;
         $listing = null;
-        if ($parentId > 0 || isset($row->listing_status)) {
+        if ($parentId > 0 || isset($row->listing_status) || isset($row->asking)) {
             $listing = \SutoreMarketplace\Modules\Listings\Domain\Listing::fromRow($row);
             $parentId = $parentId > 0 ? $parentId : (int) $listing->parentProductId;
             $sizeTermId = $sizeTermId > 0 ? $sizeTermId : (int) $listing->sizeTermId;
-        } else {
+        } elseif ($variationId > 0) {
+            // Detail path only: row may be a sparse facade without listing columns.
             $listing = $this->listings->find($variationId);
             $parentId = $listing ? (int) $listing->parentProductId : 0;
             $sizeTermId = $listing ? (int) $listing->sizeTermId : 0;
         }
 
-        $title = Notifications::productTitle($variationId, $variationId, $parentId, $sizeTermId);
-        if ($title === '' || $title === (string) $variationId) {
-            $title = sprintf(
-                /* translators: %d: listing id */
-                __('Product #%d', 'sutore-marketplace'),
-                $variationId
-            );
+        if ($productTitle !== null && $productTitle !== '') {
+            $title = $productTitle;
+        } else {
+            $title = Notifications::productTitle($variationId, $variationId, $parentId, $sizeTermId);
+            if ($title === '' || $title === (string) $variationId) {
+                $title = sprintf(
+                    /* translators: %d: listing id */
+                    __('Product #%d', 'sutore-marketplace'),
+                    $variationId
+                );
+            }
         }
 
         if ($merchantName === null) {
@@ -386,7 +437,7 @@ final class StaffFulfillmentPresenter
         }
 
         $orderEditUrl = '';
-        if ($hasOrderLink && $orderId > 0 && current_user_can(AdminMenu::CAP)) {
+        if ($hasOrderLink && $orderId > 0 && StaffCapabilities::canManageOps()) {
             $hpos = class_exists(\Automattic\WooCommerce\Utilities\OrderUtil::class)
                 && \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
             $orderEditUrl = $hpos
@@ -421,10 +472,18 @@ final class StaffFulfillmentPresenter
             ? ShipmentType::label($orderShipmentType)
             : '';
 
-        // Staff/list previews always use the parent product image.
-        $thumbnail = $parentId > 0 ? ProductThumbnail::url($parentId) : '';
-        if ($thumbnail === '' && $variationId > 0) {
-            $thumbnail = ProductThumbnail::url($variationId);
+        $thumbnail = '';
+        if (is_array($chrome)) {
+            $thumbnail = (string) ($chrome[$parentId]['thumbnail'] ?? '');
+            if ($thumbnail === '' && $variationId > 0) {
+                $thumbnail = (string) ($chrome[$variationId]['thumbnail'] ?? '');
+            }
+        }
+        if ($thumbnail === '') {
+            $thumbnail = $parentId > 0 ? ProductThumbnail::url($parentId) : '';
+            if ($thumbnail === '' && $variationId > 0) {
+                $thumbnail = ProductThumbnail::url($variationId);
+            }
         }
 
         $merchantShippedAt = (string) ($row->merchant_shipped_at ?? '');
@@ -482,7 +541,6 @@ final class StaffFulfillmentPresenter
             'campaign_status_label' => ListingStatus::campaignLabel($campaignStatus),
             'is_pre_order' => $isPreOrder,
             'is_sourcing' => $isPreOrder,
-            'is_pre_order' => $isPreOrder,
             'is_imported' => $listing
                 ? $listing->isImported
                 : !empty($row->is_imported),

@@ -6,7 +6,7 @@ namespace SutoreMarketplace\Shared\Database;
 
 final class Schema
 {
-    public const VERSION = 102;
+    public const VERSION = 104;
 
     public static function table(string $suffix): string
     {
@@ -17,13 +17,47 @@ final class Schema
     public static function install(): void
     {
         $lockKey = 'sutore_marketplace_schema_install_lock';
+        $waited = 0;
+        while (get_transient($lockKey) && $waited < 50) {
+            usleep(100000);
+            ++$waited;
+        }
+
         if (get_transient($lockKey)) {
+            // Another install is still running; Plugin boot retries when db_version lags.
             return;
         }
+
         set_transient($lockKey, 1, 5 * MINUTE_IN_SECONDS);
 
         try {
             self::installUnlocked();
+        } finally {
+            delete_transient($lockKey);
+        }
+    }
+
+    /**
+     * Heavy ALTERs (unique swaps, large backfills). Prefer WP-CLI `schema-upgrade`
+     * so request-path install stays fast / idempotent (dbDelta + light option remaps).
+     */
+    public static function upgradeHeavy(): void
+    {
+        $lockKey = 'sutore_marketplace_schema_heavy_lock';
+        $waited = 0;
+        while (get_transient($lockKey) && $waited < 50) {
+            usleep(100000);
+            ++$waited;
+        }
+
+        if (get_transient($lockKey)) {
+            return;
+        }
+
+        set_transient($lockKey, 1, 5 * MINUTE_IN_SECONDS);
+
+        try {
+            self::migratePayoutVariationOrderUnique();
         } finally {
             delete_transient($lockKey);
         }
@@ -162,6 +196,7 @@ final class Schema
             is_imported tinyint(1) NOT NULL DEFAULT 0,
             product_desc text NULL,
             is_winner tinyint(1) NOT NULL DEFAULT 0,
+            approved_at datetime NULL,
             confirm_deadline_at datetime NULL,
             seller_confirmed_at datetime NULL,
             cargo_deadline_at datetime NULL,
@@ -184,6 +219,7 @@ final class Schema
             KEY parent_size_status (parent_product_id, size_term_id, listing_status),
             KEY merchant_status (merchant_id, listing_status),
             KEY expire_at (expire_at),
+            KEY status_expire (listing_status, expire_at),
             KEY condition_fingerprint (condition_fingerprint),
             KEY is_winner (is_winner),
             KEY order_id (order_id),
@@ -314,7 +350,8 @@ final class Schema
             created_at datetime NOT NULL,
             updated_at datetime NOT NULL,
             PRIMARY KEY (id),
-            UNIQUE KEY variation_id (variation_id),
+            UNIQUE KEY variation_order (variation_id, order_id),
+            KEY variation_id (variation_id),
             KEY merchant_status (merchant_id, payout_status),
             KEY payout_due (payout_status, scheduled_payout_date),
             KEY order_id (order_id)
@@ -526,8 +563,14 @@ final class Schema
         }
 
         self::sealStoredSecrets();
+        self::migrateSwapAllowedStatuses();
 
         update_option('sutore_marketplace_db_version', self::VERSION);
+
+        \SutoreMarketplace\Modules\Listings\Domain\ListingCapabilities::reconcileMerchantRole();
+        \SutoreMarketplace\Admin\StaffCapabilities::reconcile();
+        \SutoreMarketplace\Shared\Hooks\CronRegistry::scheduleAll();
+        do_action('sutore_marketplace_schema_upgraded', self::VERSION);
     }
 
     /**
@@ -591,5 +634,96 @@ final class Schema
         if ($changed) {
             \SutoreMarketplace\Shared\Settings\Settings::update(['invoices' => $invoices]);
         }
+    }
+
+    /**
+     * One-shot remap of legacy swap_allowed_statuses tokens (no runtime normalize fallback).
+     */
+    private static function migrateSwapAllowedStatuses(): void
+    {
+        $option = \SutoreMarketplace\Modules\Orders\Settings\Settings::OPTION;
+        $stored = get_option($option, []);
+        if (!is_array($stored)) {
+            return;
+        }
+
+        $raw = $stored['swap_allowed_statuses'] ?? null;
+        if (!is_string($raw) || $raw === '') {
+            return;
+        }
+
+        if (!str_contains($raw, 'payment_pending') && !str_contains($raw, 'awaiting_seller')) {
+            return;
+        }
+
+        $stored['swap_allowed_statuses'] = str_replace(
+            ['payment_pending', 'awaiting_seller'],
+            ['payment', 'sold'],
+            $raw
+        );
+        update_option($option, $stored);
+        \SutoreMarketplace\Modules\Orders\Settings\Settings::forgetMemo();
+    }
+
+    /**
+     * Swap UNIQUE(variation_id) → UNIQUE(variation_id, order_id) so reversed sales can get a new payout row.
+     */
+    private static function migratePayoutVariationOrderUnique(): void
+    {
+        $flag = 'sutore_marketplace_migrated_payout_variation_order_v104';
+        if (get_option($flag)) {
+            return;
+        }
+
+        global $wpdb;
+        $table = self::table('merchant_payout_lines');
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from Schema::table().
+        $exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+        if ($exists !== $table) {
+            // Fresh install — dbDelta will create the correct UNIQUE KEY.
+            update_option($flag, 1);
+
+            return;
+        }
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $indexes = $wpdb->get_results("SHOW INDEX FROM {$table}", ARRAY_A) ?: [];
+        $hasOldUnique = false;
+        $hasNewUnique = false;
+        foreach ($indexes as $index) {
+            $key = (string) ($index['Key_name'] ?? '');
+            $nonUnique = (int) ($index['Non_unique'] ?? 1);
+            if ($key === 'variation_id' && $nonUnique === 0) {
+                $hasOldUnique = true;
+            }
+            if ($key === 'variation_order' && $nonUnique === 0) {
+                $hasNewUnique = true;
+            }
+        }
+
+        if ($hasOldUnique) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query("ALTER TABLE {$table} DROP INDEX variation_id");
+        }
+
+        if (!$hasNewUnique) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query("ALTER TABLE {$table} ADD UNIQUE KEY variation_order (variation_id, order_id)");
+        }
+
+        $hasVariationKey = false;
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        foreach ($wpdb->get_results("SHOW INDEX FROM {$table}", ARRAY_A) ?: [] as $index) {
+            if ((string) ($index['Key_name'] ?? '') === 'variation_id') {
+                $hasVariationKey = true;
+                break;
+            }
+        }
+        if (!$hasVariationKey) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query("ALTER TABLE {$table} ADD KEY variation_id (variation_id)");
+        }
+
+        update_option($flag, 1);
     }
 }

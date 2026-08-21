@@ -2,9 +2,14 @@ FROM wordpress:latest
 
 # NVI TC kimlik doğrulama (SoapClient) ve benzeri entegrasyonlar için gerekli.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libxml2-dev \
+    && apt-get install -y --no-install-recommends libxml2-dev curl ca-certificates less \
     && docker-php-ext-install soap \
     && rm -rf /var/lib/apt/lists/*
+
+# WP-CLI for local ops (cron runners, option dumps, etc.).
+RUN curl -fsSL -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
+    && chmod +x /usr/local/bin/wp \
+    && wp --info --allow-root >/dev/null
 
 # Invoice PDFs and other private artifacts live outside the document root.
 RUN mkdir -p /var/www/sutore-private/invoices \

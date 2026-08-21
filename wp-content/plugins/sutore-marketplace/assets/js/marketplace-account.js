@@ -21,6 +21,10 @@
     return payload;
   }
 
+  function digitsOnly(value) {
+    return String(value || '').replace(/\D/g, '');
+  }
+
   function handleSuccess($form, $feedbackEl, res, redirectHome) {
     if (!res || !res.success) {
       feedback($feedbackEl, (res && res.data && res.data.message) || t('error', 'Error'), 'error');
@@ -73,13 +77,52 @@
     });
   }
 
+  function bindAccountDetails($form) {
+    var $feedbackEl = $form.find('.sutore-mp-account-security__feedback');
+
+    $form.on('submit', function (event) {
+      event.preventDefault();
+
+      var payload = formPayload($form);
+      var registered = digitsOnly($form.attr('data-registered-phone'));
+      var nextPhone = digitsOnly(payload.user_phone || payload.phone);
+      var phoneChanged = registered !== '' && nextPhone !== '' && registered !== nextPhone;
+
+      $form.addClass('is-loading');
+      feedback($feedbackEl, t('otpSending', 'Sending verification code…'), 'success');
+
+      cfg.withOtp('account_details', payload, function (registeredPayload) {
+        if (!phoneChanged) {
+          return cfg.api('marketplace_account_details_save', registeredPayload);
+        }
+
+        $('.sutore-mp-otp').remove();
+        feedback($feedbackEl, t('otpNewPhoneSending', 'Sending a code to your new phone…'), 'success');
+
+        return cfg.withOtp('account_details_new_phone', payload, function (newPhonePayload) {
+          return cfg.api(
+            'marketplace_account_details_save',
+            Object.assign({}, payload, {
+              otp_code: registeredPayload.otp_code,
+              otp_code_new_phone: newPhonePayload.otp_code
+            })
+          );
+        });
+      }).done(function (res) {
+        handleSuccess($form, $feedbackEl, res, false);
+      }).always(function () {
+        $form.removeClass('is-loading');
+      });
+    });
+  }
+
   $(function () {
     var $details = $('#sutore-mp-account-details-form');
     var $password = $('#sutore-mp-account-password-form');
     var $delete = $('#sutore-mp-account-delete-form');
 
     if ($details.length) {
-      bindOtpForm($details, 'account_details', 'marketplace_account_details_save');
+      bindAccountDetails($details);
     }
 
     if ($password.length) {

@@ -44,6 +44,12 @@ final class OutletFlowTest
 
         $listing = Fixtures::reloadListing((int) $opt['variation_id']);
         Harness::assertEqualsFloat(300.0, $listing->asking);
+        Harness::assertEqualsFloat(0.0, (float) ($listing->commissionPercent ?? -1), 'outlet listing commission must be 0');
+        $net = \SutoreMarketplace\Shared\Domain\MarketplacePricing::netFromAsking(
+            (float) $listing->asking,
+            (float) ($listing->commissionPercent ?? 0)
+        );
+        Harness::assertEqualsFloat(300.0, $net, 'seller net must equal asking when commission is 0');
         Harness::assertTrue(in_array($listing->listingStatus, [ListingStatus::PUBLISH, ListingStatus::PENDING], true));
 
         $optin = (new OutletOptinRepository())->findForItemMerchant($itemId, $seller);

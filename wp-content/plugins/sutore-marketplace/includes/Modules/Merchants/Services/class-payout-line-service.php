@@ -22,7 +22,7 @@ final class PayoutLineService
     }
 
     /**
-     * Create (or return the existing) payout line for a listing sale.
+     * Create (or return the existing active) payout line for a listing sale.
      *
      * @param object $saleRow Fulfillment-shaped row returned by FulfillmentRepository
      *                        (id / variation_id = listing id, plus order_id / order_item_id).
@@ -30,53 +30,58 @@ final class PayoutLineService
     public function createForListing(object $saleRow, Listing $listing): int
     {
         $variationId = (int) ($saleRow->variation_id ?? $listing->variationId);
-        $existing = $this->repo->findByVariationId($variationId);
+        $orderId = (int) ($saleRow->order_id ?? 0);
+        $existing = $orderId > 0
+            ? $this->repo->findByVariationAndOrder($variationId, $orderId)
+            : $this->repo->findByVariationId($variationId);
+
         if ($existing) {
-            return (int) $existing->id;
+            $status = (string) ($existing->payout_status ?? '');
+            if ($status === PayoutStatus::PENDING || $status === PayoutStatus::PAID) {
+                return (int) $existing->id;
+            }
+            // Same (variation, order) reversed — rewrite into a fresh pending line (UNIQUE blocks a second row).
+            if ($status === PayoutStatus::REVERSED && $orderId > 0 && (int) $existing->order_id === $orderId) {
+                return $this->rewriteReversedLine((int) $existing->id, $saleRow, $listing);
+            }
         }
 
-        $resolver = new CommissionResolver();
-        $commission = $resolver->percentForPayout($listing);
-        $offerBid = (new CustomerOfferService())
-            ->bidGrossForPayout((int) $listing->variationId, (int) $saleRow->order_id);
-        $gross = $offerBid !== null ? $offerBid : MarketplacePricing::activeAsking($listing);
-        $fees = MarketplacePricing::feeBreakdownForListing($listing);
-        $commissionAmount = round($gross * max(0.0, $commission) / 100, 2);
-        $extra = 0.0;
-        $net = MarketplacePricing::netFromAsking($gross, $commission);
-        $title = Notifications::productTitle((int) $listing->variationId, $listing->variationId, $listing->parentProductId);
+        $amounts = $this->computeAmounts($saleRow, $listing);
+        $title = $amounts['product_title'];
         $now = current_time('mysql');
         $scheduled = PayoutSchedule::scheduledDateFrom($now);
 
         $lineId = $this->repo->insert([
             'variation_id' => $variationId,
             'parent_product_id' => (int) $listing->parentProductId,
-            'order_id' => (int) $saleRow->order_id,
+            'order_id' => $orderId,
             'order_item_id' => (int) ($saleRow->order_item_id ?? 0),
             'merchant_id' => (int) $listing->merchantId,
             'product_title' => $title,
-            'gross_asking' => $gross,
-            'commission_percent' => $commission,
-            'commission_amount' => $commissionAmount,
-            'hizmet_fee' => (float) $fees['hizmet'],
-            'guvence_fee' => (float) $fees['guvence'],
-            'extra_deduction' => $extra,
-            'net_amount' => $net,
+            'gross_asking' => $amounts['gross_asking'],
+            'commission_percent' => $amounts['commission_percent'],
+            'commission_amount' => $amounts['commission_amount'],
+            'hizmet_fee' => $amounts['hizmet_fee'],
+            'guvence_fee' => $amounts['guvence_fee'],
+            'extra_deduction' => $amounts['extra_deduction'],
+            'net_amount' => $amounts['net_amount'],
             'payout_status' => PayoutStatus::PENDING,
             'scheduled_payout_date' => $scheduled,
         ]);
 
         if ($lineId <= 0) {
-            $race = $this->repo->findByVariationId($variationId);
+            $race = $orderId > 0
+                ? $this->repo->findByVariationAndOrder($variationId, $orderId)
+                : $this->repo->findByVariationId($variationId);
 
             return $race ? (int) $race->id : 0;
         }
 
         (new NotificationService())->dispatch((int) $listing->merchantId, NotificationType::PAYOUT_PENDING, [
             'product' => $title,
-            'net_amount' => $net,
+            'net_amount' => $amounts['net_amount'],
             'variation_id' => $variationId,
-            'order_id' => (int) $saleRow->order_id,
+            'order_id' => $orderId,
             'scheduled_payout_date' => $scheduled,
         ]);
 
@@ -150,6 +155,13 @@ final class PayoutLineService
                 'actor_role' => 'staff',
                 'variation_id' => $listingId,
             ])
+        );
+
+        (new \SutoreMarketplace\Modules\Invoices\Services\InvoiceIssuer())->resyncUnsentSellerCommission(
+            $listingId,
+            (int) $line->order_id,
+            $commissionAmount,
+            $percent
         );
 
         return [
@@ -262,5 +274,76 @@ final class PayoutLineService
             'variation_id' => (int) $line->variation_id,
             'order_id' => (int) $line->order_id,
         ]);
+    }
+
+    /**
+     * @return array{
+     *   product_title:string,
+     *   gross_asking:float,
+     *   commission_percent:float,
+     *   commission_amount:float,
+     *   hizmet_fee:float,
+     *   guvence_fee:float,
+     *   extra_deduction:float,
+     *   net_amount:float
+     * }
+     */
+    private function computeAmounts(object $saleRow, Listing $listing): array
+    {
+        $resolver = new CommissionResolver();
+        $commission = $resolver->percentForPayout($listing);
+        $offerBid = (new CustomerOfferService())
+            ->bidGrossForPayout((int) $listing->variationId, (int) $saleRow->order_id);
+        $gross = $offerBid !== null ? $offerBid : MarketplacePricing::activeAsking($listing);
+        $fees = MarketplacePricing::feeBreakdownForListing($listing);
+        $commissionAmount = round($gross * max(0.0, $commission) / 100, 2);
+        $extra = 0.0;
+        $net = MarketplacePricing::netFromAsking($gross, $commission);
+        $title = Notifications::productTitle((int) $listing->variationId, $listing->variationId, $listing->parentProductId);
+
+        return [
+            'product_title' => $title,
+            'gross_asking' => $gross,
+            'commission_percent' => $commission,
+            'commission_amount' => $commissionAmount,
+            'hizmet_fee' => (float) $fees['hizmet'],
+            'guvence_fee' => (float) $fees['guvence'],
+            'extra_deduction' => $extra,
+            'net_amount' => $net,
+        ];
+    }
+
+    private function rewriteReversedLine(int $lineId, object $saleRow, Listing $listing): int
+    {
+        $amounts = $this->computeAmounts($saleRow, $listing);
+        $now = current_time('mysql');
+        $scheduled = PayoutSchedule::scheduledDateFrom($now);
+        $this->repo->update($lineId, [
+            'order_item_id' => (int) ($saleRow->order_item_id ?? 0),
+            'merchant_id' => (int) $listing->merchantId,
+            'product_title' => $amounts['product_title'],
+            'gross_asking' => $amounts['gross_asking'],
+            'commission_percent' => $amounts['commission_percent'],
+            'commission_amount' => $amounts['commission_amount'],
+            'hizmet_fee' => $amounts['hizmet_fee'],
+            'guvence_fee' => $amounts['guvence_fee'],
+            'extra_deduction' => $amounts['extra_deduction'],
+            'net_amount' => $amounts['net_amount'],
+            'payout_status' => PayoutStatus::PENDING,
+            'scheduled_payout_date' => $scheduled,
+            'paid_at' => null,
+            'paid_by' => null,
+            'payment_ref' => null,
+        ]);
+
+        (new NotificationService())->dispatch((int) $listing->merchantId, NotificationType::PAYOUT_PENDING, [
+            'product' => $amounts['product_title'],
+            'net_amount' => $amounts['net_amount'],
+            'variation_id' => (int) $listing->variationId,
+            'order_id' => (int) ($saleRow->order_id ?? 0),
+            'scheduled_payout_date' => $scheduled,
+        ]);
+
+        return $lineId;
     }
 }

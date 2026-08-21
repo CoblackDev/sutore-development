@@ -43,8 +43,14 @@ final class YouthInvoiceAllocator
         }
 
         $asking = \SutoreMarketplace\Shared\Domain\MarketplacePricing::activeAsking($listing);
-        $percent = (new CommissionResolver())->percentForPayout($listing);
-        $commission = round($asking * max(0.0, $percent) / 100, 2);
+        $payout = (new \SutoreMarketplace\Modules\Merchants\Repositories\PayoutLineRepository())
+            ->findByVariationAndOrder((int) $listing->variationId, (int) $order->get_id());
+        if ($payout) {
+            $commission = round((float) ($payout->commission_amount ?? 0), 2);
+        } else {
+            $percent = (new CommissionResolver())->percentForPayout($listing);
+            $commission = round($asking * max(0.0, $percent) / 100, 2);
+        }
 
         $youth = (float) $order->get_meta(YouthDiscount::ORDER_META_AMOUNT, true);
         if ($youth < 0.01) {
@@ -184,8 +190,14 @@ final class YouthInvoiceAllocator
             }
             $hizmet = (float) $item->get_meta(OrderItemPricingMetaHooks::META_HIZMET, true);
             $guvence = (float) $item->get_meta(OrderItemPricingMetaHooks::META_GUVENCE, true);
-            $asking = \SutoreMarketplace\Shared\Domain\MarketplacePricing::activeAsking($listing);
-            $commission = round($asking * max(0.0, $resolver->percentForPayout($listing)) / 100, 2);
+            $payout = (new \SutoreMarketplace\Modules\Merchants\Repositories\PayoutLineRepository())
+                ->findByVariationAndOrder($variationId, (int) $order->get_id());
+            if ($payout) {
+                $commission = round((float) ($payout->commission_amount ?? 0), 2);
+            } else {
+                $asking = \SutoreMarketplace\Shared\Domain\MarketplacePricing::activeAsking($listing);
+                $commission = round($asking * max(0.0, $resolver->percentForPayout($listing)) / 100, 2);
+            }
             $pools[$variationId] = round($hizmet + $guvence + $commission, 2);
         }
 
@@ -198,8 +210,14 @@ final class YouthInvoiceAllocator
                 continue;
             }
             $fees = \SutoreMarketplace\Shared\Domain\MarketplacePricing::feeBreakdownForListing($listing);
-            $asking = \SutoreMarketplace\Shared\Domain\MarketplacePricing::activeAsking($listing);
-            $commission = round($asking * max(0.0, $resolver->percentForPayout($listing)) / 100, 2);
+            $payout = (new \SutoreMarketplace\Modules\Merchants\Repositories\PayoutLineRepository())
+                ->findByVariationAndOrder($variationId, (int) $order->get_id());
+            if ($payout) {
+                $commission = round((float) ($payout->commission_amount ?? 0), 2);
+            } else {
+                $asking = \SutoreMarketplace\Shared\Domain\MarketplacePricing::activeAsking($listing);
+                $commission = round($asking * max(0.0, $resolver->percentForPayout($listing)) / 100, 2);
+            }
             $pools[$variationId] = round((float) $fees['hizmet'] + (float) $fees['guvence'] + $commission, 2);
         }
 

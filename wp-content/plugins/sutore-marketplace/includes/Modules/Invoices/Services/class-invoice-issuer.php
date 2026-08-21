@@ -37,6 +37,66 @@ final class InvoiceIssuer
         $this->queue($listing, $orderId, InvoiceKind::SELLER_COMMISSION);
     }
 
+    /**
+     * Keep unsent seller-commission drafts in sync after a pending payout commission adjust.
+     */
+    public function resyncUnsentSellerCommission(
+        int $variationId,
+        int $orderId,
+        float $commissionAmount,
+        float $commissionPercent
+    ): void {
+        if ($variationId <= 0 || $orderId <= 0) {
+            return;
+        }
+
+        $existing = $this->repo->findByKindAndVariation(InvoiceKind::SELLER_COMMISSION, $variationId);
+        if (!$existing) {
+            return;
+        }
+
+        $status = (string) ($existing->status ?? '');
+        if ($status === InvoiceStatus::SENT || $status === InvoiceStatus::SKIPPED) {
+            return;
+        }
+        if (!in_array($status, [InvoiceStatus::QUEUED, InvoiceStatus::ERROR], true)) {
+            // Already handed to Parasut — do not rewrite mid-flight.
+            return;
+        }
+
+        $commissionAmount = round(max(0.0, $commissionAmount), 2);
+        $listing = (new \SutoreMarketplace\Modules\Listings\Repositories\ListingRepository())->find($variationId);
+        $title = $listing
+            ? Notifications::productTitle(
+                $variationId,
+                $variationId,
+                (int) $listing->parentProductId,
+                (int) $listing->sizeTermId
+            )
+            : ('#' . $variationId);
+        $lines = [];
+        if ($commissionAmount >= 0.01) {
+            $lines[] = [
+                'variation_id' => $variationId,
+                'title' => $title,
+                'code' => 'commission',
+                'amount' => $commissionAmount,
+                'commission_percent' => round($commissionPercent, 2),
+            ];
+        }
+
+        $this->repo->update((int) $existing->id, [
+            'commission_amount' => $commissionAmount,
+            'total_amount' => $commissionAmount < 0.01 ? 0 : $commissionAmount,
+            'line_items' => (string) wp_json_encode($lines),
+            'status' => $commissionAmount < 0.01 ? InvoiceStatus::SKIPPED : InvoiceStatus::QUEUED,
+        ]);
+
+        if ($commissionAmount >= 0.01) {
+            $this->scheduleOne((int) $existing->id);
+        }
+    }
+
     public function processDue(int $limit = 8): void
     {
         if (!$this->canRun()) {
@@ -182,7 +242,16 @@ final class InvoiceIssuer
         $allocated = $this->allocator->forListing($listing, $order);
         $hizmet = 0.0;
         $guvence = 0.0;
-        $commission = $kind === InvoiceKind::SELLER_COMMISSION ? $allocated['commission'] : 0.0;
+        $commission = 0.0;
+        if ($kind === InvoiceKind::SELLER_COMMISSION) {
+            $payout = (new \SutoreMarketplace\Modules\Merchants\Repositories\PayoutLineRepository())
+                ->findByVariationAndOrder($variationId, $orderId);
+            if ($payout) {
+                $commission = round((float) ($payout->commission_amount ?? 0), 2);
+            } else {
+                $commission = $allocated['commission'];
+            }
+        }
         $total = round($commission, 2);
         $title = Notifications::productTitle(
             (int) $listing->variationId,

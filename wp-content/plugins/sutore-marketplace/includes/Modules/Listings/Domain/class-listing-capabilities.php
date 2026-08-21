@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Modules\Listings\Domain;
 
+use SutoreMarketplace\Admin\StaffCapabilities;
+
 /**
  * Marketplace-specific capabilities. Merchants must not hold native WooCommerce
  * product write caps; listing mutations go through plugin services only.
@@ -46,6 +48,6 @@ final class ListingCapabilities
             return false;
         }
 
-        return user_can($userId, self::MANAGE_OWN) || user_can($userId, 'manage_woocommerce');
+        return user_can($userId, self::MANAGE_OWN) || StaffCapabilities::canManageOps($userId);
     }
 }

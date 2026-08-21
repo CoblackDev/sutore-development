@@ -170,12 +170,54 @@ final class ProductSizeLookup
             return '';
         }
 
-        $term = get_term($termId, self::PRIMARY_SIZE_TAXONOMY);
-        if (!$term || is_wp_error($term)) {
-            $term = get_term($termId);
+        $map = self::labelsForTermIds([$termId]);
+
+        return $map[$termId] ?? '';
+    }
+
+    /**
+     * @param list<int> $termIds
+     * @return array<int, string>
+     */
+    public static function labelsForTermIds(array $termIds): array
+    {
+        $termIds = array_values(array_unique(array_filter(array_map('absint', $termIds))));
+        if ($termIds === []) {
+            return [];
         }
 
-        return ($term && !is_wp_error($term)) ? (string) $term->name : '';
+        $out = [];
+        $missing = [];
+        foreach ($termIds as $termId) {
+            $term = get_term($termId, self::PRIMARY_SIZE_TAXONOMY);
+            if (!$term || is_wp_error($term)) {
+                $missing[] = $termId;
+                continue;
+            }
+            $out[$termId] = (string) $term->name;
+        }
+
+        if ($missing !== []) {
+            $terms = get_terms([
+                'include' => $missing,
+                'hide_empty' => false,
+            ]);
+            if (is_array($terms)) {
+                foreach ($terms as $term) {
+                    if ($term instanceof \WP_Term) {
+                        $out[(int) $term->term_id] = (string) $term->name;
+                    }
+                }
+            }
+        }
+
+        foreach ($termIds as $termId) {
+            if (!isset($out[$termId])) {
+                $out[$termId] = '';
+            }
+        }
+
+        return $out;
     }
 
     private static function normalizeSizeLabel(string $value): string

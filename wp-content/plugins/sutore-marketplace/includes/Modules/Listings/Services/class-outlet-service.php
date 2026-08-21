@@ -429,6 +429,7 @@ final class OutletService
         ], $optin->merchantId, [
             'expire_at' => $window->endsAt,
             'force_publish' => true,
+            'commission_percent' => 0.0,
         ]);
 
         if (is_wp_error($created)) {

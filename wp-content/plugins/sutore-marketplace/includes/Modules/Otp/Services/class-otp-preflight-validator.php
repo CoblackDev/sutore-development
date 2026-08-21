@@ -22,6 +22,7 @@ final class OtpPreflightValidator
         return match ($purpose) {
             OtpPurpose::MERCHANT_PROFILE => $this->merchantProfile($userId, $payload),
             OtpPurpose::ACCOUNT_DETAILS => $this->accountDetails($userId, $payload),
+            OtpPurpose::ACCOUNT_DETAILS_NEW_PHONE => $this->accountDetailsNewPhone($userId, $payload),
             OtpPurpose::PASSWORD_CHANGE => $this->passwordChange($userId, $payload),
             OtpPurpose::ACCOUNT_DELETE => $this->accountDelete($userId, $payload),
             default => new \WP_Error('sutore_otp_invalid_purpose', __('Invalid verification purpose.', 'sutore-marketplace')),
@@ -82,8 +83,32 @@ final class OtpPreflightValidator
         }
 
         $currentPhone = OtpPhoneResolver::forUser($userId);
+        if ($currentPhone === '' || strlen($currentPhone) < 10) {
+            return new \WP_Error('sutore_otp_phone_missing', __('A valid phone number is required for SMS verification.', 'sutore-marketplace'));
+        }
+
         if ($phone !== $currentPhone && !OtpPhoneResolver::isAvailable($phone, $userId)) {
             return new \WP_Error('sutore_phone_in_use', __('This phone number is already registered.', 'sutore-marketplace'));
+        }
+
+        return true;
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function accountDetailsNewPhone(int $userId, array $payload): true|\WP_Error
+    {
+        $details = $this->accountDetails($userId, $payload);
+        if ($details instanceof \WP_Error) {
+            return $details;
+        }
+
+        $phone = OtpPhoneResolver::normalize((string) ($payload['user_phone'] ?? $payload['phone'] ?? ''));
+        $currentPhone = OtpPhoneResolver::forUser($userId);
+        if ($phone === '' || $phone === $currentPhone) {
+            return new \WP_Error(
+                'sutore_otp_new_phone_unchanged',
+                __('A new phone number is required for this verification step.', 'sutore-marketplace')
+            );
         }
 
         return true;

@@ -21,11 +21,29 @@ final class PayoutLineRepository
         return $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table() . ' WHERE id = %d', $id));
     }
 
+    /**
+     * Active (pending/paid) payout for a listing, else the latest row.
+     */
     public function findByVariationId(int $variationId): ?object
     {
         $map = $this->findByVariationIds([$variationId]);
 
         return $map[$variationId] ?? null;
+    }
+
+    public function findByVariationAndOrder(int $variationId, int $orderId): ?object
+    {
+        if ($variationId <= 0 || $orderId <= 0) {
+            return null;
+        }
+
+        global $wpdb;
+
+        return $wpdb->get_row($wpdb->prepare(
+            'SELECT * FROM ' . $this->table() . ' WHERE variation_id = %d AND order_id = %d LIMIT 1',
+            $variationId,
+            $orderId
+        ));
     }
 
     /**
@@ -42,13 +60,18 @@ final class PayoutLineRepository
         global $wpdb;
         $placeholders = implode(',', array_fill(0, count($variationIds), '%d'));
         $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$this->table()} WHERE variation_id IN ({$placeholders})",
+            "SELECT * FROM {$this->table()} WHERE variation_id IN ({$placeholders}) ORDER BY id DESC",
             ...$variationIds
         ));
 
         $out = [];
         foreach ($rows ?: [] as $row) {
-            $out[(int) $row->variation_id] = $row;
+            $vid = (int) $row->variation_id;
+            if (!isset($out[$vid])) {
+                $out[$vid] = $row;
+                continue;
+            }
+            $out[$vid] = self::preferPayoutRow($out[$vid], $row);
         }
 
         return $out;
@@ -140,5 +163,24 @@ final class PayoutLineRepository
             $merchantId,
             $limit
         )) ?: [];
+    }
+
+    private static function preferPayoutRow(object $a, object $b): object
+    {
+        $rank = static function (object $row): int {
+            return match ((string) ($row->payout_status ?? '')) {
+                PayoutStatus::PENDING => 3,
+                PayoutStatus::PAID => 2,
+                default => 1,
+            };
+        };
+
+        $ra = $rank($a);
+        $rb = $rank($b);
+        if ($ra !== $rb) {
+            return $ra > $rb ? $a : $b;
+        }
+
+        return (int) ($a->id ?? 0) >= (int) ($b->id ?? 0) ? $a : $b;
     }
 }

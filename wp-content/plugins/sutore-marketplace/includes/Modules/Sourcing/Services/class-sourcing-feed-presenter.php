@@ -7,9 +7,8 @@ namespace SutoreMarketplace\Modules\Sourcing\Services;
 use SutoreMarketplace\Modules\Listings\Domain\Listing;
 use SutoreMarketplace\Modules\Listings\Domain\ListingPolicy;
 use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
-use SutoreMarketplace\Modules\Listings\Domain\ProductCodeLookup;
+use SutoreMarketplace\Modules\Listings\Domain\ProductListChrome;
 use SutoreMarketplace\Modules\Listings\Domain\ProductSizeLookup;
-use SutoreMarketplace\Modules\Listings\Domain\ProductThumbnail;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 use SutoreMarketplace\Modules\Orders\Services\DeadlineCalculator;
 use SutoreMarketplace\Modules\Orders\Settings\Settings as OrderSettings;
@@ -57,6 +56,11 @@ final class SourcingFeedPresenter
             $pairs[] = [(int) $listing->parentProductId, (int) $listing->sizeTermId];
         }
         $matchingByPair = $this->listings->findMatchingForPreOrder($merchantId, $pairs);
+        $chrome = $this->chromeForListings($result['items']);
+        $sizeLabels = ProductSizeLookup::labelsForTermIds(array_map(
+            static fn (Listing $listing): int => (int) $listing->sizeTermId,
+            $result['items']
+        ));
 
         foreach ($result['items'] as $listing) {
             if (!$listing->orderId) {
@@ -65,7 +69,7 @@ final class SourcingFeedPresenter
             if (!ListingPolicy::canViewPreOrderListing((string) ($listing->createdAt ?? ''), $merchantId)) {
                 continue;
             }
-            $items[] = $this->enrichListing($listing, $merchantId, $matchingByPair);
+            $items[] = $this->enrichListing($listing, $merchantId, $matchingByPair, $chrome, $sizeLabels);
         }
 
         if ($search !== '') {
@@ -127,19 +131,51 @@ final class SourcingFeedPresenter
             $merchantId,
             [[(int) $listing->parentProductId, (int) $listing->sizeTermId]]
         );
+        $chrome = $this->chromeForListings([$listing]);
+        $sizeLabels = ProductSizeLookup::labelsForTermIds([(int) $listing->sizeTermId]);
 
-        return $this->enrichListing($listing, $merchantId, $matchingByPair);
+        return $this->enrichListing($listing, $merchantId, $matchingByPair, $chrome, $sizeLabels);
+    }
+
+    /**
+     * @param list<Listing> $listings
+     * @return array<int, array{title:string,code:string,thumbnail:string,permalink:string}>
+     */
+    private function chromeForListings(array $listings): array
+    {
+        $ids = [];
+        foreach ($listings as $listing) {
+            $ids[] = (int) $listing->parentProductId;
+            if ((int) $listing->variationId > 0) {
+                $ids[] = (int) $listing->variationId;
+            }
+        }
+
+        return ProductListChrome::mapForIds($ids);
     }
 
     /**
      * @param array<string, Listing> $matchingByPair
+     * @param array<int, array{title:string,code:string,thumbnail:string,permalink:string}> $chrome
+     * @param array<int, string> $sizeLabels
      * @return array<string, mixed>
      */
-    private function enrichListing(Listing $listing, int $merchantId, array $matchingByPair = []): array
-    {
+    private function enrichListing(
+        Listing $listing,
+        int $merchantId,
+        array $matchingByPair = [],
+        array $chrome = [],
+        array $sizeLabels = []
+    ): array {
         $parentId = (int) $listing->parentProductId;
         $sizeTermId = (int) $listing->sizeTermId;
-        $sizeLabel = ProductSizeLookup::labelForTermId($sizeTermId);
+        $sizeLabel = $sizeLabels[$sizeTermId] ?? ProductSizeLookup::labelForTermId($sizeTermId);
+        $parentChrome = $chrome[$parentId] ?? [
+            'title' => '',
+            'code' => '',
+            'thumbnail' => '',
+            'permalink' => '',
+        ];
 
         $offerAsking = $this->sourcingService->askingForPreOrder($listing);
         $commissionPercent = MerchantLevels::commissionPercentForUser($merchantId);
@@ -169,11 +205,11 @@ final class SourcingFeedPresenter
             'order_item_id' => (int) ($listing->orderItemId ?? 0),
             'parent_product_id' => $parentId,
             'size_term_id' => $sizeTermId,
-            'parent_title' => get_the_title($parentId),
-            'product_code' => ProductCodeLookup::codeForProduct($parentId),
-            'thumbnail' => ProductThumbnail::url($parentId),
+            'parent_title' => $parentChrome['title'] !== '' ? $parentChrome['title'] : get_the_title($parentId),
+            'product_code' => $parentChrome['code'],
+            'thumbnail' => $parentChrome['thumbnail'],
             'size_label' => $sizeLabel,
-            'permalink' => get_permalink($parentId) ?: '',
+            'permalink' => $parentChrome['permalink'] !== '' ? $parentChrome['permalink'] : (get_permalink($parentId) ?: ''),
             'created_at' => (string) ($listing->createdAt ?? ''),
             'offer_asking' => $offerAsking,
             'offer_asking_display' => MarketplacePricing::formatTl((float) $offerAsking),

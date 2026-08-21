@@ -27,13 +27,23 @@ final class TasksRepository
     public function allDefinitions(bool $activeOnly = false): array
     {
         global $wpdb;
-        $sql = 'SELECT * FROM ' . $this->definitionsTable();
-        if ($activeOnly) {
-            $sql .= ' WHERE is_active = 1';
-        }
-        $sql .= ' ORDER BY id ASC';
+        $table = $this->definitionsTable();
 
-        return $wpdb->get_results($sql) ?: [];
+        if ($activeOnly) {
+            return $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT * FROM {$table} WHERE is_active = %d ORDER BY id ASC",
+                    1
+                )
+            ) ?: [];
+        }
+
+        return $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$table} WHERE 1 = %d ORDER BY id ASC",
+                1
+            )
+        ) ?: [];
     }
 
     /** @return list<object> */

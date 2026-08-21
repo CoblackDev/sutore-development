@@ -109,7 +109,40 @@ final class ConcurrencyMatrixTest
         $second = $bridge->claimPreOrderForSwap($id);
         Harness::assertTrue(!is_wp_error($first), 'first pre-order claim wins');
         Harness::assertTrue(is_wp_error($second), 'second pre-order claim loses');
+        Harness::assertSame('sutore_pre_order_claimed', $second->get_error_code());
         Fixtures::assertStatus($id, ListingStatus::ORDER_DETACHED);
+    }
+
+    public function testAcceptPreOrderSwapOneWinner(): void
+    {
+        $catalog = Fixtures::catalog('pre2');
+        $sellerA = Fixtures::sellerVerified();
+        $sellerB = Fixtures::sellerQueued();
+        $preListing = Fixtures::listing($sellerA, $catalog['parent_id'], $catalog['size_term_id'], 400);
+        $preId = (int) $preListing->variationId;
+        $order = Fixtures::paidOrder(Fixtures::customer(), $preId);
+        $marked = (new FulfillmentService())->markAsPreOrder($preId, 'staff');
+        Harness::assertNotWpError($marked, 'mark pre-order');
+        Fixtures::assertStatus($preId, ListingStatus::PRE_ORDER);
+
+        $replA = Fixtures::listing($sellerA, $catalog['parent_id'], $catalog['size_term_id'], 425);
+        $replB = Fixtures::listing($sellerB, $catalog['parent_id'], $catalog['size_term_id'], 450);
+        (new ListingRepository())->update((int) $replA->variationId, [
+            'listing_status' => ListingStatus::PUBLISH,
+            'is_winner' => 1,
+        ]);
+        (new ListingRepository())->update((int) $replB->variationId, [
+            'listing_status' => ListingStatus::PUBLISH,
+            'is_winner' => 1,
+        ]);
+
+        $svc = new FulfillmentService();
+        $first = $svc->acceptPreOrderSwap($preId, (int) $replA->variationId, $sellerA);
+        $second = $svc->acceptPreOrderSwap($preId, (int) $replB->variationId, $sellerB);
+        Harness::assertNotWpError($first, 'first accept wins');
+        Harness::assertWpError($second, 'second accept loses');
+        Harness::assertSame('sutore_pre_order_claimed', $second->get_error_code());
+        Harness::assertTrue($order->get_id() > 0);
     }
 
     public function testCampaignOfferAcceptVsExpire(): void

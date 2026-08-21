@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Modules\Invoices\Services;
 
 use SutoreMarketplace\Modules\Invoices\Settings\InvoiceSettings;
+use SutoreMarketplace\Shared\Security\OutboundUrl;
 use SutoreMarketplace\Shared\Security\SecretBox;
 
 /**
@@ -18,6 +19,19 @@ final class ParasutClient
 
     /** @var list<int> */
     private static array $requestTimes = [];
+
+    /**
+     * API host — filterable so tests / sandbox never hit production Paraşüt.
+     *
+     * @return non-empty-string
+     */
+    public static function apiBase(): string
+    {
+        $base = (string) apply_filters('sutore_marketplace_parasut_api_base', self::BASE);
+        $base = rtrim($base, '/');
+
+        return $base !== '' ? $base : self::BASE;
+    }
 
     /** @return array<string, mixed> */
     public function get(string $path, array $query = []): array
@@ -74,7 +88,7 @@ final class ParasutClient
             ];
         }
 
-        $url = str_starts_with($path, '/') ? self::BASE . $path : '';
+        $url = str_starts_with($path, '/') ? self::apiBase() . $path : '';
         if ($url === '' || str_starts_with($path, 'http')) {
             return [
                 'ok' => false,
@@ -145,7 +159,7 @@ final class ParasutClient
             $args['body'] = wp_json_encode($body);
         }
 
-        $url = str_starts_with($path, '/') ? self::BASE . $path : '';
+        $url = str_starts_with($path, '/') ? self::apiBase() . $path : '';
         if ($url === '' || str_starts_with($path, 'http')) {
             return ['ok' => false, 'status' => 0, 'error' => __('Invalid Paraşüt API path.', 'sutore-marketplace')];
         }
@@ -252,7 +266,7 @@ final class ParasutClient
         ];
         foreach ($allowedSuffixes as $suffix) {
             if ($host === $suffix || str_ends_with($host, '.' . $suffix)) {
-                return true;
+                return OutboundUrl::isSafe($url);
             }
         }
 
@@ -295,7 +309,7 @@ final class ParasutClient
         if (!$this->throttle()) {
             return '';
         }
-        $response = wp_remote_post(self::BASE . '/oauth/token', [
+        $response = wp_remote_post(self::apiBase() . '/oauth/token', [
             'timeout' => 30,
             'body' => $fields,
         ]);

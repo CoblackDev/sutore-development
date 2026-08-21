@@ -520,11 +520,16 @@ final class PaymentReservationCommands
         $actor = $this->support->resolveActor();
         $listing = $this->support->bridge()->find($listingId);
         $order = wc_get_order((int) $row->order_id);
-        if ($order && (int) $row->order_item_id > 0) {
-            $this->support->addSplitOrderNote($order, $listing, $actor);
-            $order->remove_item((int) $row->order_item_id);
-            $order->calculate_totals();
-            $order->save();
+        if ($order instanceof \WC_Order && (int) $row->order_item_id > 0) {
+            $this->support->refundPaidLineThenRemove(
+                $order,
+                (int) $row->order_item_id,
+                $listing,
+                $actor,
+                $listingId,
+                __('Product detached from order.', 'sutore-marketplace')
+            );
+            $order = wc_get_order((int) $row->order_id) ?: $order;
         }
 
         $this->repo->update($listingId, [

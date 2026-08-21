@@ -8,9 +8,11 @@
  * My Account / staff scenario so you can click through the product.
  *
  * Usage:
+ *   # wp-config.php (local/dev): define('SUTORE_ALLOW_SEED', true);
  *   docker compose exec -T wordpress php wp-content/plugins/sutore-marketplace/tools/seed-scenarios.php --force
  *   docker compose exec -T wordpress php wp-content/plugins/sutore-marketplace/tools/seed-scenarios.php --purge-only
  *
+ * Refuses production. Outside production requires SUTORE_ALLOW_SEED (or WP_ENVIRONMENT_TYPE local/development) plus --force.
  * Password for all seed users: password
  */
 
@@ -70,6 +72,18 @@ if (!is_file($root . '/wp-load.php')) {
     $root = dirname(__DIR__, 4);
 }
 require $root . '/wp-load.php';
+
+if (wp_get_environment_type() === 'production') {
+    fwrite(STDERR, "Refusing to seed in a production environment.\n");
+    exit(1);
+}
+
+$seedAllowed = defined('SUTORE_ALLOW_SEED') && SUTORE_ALLOW_SEED;
+$isLocalDev = in_array(wp_get_environment_type(), ['local', 'development'], true);
+if (!$seedAllowed && !$isLocalDev) {
+    fwrite(STDERR, "Refusing to purge/seed: define SUTORE_ALLOW_SEED as true in wp-config.php (local/dev only).\n");
+    exit(1);
+}
 
 if (!defined('SUTORE_MARKETPLACE_SEEDING')) {
     define('SUTORE_MARKETPLACE_SEEDING', true);
@@ -867,6 +881,17 @@ try {
     remember_listing('queue_winner', $winner, 'Queue bucket winner');
     remember_listing('queue_waiting', $queued, 'Queued behind winner');
 
+    // Pending normal does not lock the vitrine: cheaper normal stays pending; verified goes publish.
+    $parentPendingGate = create_parent_product('Seed Pending Gate', 'SEED-PEND', [$size43]);
+    $REPORT['products']['pending_gate'] = $parentPendingGate;
+    $pendingNormal = create_listing($sellerNormal, $parentPendingGate, (int) $size43->term_id, ask(15), ['duration_days' => 7]);
+    $pendingVerified = create_listing($sellerVerified, $parentPendingGate, (int) $size43->term_id, ask(25));
+    $pendingNormal = (new ListingRepository())->find((int) $pendingNormal->variationId) ?: $pendingNormal;
+    $pendingVerified = (new ListingRepository())->find((int) $pendingVerified->variationId) ?: $pendingVerified;
+    remember_listing('pending_gate_normal', $pendingNormal, 'Cheaper normal — pending approval, not vitrine winner');
+    remember_listing('pending_gate_verified', $pendingVerified, 'Verified occupies vitrine while cheaper normal awaits approval');
+    $REPORT['notes'][] = 'SEED-PEND size 43: demo_seller_normal (cheap) is pending without locking sale; demo_seller_verified is publish. Staff approve normal → it takes the vitrine; approved_at keeps it from falling back to pending.';
+
     // Price race ignores condition: cheapest damaged listing wins; flawless expensive waits.
     $parentCondition = create_parent_product('Seed Condition Price Race', 'SEED-COND', [$size42]);
     $REPORT['products']['condition_race'] = $parentCondition;
@@ -1654,7 +1679,7 @@ try {
     $REPORT['notes'][] = 'demo_seller_verified Outlet: waiting opt-in on Seed Outlet Upcoming (Dunk 42, asking '
         . ask(144) . ' / customer ' . ask(160) . ') — listing is created when the window opens';
     $REPORT['notes'][] = 'demo_seller_premium Outlet: live listing on Seed Outlet Live at asking ' . ask(144)
-        . '; customer price ' . ask(160) . ' (SEED-OUTLET size 42)';
+        . '; customer price ' . ask(160) . ' (SEED-OUTLET size 42). Outlet listings store commission_percent=0 so seller_net is the payout net (no second cut).';
     $REPORT['notes'][] = 'demo_seller_queued Outlet: can still join both open items; wp-admin Outlet has a draft window to publish';
     seed_log('Outlet: draft=#' . (int) $draftOutletId
         . ' scheduled=#' . (int) $scheduledOutletId

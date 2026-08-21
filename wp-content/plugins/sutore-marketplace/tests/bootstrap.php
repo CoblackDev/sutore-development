@@ -24,10 +24,20 @@ if (!is_file($root . '/wp-load.php')) {
 
 require $root . '/wp-load.php';
 
+if (wp_get_environment_type() === 'production') {
+    fwrite(STDERR, "Refusing to run marketplace tests in a production environment.\n");
+    exit(1);
+}
+
 if (!defined('SUTORE_MARKETPLACE_PATH')) {
     fwrite(STDERR, "sutore-marketplace is not loaded.\n");
     exit(1);
 }
+
+// Never hit live Paraşüt from the test suite (invalid host + filter).
+add_filter('sutore_marketplace_parasut_api_base', static function (): string {
+    return 'https://sutore-parasut-test.invalid';
+});
 
 require_once __DIR__ . '/Support/class-failed.php';
 require_once __DIR__ . '/Support/class-skipped.php';
@@ -53,6 +63,12 @@ require_once __DIR__ . '/Support/class-fixtures.php';
         delete_transient('sutore_otp_request_' . $id);
         delete_transient('sutore_otp_attempts_' . $id);
         delete_transient('sutore_otp_session_' . $id);
+        // Purpose-scoped sessions (account_details, …).
+        delete_transient('sutore_otp_session_' . $id . '_account_details');
+        delete_transient('sutore_otp_session_' . $id . '_account_details_new_phone');
+        delete_transient('sutore_otp_session_' . $id . '_password_change');
+        delete_transient('sutore_otp_session_' . $id . '_account_delete');
+        delete_transient('sutore_otp_session_' . $id . '_merchant_profile');
         $phone = \SutoreMarketplace\Modules\Otp\Services\OtpPhoneResolver::forUser($id);
         if ($phone !== '') {
             delete_transient('sutore_otp_phone_' . hash('sha256', $phone));

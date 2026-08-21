@@ -3393,6 +3393,27 @@
     });
   }
 
+  function populateSizeFilters($root, filters) {
+    var $select = $root.find('.sutore-mp-list-size');
+    if (!$select.length || $select.data('sizeFiltersLoaded')) {
+      return;
+    }
+    var selected = String($select.val() || '');
+    $select.find('option').not(':first').remove();
+    (filters || []).forEach(function (row) {
+      var id = row && row.term_id != null ? String(row.term_id) : '';
+      var name = row && row.name != null ? String(row.name) : '';
+      if (!id || !name) {
+        return;
+      }
+      $select.append($('<option/>').attr('value', id).text(name));
+    });
+    if (selected) {
+      $select.val(selected);
+    }
+    $select.attr('aria-busy', 'false').data('sizeFiltersLoaded', 1);
+  }
+
   function loadListings($root, page) {
     if ($root.hasClass('sutore-mp-staff-listing-create') || $root.attr('data-staff-create') === '1') {
       return;
@@ -3424,6 +3445,7 @@
         $root.find('.sutore-mp-list-chrome').prop('hidden', false);
         return;
       }
+      populateSizeFilters($root, res.data.size_filters || []);
       $box.empty().attr('aria-busy', 'false');
       var items = res.data.items || [];
       if (!items.length) {

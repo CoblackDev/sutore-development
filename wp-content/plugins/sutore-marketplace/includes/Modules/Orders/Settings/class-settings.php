@@ -117,6 +117,11 @@ final class Settings
         return $merged;
     }
 
+    public static function forgetMemo(): void
+    {
+        self::$memo = null;
+    }
+
     /**
      * @param array<string, mixed> $stored
      * @return array<string, mixed>
@@ -126,13 +131,6 @@ final class Settings
         $merged = array_replace_recursive(self::defaults(), $stored);
         $merged['settings_version'] = self::VERSION;
         unset($merged['auto_sourcing_on_suspend'], $merged['auto_sourcing_on_split'], $merged['merchant_notification_events']);
-        if (isset($merged['swap_allowed_statuses']) && is_string($merged['swap_allowed_statuses'])) {
-            $merged['swap_allowed_statuses'] = str_replace(
-                ['payment_pending', 'awaiting_seller'],
-                ['payment', 'sold'],
-                $merged['swap_allowed_statuses']
-            );
-        }
 
         $merged['merchant_notification_channels'] = self::migrateNotificationChannels($stored);
         $merged['sms_events'] = self::migrateSmsEvents($stored, $merged);

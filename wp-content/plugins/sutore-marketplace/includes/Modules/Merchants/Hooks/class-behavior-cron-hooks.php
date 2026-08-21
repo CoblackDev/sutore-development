@@ -7,6 +7,7 @@ namespace SutoreMarketplace\Modules\Merchants\Hooks;
 use SutoreMarketplace\Modules\Merchants\Services\BehaviorLevelService;
 use SutoreMarketplace\Modules\Merchants\Services\BehaviorScoreService;
 use SutoreMarketplace\Modules\Tasks\Services\OpportunityCardService;
+use SutoreMarketplace\Shared\Hooks\CronRegistry;
 
 final class BehaviorCronHooks
 {
@@ -27,10 +28,7 @@ final class BehaviorCronHooks
 
     public static function unschedule(): void
     {
-        $timestamp = wp_next_scheduled(self::HOOK_DAILY);
-        if ($timestamp) {
-            wp_unschedule_event($timestamp, self::HOOK_DAILY);
-        }
+        CronRegistry::clearHook(self::HOOK_DAILY);
     }
 
     public function runDaily(): void

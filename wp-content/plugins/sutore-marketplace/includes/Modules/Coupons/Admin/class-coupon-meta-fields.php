@@ -85,16 +85,18 @@ final class CouponMetaFields
     {
         unset($coupon);
 
-        $enabled = isset($_POST[CouponMeta::BRAND_CAMPAIGN]) ? 'yes' : 'no';
+        $post = wp_unslash($_POST);
+
+        $enabled = isset($post[CouponMeta::BRAND_CAMPAIGN]) ? 'yes' : 'no';
         update_post_meta($postId, CouponMeta::BRAND_CAMPAIGN, $enabled);
 
-        $minQty = max(1, (int) ($_POST[CouponMeta::MIN_BRAND_QTY] ?? 1));
+        $minQty = max(1, (int) ($post[CouponMeta::MIN_BRAND_QTY] ?? 1));
         update_post_meta($postId, CouponMeta::MIN_BRAND_QTY, $minQty);
 
-        $priority = max(0, (int) ($_POST[CouponMeta::NOTICE_PRIORITY] ?? 0));
+        $priority = max(0, (int) ($post[CouponMeta::NOTICE_PRIORITY] ?? 0));
         update_post_meta($postId, CouponMeta::NOTICE_PRIORITY, $priority);
 
-        $color = sanitize_hex_color((string) ($_POST[CouponMeta::NOTICE_COLOR] ?? ''));
+        $color = sanitize_hex_color((string) ($post[CouponMeta::NOTICE_COLOR] ?? ''));
         update_post_meta($postId, CouponMeta::NOTICE_COLOR, $color !== null && $color !== '' ? $color : '#222222');
 
         BrandCampaignRegistry::flush();

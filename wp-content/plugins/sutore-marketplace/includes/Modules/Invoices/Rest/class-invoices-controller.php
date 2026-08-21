@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Modules\Invoices\Rest;
 
-use SutoreMarketplace\Admin\AdminMenu;
+use SutoreMarketplace\Admin\StaffCapabilities;
 use SutoreMarketplace\Modules\Invoices\Domain\InvoiceKind;
 use SutoreMarketplace\Modules\Invoices\Repositories\InvoiceRepository;
 use SutoreMarketplace\Modules\Invoices\Services\InvoiceStorage;
@@ -45,7 +45,7 @@ final class InvoicesController
             return false;
         }
 
-        if (current_user_can(AdminMenu::CAP)) {
+        if (StaffCapabilities::canManageOps()) {
             return true;
         }
 

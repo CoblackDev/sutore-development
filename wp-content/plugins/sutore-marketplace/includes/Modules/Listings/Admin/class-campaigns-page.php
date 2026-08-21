@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Modules\Listings\Admin;
 
 use SutoreMarketplace\Admin\AdminAssets;
-use SutoreMarketplace\Admin\AdminMenu;
+use SutoreMarketplace\Admin\StaffCapabilities;
 use SutoreMarketplace\Modules\Listings\Domain\CampaignDatetime;
 use SutoreMarketplace\Modules\Listings\Domain\CampaignDiscountType;
 use SutoreMarketplace\Modules\Listings\Domain\CampaignStatus;
@@ -17,7 +17,7 @@ final class CampaignsPage
 {
     public function render(): void
     {
-        if (!current_user_can(AdminMenu::CAP)) {
+        if (!StaffCapabilities::canManageOps()) {
             return;
         }
 

@@ -9,26 +9,9 @@ if (!defined('ABSPATH')) {
 }
 
 use SutoreMarketplace\Shared\Settings\Settings;
-use SutoreMarketplace\Modules\Listings\Domain\ProductSizeLookup;
-use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 
 if (!isset($step)) {
     $step = Settings::listingPriceStep();
-}
-
-$sizeFilterTerms = [];
-$merchantId = get_current_user_id();
-if ($merchantId > 0) {
-    foreach ((new ListingRepository())->distinctSizeTermIdsForMerchant($merchantId) as $termId) {
-        $label = ProductSizeLookup::labelForTermId($termId);
-        if ($label === '') {
-            continue;
-        }
-        $sizeFilterTerms[] = (object) [
-            'term_id' => $termId,
-            'name' => $label,
-        ];
-    }
 }
 ?>
 <div class="sutore-mp-listings wp-block-group" data-price-step="<?php echo esc_attr((string) $step); ?>">
@@ -91,11 +74,8 @@ if ($merchantId > 0) {
                 </select>
 
                 <label class="sutore-mp-field-label" for="sutore-mp-list-size"><?php esc_html_e('Variation', 'sutore-marketplace'); ?></label>
-                <select id="sutore-mp-list-size" name="size_term_id" class="sutore-mp-input sutore-mp-list-size">
+                <select id="sutore-mp-list-size" name="size_term_id" class="sutore-mp-input sutore-mp-list-size" aria-busy="true">
                     <option value=""><?php esc_html_e('All', 'sutore-marketplace'); ?></option>
-                    <?php foreach ($sizeFilterTerms as $term) : ?>
-                        <option value="<?php echo esc_attr((string) $term->term_id); ?>"><?php echo esc_html($term->name); ?></option>
-                    <?php endforeach; ?>
                 </select>
 
                 <label class="sutore-mp-field-label" for="sutore-mp-list-condition"><?php esc_html_e('Condition', 'sutore-marketplace'); ?></label>

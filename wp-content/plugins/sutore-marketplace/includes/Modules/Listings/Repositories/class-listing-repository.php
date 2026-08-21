@@ -44,6 +44,7 @@ final class ListingRepository
             'has_invoice',
             'is_imported',
             'is_winner',
+            'approved_at',
             'confirm_deadline_at',
             'seller_confirmed_at',
             'cargo_deadline_at',
@@ -182,9 +183,9 @@ final class ListingRepository
             'SELECT * FROM ' . $this->table() . '
              WHERE parent_product_id = %d
                AND size_term_id = %d
-               AND listing_status IN ("publish","queued")
-               AND (is_winner = 1 OR listing_status = "publish")
-             ORDER BY is_winner DESC, asking ASC, created_at ASC
+               AND is_winner = 1
+               AND listing_status = "publish"
+             ORDER BY asking ASC, created_at ASC
              LIMIT 1',
             $parentId,
             $sizeTermId
@@ -290,10 +291,11 @@ final class ListingRepository
              WHERE parent_product_id = %d
                AND size_term_id = %d
                AND is_winner = 1
-               AND listing_status IN ("publish","queued")
+               AND listing_status = %s
              LIMIT 1',
             $parentId,
-            $sizeTermId
+            $sizeTermId,
+            ListingStatus::PUBLISH
         ));
 
         return $row ? $this->hydrate($row) : null;
@@ -397,11 +399,17 @@ final class ListingRepository
      * @param list<string>|string $expectedStatuses
      * @param array<string, mixed> $data
      */
+    /**
+     * @param list<string>|string $expectedStatuses
+     * @param array<string, mixed> $data
+     * @param array<string, scalar|null> $andEquals Extra equality predicates for the CAS WHERE clause.
+     */
     public function updateIfStatus(
         int $variationId,
         array|string $expectedStatuses,
         array $data,
-        bool $requireUnboundOrder = false
+        bool $requireUnboundOrder = false,
+        array $andEquals = []
     ): bool {
         if ($variationId <= 0) {
             return false;
@@ -447,11 +455,25 @@ final class ListingRepository
             $orderClause = ' AND (order_id IS NULL OR order_id = 0)';
         }
 
+        $extraClause = '';
+        foreach ($andEquals as $column => $value) {
+            $column = preg_replace('/[^a-z0-9_]/', '', (string) $column) ?? '';
+            if ($column === '') {
+                continue;
+            }
+            if ($value === null) {
+                $extraClause .= " AND `{$column}` IS NULL";
+                continue;
+            }
+            $extraClause .= " AND `{$column}` = %s";
+            $params[] = is_bool($value) ? (int) $value : $value;
+        }
+
         $table = $this->table();
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- columns whitelisted above; values prepared.
         $updated = $wpdb->query($wpdb->prepare(
             "UPDATE {$table} SET " . implode(', ', $setSql)
-            . " WHERE variation_id = %d AND listing_status IN ({$statusPlaceholders}){$orderClause}",
+            . " WHERE variation_id = %d AND listing_status IN ({$statusPlaceholders}){$orderClause}{$extraClause}",
             ...$params
         ));
 

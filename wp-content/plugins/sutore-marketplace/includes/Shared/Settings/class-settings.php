@@ -146,6 +146,11 @@ final class Settings
         return $merged;
     }
 
+    public static function forgetMemo(): void
+    {
+        self::$memo = null;
+    }
+
     public static function listingPriceStep(): int
     {
         return max(1, (int) self::get('listing_price_step', 25));

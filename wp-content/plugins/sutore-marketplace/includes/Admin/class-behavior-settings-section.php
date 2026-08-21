@@ -184,7 +184,7 @@ final class BehaviorSettingsSection
             __('Shadow mode duration (weeks)', 'sutore-marketplace'),
             (int) ($behavior['shadow_mode_weeks'] ?? $defaults['shadow_mode_weeks']),
             '1',
-            __('When shadow mode is enabled, score is computed but hidden for this many weeks after profile creation.', 'sutore-marketplace')
+            __('When shadow mode is enabled, score is computed but hidden for this many weeks after profile creation. After the window ends, sanctions and the pre-order score gate apply normally.', 'sutore-marketplace')
         );
 
         $shadowEnabled = !empty($behavior['shadow_mode_enabled'] ?? $defaults['shadow_mode_enabled']);
@@ -192,7 +192,7 @@ final class BehaviorSettingsSection
         printf(
             '<label><input type="checkbox" name="behavior_shadow_mode_enabled" value="1" %s /> %s</label>',
             checked($shadowEnabled, true, false),
-            esc_html__('Compute score silently for new sellers (no display, no sanctions).', 'sutore-marketplace')
+            esc_html__('Compute score silently for new sellers — no display, no sanctions, no level changes.', 'sutore-marketplace')
         );
         echo '</td></tr>';
 

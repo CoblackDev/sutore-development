@@ -225,21 +225,33 @@ final class SourcingSwapCommands
             return new \WP_Error('sutore_marketplace_fulfillment_listing', __('Product not found.', 'sutore-marketplace'));
         }
 
-        $this->repo->update($listingId, [
-            'fulfillment_status' => ListingStatus::PRE_ORDER,
-            'confirm_deadline_at' => null,
-            'seller_confirmed_at' => null,
-            'cargo_deadline_at' => null,
-            'merchant_shipped_at' => null,
-            'merchant_shipment_code' => null,
-            'sutore_shipment_code' => null,
-            'confirm_notice_sent' => 0,
-            'confirm_punished' => $reason === 'confirm_deadline' ? 1 : (int) $row->confirm_punished,
-            'cargo_notice_sent' => 0,
-            'cargo_expired_flag' => 0,
-            'merchant_snapshot' => null,
-            'is_winner' => 0,
-        ]);
+        $andEquals = $reason === 'confirm_deadline' ? ['confirm_punished' => 0] : [];
+        $claimed = $this->repo->claimWhile(
+            $listingId,
+            [ListingStatus::PAYMENT, ListingStatus::SOLD],
+            $andEquals,
+            [
+                'fulfillment_status' => ListingStatus::PRE_ORDER,
+                'confirm_deadline_at' => null,
+                'seller_confirmed_at' => null,
+                'cargo_deadline_at' => null,
+                'merchant_shipped_at' => null,
+                'merchant_shipment_code' => null,
+                'sutore_shipment_code' => null,
+                'confirm_notice_sent' => 0,
+                'confirm_punished' => $reason === 'confirm_deadline' ? 1 : (int) $row->confirm_punished,
+                'cargo_notice_sent' => 0,
+                'cargo_expired_flag' => 0,
+                'merchant_snapshot' => null,
+                'is_winner' => 0,
+            ]
+        );
+        if (!$claimed) {
+            return new \WP_Error(
+                'sutore_marketplace_fulfillment_status',
+                __('Sale status changed. Refresh and try again.', 'sutore-marketplace')
+            );
+        }
 
         $this->support->logListingEvent('listing_pre_order', $listing, [
             'variation_id' => $listingId,
@@ -299,14 +311,14 @@ final class SourcingSwapCommands
         $order = $orderId > 0 ? wc_get_order($orderId) : false;
 
         if ($order instanceof \WC_Order && $itemId > 0) {
-            $this->support->refundOrderLineIfPaid($order, $itemId);
-            $order = wc_get_order($orderId) ?: $order;
-            if ($order->get_item($itemId)) {
-                $this->support->addSplitOrderNote($order, $listing, $actor);
-                $order->remove_item($itemId);
-                $order->calculate_totals();
-                $order->save();
-            }
+            $this->support->refundPaidLineThenRemove(
+                $order,
+                $itemId,
+                $listing,
+                $actor,
+                $listingId,
+                __('Pre-order could not be sourced.', 'sutore-marketplace')
+            );
         }
 
         $this->repo->update($listingId, [
@@ -356,21 +368,6 @@ final class SourcingSwapCommands
      */
     public function acceptPreOrderSwap(int $preOrderListingId, int $newListingId, int $acceptingMerchantId): true|\WP_Error
     {
-        $preOrder = $this->support->bridge()->find($preOrderListingId);
-        if (!$preOrder || $preOrder->listingStatus !== ListingStatus::PRE_ORDER) {
-            return new \WP_Error(
-                'sutore_pre_order_missing',
-                __('Pre-order product not found.', 'sutore-marketplace')
-            );
-        }
-
-        if (!$preOrder->orderId || !$preOrder->orderItemId) {
-            return new \WP_Error(
-                'sutore_pre_order_not_linked',
-                __('Pre-order is not linked to an order.', 'sutore-marketplace')
-            );
-        }
-
         $newListing = $this->support->bridge()->find($newListingId);
         if (!$newListing) {
             return new \WP_Error('sutore_pre_order_listing', __('Replacement product not found.', 'sutore-marketplace'));
@@ -390,13 +387,26 @@ final class SourcingSwapCommands
             );
         }
 
-        $orderId = (int) $preOrder->orderId;
+        $preOrder = $this->support->bridge()->find($preOrderListingId);
+        if (!$preOrder) {
+            return new \WP_Error(
+                'sutore_pre_order_missing',
+                __('Pre-order product not found.', 'sutore-marketplace')
+            );
+        }
+
+        $claimed = $this->support->bridge()->claimPreOrderForSwap($preOrderListingId);
+        if (is_wp_error($claimed)) {
+            return $claimed;
+        }
+
+        $orderId = (int) $claimed['order_id'];
+        $oldOrderItemId = (int) $claimed['order_item_id'];
         $order = wc_get_order($orderId);
         if (!$order) {
             return new \WP_Error('sutore_marketplace_fulfillment_order', __('Order not found.', 'sutore-marketplace'));
         }
 
-        $oldOrderItemId = (int) $preOrder->orderItemId;
         $oldLineTotal = 0.0;
         if ($oldOrderItemId > 0) {
             $oldItem = $order->get_item($oldOrderItemId);
@@ -408,28 +418,14 @@ final class SourcingSwapCommands
             $oldLineTotal = MarketplacePricing::customerPrice($preOrder);
         }
 
-        if ($oldOrderItemId > 0) {
+        if ($oldOrderItemId > 0 && $order->get_item($oldOrderItemId)) {
             $order->remove_item($oldOrderItemId);
         }
 
-        $sameListing = $preOrderListingId === $newListingId;
-        if (!$sameListing) {
-            $this->repo->update($preOrderListingId, [
-                'fulfillment_status' => ListingStatus::ORDER_DETACHED,
-                'order_id' => null,
-                'order_item_id' => null,
-                'sold_at' => null,
-                'confirm_deadline_at' => null,
-                'seller_confirmed_at' => null,
-                'cargo_deadline_at' => null,
-                'merchant_shipped_at' => null,
-                'merchant_shipment_code' => null,
-                'confirm_notice_sent' => 0,
-                'confirm_punished' => 0,
-                'merchant_snapshot' => null,
-                'is_winner' => 0,
-            ]);
-            (new ListingSelector())->rerunSize($preOrder->parentProductId, $preOrder->sizeTermId);
+        // Reload replacement after claim (same-listing path leaves the row ORDER_DETACHED).
+        $newListing = $this->support->bridge()->find($newListingId);
+        if (!$newListing) {
+            return new \WP_Error('sutore_pre_order_listing', __('Replacement product not found.', 'sutore-marketplace'));
         }
 
         $newProduct = wc_get_product($newListing->variationId);

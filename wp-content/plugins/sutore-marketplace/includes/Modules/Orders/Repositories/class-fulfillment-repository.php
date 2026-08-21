@@ -216,6 +216,27 @@ final class FulfillmentRepository
     }
 
     /**
+     * CAS update gated on status plus optional column equality predicates (deadline flags, etc.).
+     *
+     * @param list<string>|string $expectedStatus
+     * @param array<string, scalar|null> $andEquals
+     * @param array<string, mixed> $data
+     */
+    public function claimWhile(int $id, array|string $expectedStatus, array $andEquals, array $data): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+
+        if (array_key_exists('fulfillment_status', $data)) {
+            $data['listing_status'] = (string) $data['fulfillment_status'];
+            unset($data['fulfillment_status']);
+        }
+
+        return (new ListingRepository())->updateIfStatus($id, $expectedStatus, $data, false, $andEquals);
+    }
+
+    /**
      * @param list<string>|string $expectedStatus
      * @param array<string, mixed> $data
      */
@@ -544,17 +565,21 @@ final class FulfillmentRepository
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$this->table()}
              WHERE (
-               (listing_status = %s AND confirm_deadline_at IS NOT NULL AND confirm_deadline_at <= %s)
+               (listing_status = %s AND confirm_deadline_at IS NOT NULL AND confirm_deadline_at <= %s AND confirm_punished = 0)
                OR (
                  listing_status = %s
                  AND cargo_deadline_at IS NOT NULL
+                 AND cargo_expired_flag = 0
                  AND (
                    (cargo_notice_sent = 0 AND cargo_deadline_at <= DATE_ADD(%s, INTERVAL %d HOUR))
                    OR cargo_deadline_at <= %s
                  )
                )
              )
-             ORDER BY variation_id ASC
+             ORDER BY LEAST(
+               COALESCE(confirm_deadline_at, '9999-12-31 23:59:59'),
+               COALESCE(cargo_deadline_at, '9999-12-31 23:59:59')
+             ) ASC, variation_id ASC
              LIMIT %d",
             $awaiting,
             $now,

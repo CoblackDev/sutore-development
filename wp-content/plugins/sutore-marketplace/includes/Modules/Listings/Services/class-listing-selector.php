@@ -9,7 +9,7 @@ use SutoreMarketplace\Modules\Merchants\Services\NotificationService;
 use SutoreMarketplace\Modules\Orders\Services\Notifications;
 use SutoreMarketplace\Modules\Listings\Domain\Listing;
 use SutoreMarketplace\Modules\Listings\Domain\ListingConditionRank;
-use SutoreMarketplace\Shared\Domain\MarketplacePricing;
+use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
 use SutoreMarketplace\Modules\Listings\Services\BulkImportContext;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingEventsRepository;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
@@ -25,8 +25,10 @@ final class ListingSelector
     }
 
     /**
-     * Re-rank all competing listings for a parent+size.
-     * Lowest asking wins; older listing wins a tie. Index 0 becomes active/winner.
+     * Re-rank competing listings for a parent+size.
+     *
+     * Pending (needs staff approval) candidates do not lock the vitrine.
+     * Vitrine winner = first candidate that auto-activates or already has approved_at.
      */
     public function rerunSize(int $parentId, int $sizeTermId): ?Listing
     {
@@ -40,41 +42,72 @@ final class ListingSelector
         $oldWinners = $this->captureWinnerStates($candidates);
         $candidates = ListingConditionRank::sortForSale($candidates);
 
-        $winner = $candidates[0];
+        $vitrineId = null;
+        foreach ($candidates as $listing) {
+            if (!$listing->variationId) {
+                continue;
+            }
+            if ($this->canOccupyVitrine($listing)) {
+                $vitrineId = (int) $listing->variationId;
+                break;
+            }
+        }
 
         foreach ($candidates as $index => $listing) {
             if (!$listing->variationId) {
                 continue;
             }
-            $isWinner = $index === 0;
+
+            $listingId = (int) $listing->variationId;
             $previousStatus = $listing->listingStatus;
-            $winnerStatus = $isWinner && Settings::merchantAutoActivates((int) $listing->merchantId)
-                ? 'publish'
-                : ($isWinner ? 'pending' : 'queued');
-            $newStatus = $isWinner ? $winnerStatus : 'queued';
-            $this->listings->update($listing->variationId, [
+            $canPublish = $this->canOccupyVitrine($listing);
+            $isVitrine = $vitrineId !== null && $listingId === $vitrineId;
+
+            if ($isVitrine) {
+                $newStatus = ListingStatus::PUBLISH;
+                $isWinner = true;
+                $approvedAt = $listing->approvedAt ?: current_time('mysql');
+            } elseif (!$canPublish) {
+                $newStatus = ListingStatus::PENDING;
+                $isWinner = false;
+                $approvedAt = $listing->approvedAt;
+            } else {
+                $newStatus = ListingStatus::QUEUED;
+                $isWinner = false;
+                $approvedAt = $listing->approvedAt;
+            }
+
+            $patch = [
                 'is_winner' => $isWinner ? 1 : 0,
                 'listing_status' => $newStatus,
                 'expire_at' => $this->resolveExpireAt($listing),
-            ]);
-            $this->applyWcStatus($listing->variationId, $isWinner && $winnerStatus === 'publish');
+                'approved_at' => $approvedAt,
+            ];
+            $this->listings->update($listingId, $patch);
+            $this->applyWcStatus($listingId, $isVitrine);
 
-            if ($isWinner && $previousStatus === 'pending' && $newStatus === 'publish') {
+            if (
+                $isVitrine
+                && $previousStatus === ListingStatus::PENDING
+                && $newStatus === ListingStatus::PUBLISH
+            ) {
                 $this->events->log('listing_approved', [
                     'approval_mode' => Settings::merchantAutoActivates((int) $listing->merchantId) ? 'auto' : 'manual',
                     'previous_status' => $previousStatus,
                     'listing_status' => $newStatus,
-                ], $listing->variationId, $listing->merchantId, 'merchant_visible');
+                ], $listingId, $listing->merchantId, 'merchant_visible');
             }
         }
 
-        $fresh = $this->listings->find((int) $winner->variationId);
+        $fresh = $vitrineId ? $this->listings->find($vitrineId) : null;
         if ($fresh) {
             $this->sync->syncFromWinner($fresh);
+        } else {
+            $this->sync->clearParentSize($parentId, $sizeTermId);
         }
 
         $this->notifyQueueChanges($oldPositions, $candidates);
-        $this->notifyWinnerChanges($oldWinners, $candidates);
+        $this->notifyWinnerChanges($oldWinners, $candidates, $vitrineId);
 
         return $fresh;
     }
@@ -86,32 +119,26 @@ final class ListingSelector
             return new \WP_Error('sutore_marketplace_listing_missing', __('Product not found.', 'sutore-marketplace'));
         }
 
-        if (!$listing->isWinner) {
-            return new \WP_Error(
-                'sutore_marketplace_not_winner',
-                __('Only the queue winner can be approved.', 'sutore-marketplace')
-            );
-        }
-
-        if ($listing->listingStatus !== 'pending') {
+        if ($listing->listingStatus !== ListingStatus::PENDING) {
             return new \WP_Error(
                 'sutore_marketplace_not_pending',
                 __('Product is not awaiting approval.', 'sutore-marketplace')
             );
         }
 
-        $this->listings->update($listingId, ['listing_status' => 'publish']);
-        $this->applyWcStatus($listing->variationId, true);
+        $this->listings->update($listingId, [
+            'approved_at' => current_time('mysql'),
+            'listing_status' => ListingStatus::PUBLISH,
+        ]);
         $this->events->log('listing_approved', [
             'approval_mode' => 'manual',
-            'previous_status' => 'pending',
-            'listing_status' => 'publish',
+            'previous_status' => ListingStatus::PENDING,
+            'listing_status' => ListingStatus::PUBLISH,
         ], $listing->variationId, $listing->merchantId, 'merchant_visible');
 
+        $this->rerunSize($listing->parentProductId, $listing->sizeTermId);
+
         $fresh = $this->listings->find($listingId);
-        if ($fresh) {
-            $this->sync->syncFromWinner($fresh);
-        }
 
         return $fresh ?: new \WP_Error('sutore_marketplace_approve_failed', __('Product could not be approved.', 'sutore-marketplace'));
     }
@@ -139,6 +166,15 @@ final class ListingSelector
         ];
     }
 
+    private function canOccupyVitrine(Listing $listing): bool
+    {
+        if ($listing->approvedAt) {
+            return true;
+        }
+
+        return Settings::merchantAutoActivates((int) $listing->merchantId);
+    }
+
     /** Listing lifetime is fixed at creation — status changes must not clear it. */
     private function resolveExpireAt(Listing $listing): string
     {
@@ -163,15 +199,12 @@ final class ListingSelector
         }
 
         if ($isWinner) {
-            // Visible on storefront + in WC admin Variations tab.
             $product->set_status('publish');
             $product->set_stock_status('instock');
             if (!$product->get_stock_quantity()) {
                 $product->set_stock_quantity(1);
             }
         } else {
-            // draft (not private): WC admin load_variations / get_children only
-            // include publish+private, so queued listings stay out of the edit UI.
             $product->set_status('draft');
             $product->set_stock_status('outofstock');
             $product->set_stock_quantity(0);
@@ -193,8 +226,6 @@ final class ListingSelector
     }
 
     /**
-     * Approximate the previous queue using stored winner flags before this rerun.
-     *
      * @param Listing[] $candidates
      * @return array<int, int>
      */
@@ -252,9 +283,15 @@ final class ListingSelector
         return $states;
     }
 
-    /** @param array<int, bool> $oldWinners @param Listing[] $candidates */
-    private function notifyWinnerChanges(array $oldWinners, array $candidates): void
-    {
+    /**
+     * @param array<int, bool> $oldWinners
+     * @param Listing[] $candidates
+     */
+    private function notifyWinnerChanges(
+        array $oldWinners,
+        array $candidates,
+        ?int $vitrineId
+    ): void {
         $notifications = new NotificationService();
 
         foreach ($candidates as $i => $listing) {
@@ -264,22 +301,19 @@ final class ListingSelector
 
             $listingId = (int) $listing->variationId;
             $wasWinner = $oldWinners[$listingId] ?? false;
-            $isWinner = $i === 0;
+            $isWinner = $vitrineId !== null && $listingId === $vitrineId;
             if ($wasWinner === $isWinner) {
                 continue;
             }
 
             if (!$wasWinner && $isWinner) {
-                $winnerStatus = Settings::merchantAutoActivates((int) $listing->merchantId)
-                    ? 'publish'
-                    : 'pending';
                 $this->events->log('listing_went_on_sale', [
-                    'listing_status' => $winnerStatus,
+                    'listing_status' => ListingStatus::PUBLISH,
                     'new_position' => 1,
                 ], $listing->variationId, $listing->merchantId, 'merchant_visible');
             } elseif ($wasWinner && !$isWinner) {
                 $this->events->log('listing_left_sale', [
-                    'listing_status' => 'queued',
+                    'listing_status' => $this->canOccupyVitrine($listing) ? ListingStatus::QUEUED : ListingStatus::PENDING,
                     'new_position' => $i + 1,
                     'old_position' => 1,
                 ], $listing->variationId, $listing->merchantId, 'merchant_visible');

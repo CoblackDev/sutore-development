@@ -21,9 +21,6 @@ final class SourcingDigestCron
     public function register(): void
     {
         add_action(self::HOOK, [$this, 'run']);
-        add_action('init', static function (): void {
-            self::schedule();
-        }, 20);
     }
 
     public static function schedule(): void

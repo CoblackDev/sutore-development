@@ -9,6 +9,7 @@ use SutoreMarketplace\Modules\Merchants\Domain\NotificationType;
 use SutoreMarketplace\Modules\Orders\Hooks\CronHooks;
 use SutoreMarketplace\Modules\Orders\Settings\Settings;
 use SutoreMarketplace\Modules\Orders\Settings\SmsTemplates;
+use SutoreMarketplace\Shared\Security\OutboundUrl;
 
 final class SettingsPage
 {
@@ -61,8 +62,27 @@ final class SettingsPage
 
     public function save(string $subTab): void
     {
-        $patch = [];
+        $patch = $this->buildSavePatch($subTab);
+        if ($patch === []) {
+            return;
+        }
+
         $beforeSchedule = Settings::deadlineCronSchedule();
+        Settings::update($patch);
+
+        if ($subTab === 'advanced' && Settings::deadlineCronSchedule() !== $beforeSchedule) {
+            CronHooks::reschedule();
+        }
+    }
+
+    /**
+     * @param array<string, mixed>|null $post Unslashed POST bag; defaults to $_POST.
+     * @return array<string, mixed>
+     */
+    public function buildSavePatch(string $subTab, ?array $post = null): array
+    {
+        $post ??= is_array($_POST) ? $_POST : [];
+        $patch = [];
 
         if ($subTab === 'deadlines') {
             foreach ([
@@ -70,71 +90,73 @@ final class SettingsPage
                 'confirm_grace_hours', 'cargo_deadline_hours_standard', 'cargo_deadline_hours_express',
                 'cargo_deadline_hours_international', 'cargo_reminder_hours', 'return_window_days',
             ] as $key) {
-                $patch[$key] = max(0, (int) ($_POST[$key] ?? Settings::get($key)));
+                $patch[$key] = max(0, (int) ($post[$key] ?? Settings::get($key)));
             }
-            $patch['use_business_days_for_deadlines'] = !empty($_POST['use_business_days_for_deadlines']);
+            $patch['use_business_days_for_deadlines'] = !empty($post['use_business_days_for_deadlines']);
         } elseif ($subTab === 'notifications') {
-            $patch['admin_notification_phones'] = sanitize_textarea_field((string) ($_POST['admin_notification_phones'] ?? ''));
-            $patch['express_notification_phone'] = sanitize_text_field((string) ($_POST['express_notification_phone'] ?? ''));
-            $patch['sms_enabled'] = !empty($_POST['sms_enabled']);
+            $patch['admin_notification_phones'] = sanitize_textarea_field((string) ($post['admin_notification_phones'] ?? ''));
+            $patch['express_notification_phone'] = sanitize_text_field((string) ($post['express_notification_phone'] ?? ''));
+            $patch['sms_enabled'] = !empty($post['sms_enabled']);
             $events = [];
             foreach (array_keys(SmsTemplates::defaultEventFlags()) as $key) {
-                $events[$key] = !empty($_POST['sms_events'][$key]);
+                $events[$key] = !empty($post['sms_events'][$key]);
             }
             $patch['sms_events'] = $events;
-            $patch['merchant_notifications_enabled'] = !empty($_POST['merchant_notifications_enabled']);
+            $patch['merchant_notifications_enabled'] = !empty($post['merchant_notifications_enabled']);
             $channels = NotificationType::defaultChannels();
             foreach (array_keys($channels) as $key) {
-                $channels[$key][NotificationChannel::PANEL] = !empty($_POST['merchant_notification_channels'][$key]['panel']);
-                $channels[$key][NotificationChannel::SMS] = !empty($_POST['merchant_notification_channels'][$key]['sms']);
+                $channels[$key][NotificationChannel::PANEL] = !empty($post['merchant_notification_channels'][$key]['panel']);
+                $channels[$key][NotificationChannel::SMS] = !empty($post['merchant_notification_channels'][$key]['sms']);
                 $channels[$key][NotificationChannel::PUSH] = false;
             }
             $patch['merchant_notification_channels'] = $channels;
         } elseif ($subTab === 'cargo') {
-            $patch['yurtici_customer_code'] = sanitize_text_field((string) ($_POST['yurtici_customer_code'] ?? ''));
-            $patch['shipment_code_pattern'] = sanitize_text_field((string) ($_POST['shipment_code_pattern'] ?? ''));
-            $patch['express_block_carrier_shipment'] = !empty($_POST['express_block_carrier_shipment']);
-            $patch['international_invoice_required'] = !empty($_POST['international_invoice_required']);
+            $patch['yurtici_customer_code'] = sanitize_text_field((string) ($post['yurtici_customer_code'] ?? ''));
+            $patch['shipment_code_pattern'] = sanitize_text_field((string) ($post['shipment_code_pattern'] ?? ''));
+            $patch['express_block_carrier_shipment'] = !empty($post['express_block_carrier_shipment']);
+            $patch['international_invoice_required'] = !empty($post['international_invoice_required']);
         } elseif ($subTab === 'operations') {
-            $patch['require_admin_payment_confirm'] = !empty($_POST['require_admin_payment_confirm']);
-            $patch['sourcing_price_tolerance_percent'] = max(0, (float) ($_POST['sourcing_price_tolerance_percent'] ?? 10));
-            $patch['default_fulfillment_filter'] = sanitize_key((string) ($_POST['default_fulfillment_filter'] ?? 'payment'));
-            $patch['swap_allowed_statuses'] = sanitize_text_field((string) ($_POST['swap_allowed_statuses'] ?? ''));
-            $patch['allow_manual_order_link'] = !empty($_POST['allow_manual_order_link']);
+            $patch['require_admin_payment_confirm'] = !empty($post['require_admin_payment_confirm']);
+            $patch['sourcing_price_tolerance_percent'] = max(0, (float) ($post['sourcing_price_tolerance_percent'] ?? 10));
+            $patch['default_fulfillment_filter'] = sanitize_key((string) ($post['default_fulfillment_filter'] ?? 'payment'));
+            $patch['swap_allowed_statuses'] = sanitize_text_field((string) ($post['swap_allowed_statuses'] ?? ''));
+            $patch['allow_manual_order_link'] = !empty($post['allow_manual_order_link']);
         } elseif ($subTab === 'payout') {
-            $patch['payout_min_hold_days'] = max(0, (int) ($_POST['payout_min_hold_days'] ?? 7));
+            $patch['payout_min_hold_days'] = max(0, (int) ($post['payout_min_hold_days'] ?? 7));
             $days = [];
-            if (!empty($_POST['payout_weekdays']) && is_array($_POST['payout_weekdays'])) {
-                $days = $_POST['payout_weekdays'];
+            if (!empty($post['payout_weekdays']) && is_array($post['payout_weekdays'])) {
+                $days = $post['payout_weekdays'];
             }
             $patch['payout_weekdays'] = \SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule::normalizeWeekdays($days);
-        } elseif ($subTab === 'templates' && !empty($_POST['sms_templates']) && is_array($_POST['sms_templates'])) {
+        } elseif ($subTab === 'templates' && !empty($post['sms_templates']) && is_array($post['sms_templates'])) {
             $tpl = [];
             foreach (SmsTemplates::defaultTemplates() as $key => $default) {
-                $tpl[$key] = sanitize_textarea_field((string) ($_POST['sms_templates'][$key] ?? $default));
+                $tpl[$key] = sanitize_textarea_field((string) ($post['sms_templates'][$key] ?? $default));
             }
             $patch['sms_templates'] = $tpl;
         } elseif ($subTab === 'advanced') {
-            $patch['deadline_cron_schedule'] = sanitize_key((string) ($_POST['deadline_cron_schedule'] ?? 'twicedaily'));
-            $patch['suspension_threshold'] = max(0, (int) ($_POST['suspension_threshold'] ?? 0));
-            $patch['webhook_url'] = esc_url_raw((string) ($_POST['webhook_url'] ?? ''));
-            $secret = sanitize_text_field((string) ($_POST['webhook_secret'] ?? ''));
+            $patch['deadline_cron_schedule'] = sanitize_key((string) ($post['deadline_cron_schedule'] ?? 'twicedaily'));
+            $patch['suspension_threshold'] = max(0, (int) ($post['suspension_threshold'] ?? 0));
+            $webhookUrl = esc_url_raw((string) ($post['webhook_url'] ?? ''));
+            if ($webhookUrl !== '' && !OutboundUrl::isSafe($webhookUrl)) {
+                add_settings_error(
+                    'sutore_marketplace',
+                    'sutore_marketplace_webhook_url',
+                    __('Webhook URL must be a public HTTPS address.', 'sutore-marketplace'),
+                    'error'
+                );
+            } else {
+                $patch['webhook_url'] = $webhookUrl;
+            }
+            $secret = sanitize_text_field((string) ($post['webhook_secret'] ?? ''));
             $patch['webhook_secret'] = \SutoreMarketplace\Shared\Security\SecretBox::resolveForSave(
                 $secret,
                 (string) Settings::get('webhook_secret', '')
             );
-            $patch['event_retention_days'] = max(1, (int) ($_POST['event_retention_days'] ?? 365));
+            $patch['event_retention_days'] = max(1, (int) ($post['event_retention_days'] ?? 365));
         }
 
-        if ($patch === []) {
-            return;
-        }
-
-        Settings::update($patch);
-
-        if ($subTab === 'advanced' && Settings::deadlineCronSchedule() !== $beforeSchedule) {
-            CronHooks::reschedule();
-        }
+        return $patch;
     }
 
     private function tabDeadlines(array $s): void

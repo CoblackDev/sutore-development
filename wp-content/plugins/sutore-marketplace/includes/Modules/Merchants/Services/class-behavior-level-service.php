@@ -17,8 +17,20 @@ final class BehaviorLevelService
     ) {
     }
 
+    /**
+     * Hidden scores (new-seller protection / shadow window) freeze level changes both ways.
+     */
+    public function levelChangesActive(int $merchantId): bool
+    {
+        return !$this->scores->isScoreHidden($merchantId);
+    }
+
     public function evaluateConfirmed(int $merchantId): void
     {
+        if (!$this->levelChangesActive($merchantId)) {
+            return;
+        }
+
         $sanctions = $this->scores->sanctionsActive($merchantId);
         $current = MerchantLevels::statusForUser($merchantId);
         if ($current === MerchantLevels::PREMIUM) {
@@ -55,6 +67,10 @@ final class BehaviorLevelService
 
     public function evaluatePremium(int $merchantId): void
     {
+        if (!$this->levelChangesActive($merchantId)) {
+            return;
+        }
+
         $sanctions = $this->scores->sanctionsActive($merchantId);
         $current = MerchantLevels::statusForUser($merchantId);
         if ($current === MerchantLevels::NORMAL) {

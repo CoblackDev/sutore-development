@@ -17,16 +17,5 @@ final class Module
         (new AdminMerchantsController())->register();
         (new AdminBehaviorController())->register();
         (new BehaviorCronHooks())->register();
-        BehaviorCronHooks::schedule();
-    }
-
-    public static function activate(): void
-    {
-        BehaviorCronHooks::schedule();
-    }
-
-    public static function deactivate(): void
-    {
-        BehaviorCronHooks::unschedule();
     }
 }

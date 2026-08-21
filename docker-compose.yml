@@ -33,6 +33,7 @@ services:
       WORDPRESS_DB_NAME: ${MYSQL_DATABASE:-wordpress}
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_ENVIRONMENT_TYPE', 'local');
+        define('SUTORE_ALLOW_SEED', true);
     volumes:
       # IMPORTANT (Windows): Do NOT bind-mount the whole project from C:\
       # That routes every PHP file through NTFS↔WSL and makes WP 50-200x slower.

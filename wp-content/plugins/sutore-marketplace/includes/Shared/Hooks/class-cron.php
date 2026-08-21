@@ -25,10 +25,7 @@ final class Cron
 
     public static function unschedule(): void
     {
-        $timestamp = wp_next_scheduled(self::HOOK);
-        if ($timestamp) {
-            wp_unschedule_event($timestamp, self::HOOK);
-        }
+        CronRegistry::clearHook(self::HOOK);
     }
 
     public function run(): void

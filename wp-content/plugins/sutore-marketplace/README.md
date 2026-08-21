@@ -49,7 +49,7 @@ tools/                Seed, i18n (`sync_po.py`, `audit_i18n.py`)
 languages/            .po / .mo
 ```
 
-`Plugin::boot()` modülleri ve paylaşılan hook’ları kaydeder; şema sürümü gerideyse `Schema::install()` çalışır (`Schema::VERSION` = 101, temiz production baseline).
+`Plugin::boot()` modülleri ve paylaşılan hook’ları kaydeder; şema sürümü gerideyse `Schema::install()` çalışır (`Schema::VERSION` = 104). Request path yalnızca hızlı/idempotent adımları (dbDelta + hafif option remap) yapar. Ağır ALTER’lar için: `wp sutore-marketplace schema-upgrade`. MySQL 8’de elle ALTER yazarken `bigint(20)` display-width kullanmayın — dbDelta CREATE zaten bare `bigint` kullanır.
 
 ---
 
@@ -132,5 +132,19 @@ docker compose up -d
 ```
 
 Demo seed: `tools/seed-scenarios.php` (`--force`). i18n senkron: `tools/sync_po.py`. Panel checklist: [TESTING.md](TESTING.md).
+
+Manuel cron (WP-CLI, Docker):
+
+```bash
+docker compose exec -T wordpress wp --allow-root sutore-marketplace cron list
+docker compose exec -T wordpress wp --allow-root sutore-marketplace cron run-all
+```
+
+PHPCS (yerel; CI yok): WordPress Coding Standards kurulu ortamda:
+
+```bash
+composer require --dev wp-coding-standards/wpcs dealerdirect/phpcodesniffer-composer-installer
+vendor/bin/phpcs -q --standard=phpcs.xml.dist
+```
 
 Kurallar: `.cursor/rules/sutore-marketplace-*.mdc` (REST, i18n, legacy yok, demo seeder).

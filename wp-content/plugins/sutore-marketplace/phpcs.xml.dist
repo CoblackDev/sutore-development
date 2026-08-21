@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<ruleset name="Sutore Marketplace">
+	<description>WordPress Coding Standards for the Sutore Marketplace plugin.</description>
+
+	<file>.</file>
+
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/languages/*</exclude-pattern>
+	<exclude-pattern>*/tools/*</exclude-pattern>
+	<exclude-pattern>*/tests/*</exclude-pattern>
+	<exclude-pattern>*/assets/*</exclude-pattern>
+
+	<arg name="basepath" value="."/>
+	<arg name="extensions" value="php"/>
+	<arg name="parallel" value="8"/>
+	<arg value="sp"/>
+
+	<config name="minimum_supported_wp_version" value="6.0"/>
+	<config name="testVersion" value="8.1-"/>
+
+	<!-- Requires wp-coding-standards/wpcs (see README). -->
+	<rule ref="WordPress">
+		<!-- Autoload uses class-{kebab}.php; WPCS default file naming does not match. -->
+		<exclude name="WordPress.Files.FileName"/>
+	</rule>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="sutore_marketplace"/>
+				<element value="SutoreMarketplace"/>
+				<element value="SUTORE_MARKETPLACE"/>
+			</property>
+		</properties>
+	</rule>
+</ruleset>

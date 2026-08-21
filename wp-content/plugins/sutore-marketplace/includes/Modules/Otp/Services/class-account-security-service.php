@@ -22,14 +22,36 @@ final class AccountSecurityService
             return $preflight;
         }
 
-        $otp = (new OtpService())->verifyAndConsume(
-            $userId,
-            OtpPurpose::ACCOUNT_DETAILS,
-            (string) ($input['otp_code'] ?? ''),
-            $input
-        );
-        if ($otp instanceof \WP_Error) {
-            return $otp;
+        if (OtpSettings::isEnabled()) {
+            $otpService = new OtpService();
+            $otp = $otpService->verifyAndConsume(
+                $userId,
+                OtpPurpose::ACCOUNT_DETAILS,
+                (string) ($input['otp_code'] ?? ''),
+                $input
+            );
+            if ($otp instanceof \WP_Error) {
+                return $otp;
+            }
+
+            $user = get_userdata($userId);
+            if (!$user) {
+                return new \WP_Error('sutore_user_missing', __('User not found.', 'sutore-marketplace'));
+            }
+
+            $phone = OtpPhoneResolver::normalize((string) ($input['user_phone'] ?? $input['phone'] ?? ''));
+            $oldPhone = OtpPhoneResolver::forUser($userId);
+            if ($phone !== $oldPhone) {
+                $newPhoneOtp = $otpService->verifyAndConsume(
+                    $userId,
+                    OtpPurpose::ACCOUNT_DETAILS_NEW_PHONE,
+                    (string) ($input['otp_code_new_phone'] ?? ''),
+                    $input
+                );
+                if ($newPhoneOtp instanceof \WP_Error) {
+                    return $newPhoneOtp;
+                }
+            }
         }
 
         $user = get_userdata($userId);
@@ -57,6 +79,10 @@ final class AccountSecurityService
         MerchantMeta::setMarketingConsent($userId, $newConsent);
         (new IysConsentService())->sync($oldEmail, $oldPhone, $email, $phone, $oldConsent, $newConsent);
 
+        if ($email !== $oldEmail && is_email($oldEmail)) {
+            $this->notifyEmailChange($oldEmail, $email, $firstName);
+        }
+
         return [
             'success' => true,
             'message' => __('Your account details have been updated.', 'sutore-marketplace'),
@@ -75,14 +101,16 @@ final class AccountSecurityService
             return $preflight;
         }
 
-        $otp = (new OtpService())->verifyAndConsume(
-            $userId,
-            OtpPurpose::PASSWORD_CHANGE,
-            (string) ($input['otp_code'] ?? ''),
-            $input
-        );
-        if ($otp instanceof \WP_Error) {
-            return $otp;
+        if (OtpSettings::isEnabled()) {
+            $otp = (new OtpService())->verifyAndConsume(
+                $userId,
+                OtpPurpose::PASSWORD_CHANGE,
+                (string) ($input['otp_code'] ?? ''),
+                $input
+            );
+            if ($otp instanceof \WP_Error) {
+                return $otp;
+            }
         }
 
         wp_set_password((string) ($input['new_password'] ?? ''), $userId);
@@ -110,14 +138,16 @@ final class AccountSecurityService
             return $preflight;
         }
 
-        $otp = (new OtpService())->verifyAndConsume(
-            $userId,
-            OtpPurpose::ACCOUNT_DELETE,
-            (string) ($input['otp_code'] ?? ''),
-            $input
-        );
-        if ($otp instanceof \WP_Error) {
-            return $otp;
+        if (OtpSettings::isEnabled()) {
+            $otp = (new OtpService())->verifyAndConsume(
+                $userId,
+                OtpPurpose::ACCOUNT_DELETE,
+                (string) ($input['otp_code'] ?? ''),
+                $input
+            );
+            if ($otp instanceof \WP_Error) {
+                return $otp;
+            }
         }
 
         if (user_can($userId, 'administrator')) {
@@ -158,5 +188,25 @@ final class AccountSecurityService
             'ttl_seconds' => OtpSettings::ttlSeconds(),
             'ui_timer_seconds' => OtpSettings::uiTimerSeconds(),
         ];
+    }
+
+    private function notifyEmailChange(string $oldEmail, string $newEmail, string $firstName): void
+    {
+        $subject = __('Your Sutore email address was changed', 'sutore-marketplace');
+        $greeting = $firstName !== ''
+            ? sprintf(
+                /* translators: %s: first name */
+                __('Hi %s,', 'sutore-marketplace'),
+                $firstName
+            )
+            : __('Hi,', 'sutore-marketplace');
+        $body = $greeting . "\n\n"
+            . sprintf(
+                /* translators: %s: new email address */
+                __('Your account email was changed to %s. If you did not request this change, contact Sutore support immediately.', 'sutore-marketplace'),
+                $newEmail
+            );
+
+        wp_mail($oldEmail, $subject, $body);
     }
 }

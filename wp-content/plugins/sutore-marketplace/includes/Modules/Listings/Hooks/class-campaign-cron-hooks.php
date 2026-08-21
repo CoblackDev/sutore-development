@@ -17,7 +17,6 @@ final class CampaignCronHooks
         add_filter('cron_schedules', [self::class, 'registerInterval']);
         add_action(self::HOOK, [$this, 'run']);
         add_action('woocommerce_scheduled_sales', [$this, 'run'], 20);
-        add_action('init', [self::class, 'schedule']);
     }
 
     /**

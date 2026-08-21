@@ -83,6 +83,11 @@ final class InvoiceTenTlTest
                 Harness::skip('Paraşüt credentials are not configured; fee split passed without issuing');
             }
 
+            $apiBase = \SutoreMarketplace\Modules\Invoices\Services\ParasutClient::apiBase();
+            if (str_contains($apiBase, 'sutore-parasut-test.invalid')) {
+                Harness::skip('Paraşüt live issue skipped — test suite blocks production API host');
+            }
+
             $customer = self::issueUntilPdf((int) $customer->id);
             Harness::assertGreaterThan(0, strlen((string) $customer->parasut_invoice_id), 'customer Parasut invoice');
             Harness::assertTrue((string) $customer->pdf_path !== '' && is_readable((string) $customer->pdf_path), 'customer PDF');

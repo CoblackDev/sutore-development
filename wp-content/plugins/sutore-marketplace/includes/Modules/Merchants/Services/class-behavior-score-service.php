@@ -134,15 +134,8 @@ final class BehaviorScoreService
 
     public function sanctionsActive(int $merchantId): bool
     {
-        if ($this->isScoreHidden($merchantId)) {
-            return false;
-        }
-
-        if (BehaviorSettings::shadowModeEnabled()) {
-            return false;
-        }
-
-        return !$this->isNewSellerProtected($merchantId) && !$this->isInShadowMode($merchantId);
+        // Per-merchant only: new-seller protection or shadow window. No global kill-switch.
+        return !$this->isScoreHidden($merchantId);
     }
 
     public function isScoreHidden(int $merchantId): bool

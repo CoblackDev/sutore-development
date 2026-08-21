@@ -14,14 +14,4 @@ final class Module
         (new SourcingController())->register();
         (new SourcingDigestCron())->register();
     }
-
-    public static function activate(): void
-    {
-        SourcingDigestCron::schedule();
-    }
-
-    public static function deactivate(): void
-    {
-        SourcingDigestCron::unschedule();
-    }
 }

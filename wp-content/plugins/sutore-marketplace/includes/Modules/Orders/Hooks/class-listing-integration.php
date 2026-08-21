@@ -30,6 +30,11 @@ final class ListingIntegration
         self::$payoutCache = (new PayoutLineRepository())->findByVariationIds($listingIds);
     }
 
+    public static function clearPayoutCache(): void
+    {
+        self::$payoutCache = null;
+    }
+
     /** @param array<string, mixed> $item */
     public function enrichListingItem(array $item, Listing $listing): array
     {

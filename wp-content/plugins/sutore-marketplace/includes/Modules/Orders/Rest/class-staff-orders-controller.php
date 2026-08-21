@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Modules\Orders\Rest;
 
-use SutoreMarketplace\Admin\AdminMenu;
+use SutoreMarketplace\Admin\StaffCapabilities;
 use SutoreMarketplace\Modules\Orders\Services\StaffOrderPresenter;
 use SutoreMarketplace\Modules\Orders\Services\StaffOrderService;
 use SutoreMarketplace\Shared\Rest\RestResponse;
@@ -79,7 +79,7 @@ final class StaffOrdersController
 
     public function canAccessStaff(): bool
     {
-        return is_user_logged_in() && current_user_can(AdminMenu::CAP);
+        return is_user_logged_in() && StaffCapabilities::canManageOps();
     }
 
     public function query(\WP_REST_Request $req): \WP_REST_Response

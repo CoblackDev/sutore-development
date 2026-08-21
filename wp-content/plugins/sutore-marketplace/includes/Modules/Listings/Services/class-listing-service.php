@@ -114,7 +114,7 @@ final class ListingService
 
         $fingerprint = ListingRepository::fingerprint($conditions, $fastShipment, $hasInvoice);
 
-        $insertedId = $this->listings->insert([
+        $insert = [
             'variation_id' => $variationId,
             'parent_product_id' => $parentId,
             'size_term_id' => $sizeTermId,
@@ -129,7 +129,13 @@ final class ListingService
             'has_invoice' => $hasInvoice ? 1 : 0,
             'is_imported' => $isImported ? 1 : 0,
             'is_winner' => 0,
-        ]);
+        ];
+        if (array_key_exists('commission_percent', $options)) {
+            $override = $options['commission_percent'];
+            $insert['commission_percent'] = $override === null ? null : round((float) $override, 2);
+        }
+
+        $insertedId = $this->listings->insert($insert);
 
         if ($insertedId <= 0) {
             VariationLifecycleGuard::allowPluginDelete(static function () use ($variationId): void {
@@ -161,7 +167,6 @@ final class ListingService
         if (
             !empty($options['force_publish'])
             && $fresh
-            && $fresh->isWinner
             && $fresh->listingStatus === ListingStatus::PENDING
         ) {
             $approved = $this->selector->approvePendingWinner($insertedId);
@@ -306,7 +311,7 @@ final class ListingService
      */
     public function setCommissionPercent(int $listingId, ?float $percent, string $note = ''): Listing|\WP_Error
     {
-        if (!current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)) {
+        if (!\SutoreMarketplace\Admin\StaffCapabilities::canManageOps()) {
             return new \WP_Error(
                 'sutore_marketplace_forbidden',
                 __('You are not allowed to set a product commission.', 'sutore-marketplace'),
@@ -448,7 +453,7 @@ final class ListingService
             return $allowed;
         }
 
-        $isStaff = current_user_can(\SutoreMarketplace\Admin\AdminMenu::CAP)
+        $isStaff = \SutoreMarketplace\Admin\StaffCapabilities::canManageOps()
             && (int) $listing->merchantId !== $userId;
         $staffNote = sanitize_textarea_field((string) ($options['staff_note'] ?? ''));
         if ($isStaff && trim($staffNote) === '') {
@@ -1127,7 +1132,7 @@ final class ListingService
             return $explicit;
         }
 
-        if ((int) $listing->merchantId !== $userId && user_can($userId, 'manage_woocommerce')) {
+        if ((int) $listing->merchantId !== $userId && \SutoreMarketplace\Admin\StaffCapabilities::canManageOps($userId)) {
             return 'admin';
         }
 
