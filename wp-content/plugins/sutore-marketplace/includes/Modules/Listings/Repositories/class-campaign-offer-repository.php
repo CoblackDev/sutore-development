@@ -258,4 +258,25 @@ final class CampaignOfferRepository
 
         return false !== $wpdb->update($this->table(), $data, ['id' => $id]);
     }
+
+    /**
+     * Atomically apply $data only while status is still $expectedStatus.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function updateIfStatus(int $id, string $expectedStatus, array $data): bool
+    {
+        global $wpdb;
+        $data['updated_at'] = current_time('mysql');
+        $updated = $wpdb->update(
+            $this->table(),
+            $data,
+            [
+                'id' => $id,
+                'status' => $expectedStatus,
+            ]
+        );
+
+        return is_int($updated) && $updated > 0;
+    }
 }

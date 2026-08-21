@@ -386,10 +386,6 @@ final class CheckoutHooks
             }
         }
 
-        if (!empty($_POST['shipment'])) {
-            return sanitize_key((string) $_POST['shipment']);
-        }
-
         return ChosenShipment::get();
     }
 }

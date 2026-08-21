@@ -37,6 +37,51 @@ final class TaskProgressRepository
         ]);
     }
 
+    /**
+     * Atomically bump progress while status is still in_progress.
+     * Returns null if row missing / already completed / race lost.
+     *
+     * @return array{progress_count:int,status:string,completed_at:?string}|null
+     */
+    public function incrementIfInProgress(int $id, int $by, int $targetCount): ?array
+    {
+        global $wpdb;
+        $table = $this->tasks->progressTable();
+        $by = max(1, $by);
+        $now = current_time('mysql');
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $updated = $wpdb->query($wpdb->prepare(
+            "UPDATE {$table}
+             SET progress_count = progress_count + %d,
+                 status = IF(progress_count >= %d, 'completed', 'in_progress'),
+                 completed_at = IF(progress_count >= %d, %s, completed_at),
+                 updated_at = %s
+             WHERE id = %d AND status = 'in_progress'",
+            $by,
+            $targetCount,
+            $targetCount,
+            $now,
+            $now,
+            $id
+        ));
+
+        if (!is_int($updated) || $updated < 1) {
+            return null;
+        }
+
+        $row = $wpdb->get_row($wpdb->prepare("SELECT progress_count, status, completed_at FROM {$table} WHERE id = %d", $id));
+        if (!$row) {
+            return null;
+        }
+
+        return [
+            'progress_count' => (int) $row->progress_count,
+            'status' => (string) $row->status,
+            'completed_at' => $row->completed_at !== null ? (string) $row->completed_at : null,
+        ];
+    }
+
     public function update(int $id, array $data): void
     {
         global $wpdb;

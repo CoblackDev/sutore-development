@@ -84,17 +84,6 @@ final class ListingService
 
         [$fastShipment, $hasInvoice] = ListingRepository::resolveShippingFlags($input);
 
-        $variationId = $this->createVariation($parentId, $sizeTermId, $asking, $merchantId, $input);
-        if (is_wp_error($variationId)) {
-            return $variationId;
-        }
-
-        $isImported = $this->resolveImportedFlag($input, $actorId, $variationId);
-        if ($isImported) {
-            ImportedProductService::setVariationImported($variationId, true);
-        }
-
-        $fingerprint = ListingRepository::fingerprint($conditions, $fastShipment, $hasInvoice);
         $expireAtOverride = CampaignDatetime::normalizeInput($options['expire_at'] ?? null);
         if ($expireAtOverride) {
             $endsTs = CampaignDatetime::toTimestamp($expireAtOverride) ?? time();
@@ -107,6 +96,23 @@ final class ListingService
             }
             $expireAt = ListingDuration::computeExpireAt($durationDays);
         }
+
+        $sizeOk = ProductSizeLookup::assertTermAllowedForParent($parentId, $sizeTermId);
+        if (is_wp_error($sizeOk)) {
+            return $sizeOk;
+        }
+
+        $variationId = $this->createVariation($parentId, $sizeTermId, $asking, $merchantId, $input);
+        if (is_wp_error($variationId)) {
+            return $variationId;
+        }
+
+        $isImported = $this->resolveImportedFlag($input, $actorId, $variationId);
+        if ($isImported) {
+            ImportedProductService::setVariationImported($variationId, true);
+        }
+
+        $fingerprint = ListingRepository::fingerprint($conditions, $fastShipment, $hasInvoice);
 
         $insertedId = $this->listings->insert([
             'variation_id' => $variationId,
@@ -124,6 +130,17 @@ final class ListingService
             'is_imported' => $isImported ? 1 : 0,
             'is_winner' => 0,
         ]);
+
+        if ($insertedId <= 0) {
+            VariationLifecycleGuard::allowPluginDelete(static function () use ($variationId): void {
+                wp_delete_post($variationId, true);
+            });
+
+            return new \WP_Error(
+                'sutore_marketplace_listing_insert',
+                __('Product could not be saved.', 'sutore-marketplace')
+            );
+        }
 
         $this->conditions->sync($insertedId, $conditions);
         $listing = $this->listings->find($insertedId);
@@ -974,13 +991,20 @@ final class ListingService
             return new \WP_Error('sutore_marketplace_parent', __('Select a valid parent product.', 'sutore-marketplace'));
         }
 
-        $term = get_term($sizeTermId, ProductSizeLookup::PRIMARY_SIZE_TAXONOMY);
-        if (!$term || is_wp_error($term)) {
-            // Allow any product attribute taxonomy fallback.
-            $term = get_term($sizeTermId);
-            if (!$term || is_wp_error($term)) {
-                return new \WP_Error('sutore_marketplace_size', __('Select a valid size.', 'sutore-marketplace'));
+        $allowed = null;
+        foreach (ProductSizeLookup::termsForParent($parentId) as $item) {
+            if ((int) $item['term_id'] === $sizeTermId) {
+                $allowed = $item;
+                break;
             }
+        }
+        if ($allowed === null) {
+            return new \WP_Error('sutore_marketplace_size', __('Select a valid size.', 'sutore-marketplace'));
+        }
+
+        $term = get_term($sizeTermId, (string) $allowed['taxonomy']);
+        if (!$term || is_wp_error($term)) {
+            return new \WP_Error('sutore_marketplace_size', __('Select a valid size.', 'sutore-marketplace'));
         }
 
         $variation = new \WC_Product_Variation();

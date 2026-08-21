@@ -24,6 +24,22 @@
   }
 
   function request(method, path, body) {
+    var core = window.SutoreMarketplace;
+    if (core && typeof core.request === 'function') {
+      return Promise.resolve(
+        core.request(method, path, {
+          body: body,
+          restUrl: cfg.restUrl,
+          restNonce: cfg.restNonce
+        })
+      ).then(function (json) {
+        if (!json || json.success !== true) {
+          var msg = (json && (json.message || (json.data && json.data.message))) || t('error', 'Error');
+          throw new Error(msg);
+        }
+        return json.data || {};
+      });
+    }
     var opts = {
       method: method || 'POST',
       credentials: 'same-origin',

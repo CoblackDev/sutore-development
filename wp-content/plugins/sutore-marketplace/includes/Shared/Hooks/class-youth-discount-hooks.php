@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Shared\Hooks;
 
+use SutoreMarketplace\Shared\Hooks\CheckoutIdentityHooks;
 use SutoreMarketplace\Shared\Services\YouthDiscount;
 
 final class YouthDiscountHooks
 {
     public function register(): void
     {
+        // Cart / review: only refresh local session from posted identity — never call NVI.
         add_action('woocommerce_checkout_update_order_review', [$this, 'captureClassicReview'], 5);
-        add_action('woocommerce_checkout_process', [$this, 'captureClassicCheckout'], 5);
         add_action('woocommerce_store_api_checkout_update_customer_from_request', [$this, 'captureBlocksCustomer'], 5, 2);
+        // Place-order: may call NVI once when proof missing/expired.
+        add_action('woocommerce_checkout_process', [$this, 'captureClassicCheckout'], 5);
+        add_action('woocommerce_store_api_checkout_order_processed', [$this, 'verifyBlocksAtCheckout'], 5, 1);
         add_action('woocommerce_cart_calculate_fees', [$this, 'addCartFee'], 30);
         add_action('woocommerce_checkout_update_order_meta', [$this, 'saveClassicOrderMeta'], 30);
         add_action('woocommerce_store_api_checkout_update_order_from_request', [$this, 'saveBlocksOrderMeta'], 30, 2);
@@ -25,18 +29,30 @@ final class YouthDiscountHooks
         if ($posted === []) {
             $posted = $_POST;
         }
-        YouthDiscount::captureFromPosted(is_array($posted) ? $posted : [], false);
+        YouthDiscount::captureFromPosted(is_array($posted) ? $posted : [], false, false);
     }
 
     public function captureClassicCheckout(): void
     {
-        YouthDiscount::captureFromPosted($_POST, true);
+        YouthDiscount::captureFromPosted($_POST, true, true);
     }
 
     public function captureBlocksCustomer(\WC_Customer $customer, \WP_REST_Request $request): void
     {
         $fields = $request->get_param('additional_fields');
-        YouthDiscount::captureFromBlocks($customer, is_array($fields) ? $fields : [], false);
+        YouthDiscount::captureFromBlocks($customer, is_array($fields) ? $fields : [], false, false);
+    }
+
+    public function verifyBlocksAtCheckout(\WC_Order $order): void
+    {
+        YouthDiscount::captureIdentity(
+            YouthDiscount::digits((string) $order->get_meta(CheckoutIdentityHooks::ORDER_META_TCKNO, true)),
+            YouthDiscount::normalizeBirthYear((string) $order->get_meta(CheckoutIdentityHooks::ORDER_META_BIRTH_YEAR, true)),
+            (string) $order->get_billing_first_name(),
+            (string) $order->get_billing_last_name(),
+            false,
+            true
+        );
     }
 
     public function addCartFee($cart): void
@@ -68,7 +84,7 @@ final class YouthDiscountHooks
     {
         $fields = $request->get_param('additional_fields');
         $customer = function_exists('WC') && WC()->customer instanceof \WC_Customer ? WC()->customer : new \WC_Customer($order->get_customer_id());
-        YouthDiscount::captureFromBlocks($customer, is_array($fields) ? $fields : [], false);
+        YouthDiscount::captureFromBlocks($customer, is_array($fields) ? $fields : [], false, false);
         YouthDiscount::attachOrderMeta($order, $this->feeAmountFromOrder($order));
     }
 

@@ -23,32 +23,43 @@ final class AdminMenu
     {
         // Parent callback must be empty: WP also hooks the first submenu with the same
         // slug, and registering render on both causes the page to render twice.
+        $opsCap = StaffCapabilities::MANAGE_OPS;
+        $settingsCap = StaffCapabilities::MANAGE_SETTINGS;
+
         add_menu_page(
             __('Sutore Marketplace', 'sutore-marketplace'),
             __('Sutore Marketplace', 'sutore-marketplace'),
-            self::CAP,
+            $opsCap,
             self::PARENT,
             static function (): void {},
             'dashicons-store',
             58
         );
 
-        $pages = [
-            [self::PARENT, __('Settings', 'sutore-marketplace'), __('Settings', 'sutore-marketplace'), [new SettingsPage(), 'render']],
+        add_submenu_page(
+            self::PARENT,
+            __('Settings', 'sutore-marketplace'),
+            __('Settings', 'sutore-marketplace'),
+            $settingsCap,
+            self::PARENT,
+            [new SettingsPage(), 'render']
+        );
+
+        $opsPages = [
             ['sutore-marketplace-campaigns', __('Campaigns', 'sutore-marketplace'), __('Campaigns', 'sutore-marketplace'), [new CampaignsPage(), 'render']],
             ['sutore-marketplace-outlet', __('Outlet', 'sutore-marketplace'), __('Outlet', 'sutore-marketplace'), [new OutletPage(), 'render']],
             ['sutore-marketplace-tasks', __('Opportunities', 'sutore-marketplace'), __('Opportunity templates', 'sutore-marketplace'), [new TasksPage(), 'render']],
             ['sutore-marketplace-events', __('Events', 'sutore-marketplace'), __('Events', 'sutore-marketplace'), [$this, 'renderEvents']],
         ];
 
-        foreach ($pages as [$slug, $menuTitle, $pageTitle, $callback]) {
-            add_submenu_page(self::PARENT, $pageTitle, $menuTitle, self::CAP, $slug, $callback);
+        foreach ($opsPages as [$slug, $menuTitle, $pageTitle, $callback]) {
+            add_submenu_page(self::PARENT, $pageTitle, $menuTitle, $opsCap, $slug, $callback);
         }
     }
 
     public function renderEvents(): void
     {
-        if (!current_user_can(self::CAP)) {
+        if (!StaffCapabilities::canManageOps()) {
             return;
         }
 

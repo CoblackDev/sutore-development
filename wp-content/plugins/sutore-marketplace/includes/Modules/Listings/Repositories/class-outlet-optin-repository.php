@@ -214,4 +214,23 @@ final class OutletOptinRepository
 
         return false !== $wpdb->update($this->table(), $data, ['id' => $id]);
     }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public function updateIfStatus(int $id, string $expectedStatus, array $data): bool
+    {
+        global $wpdb;
+        $data['updated_at'] = current_time('mysql');
+        $updated = $wpdb->update(
+            $this->table(),
+            $data,
+            [
+                'id' => $id,
+                'status' => $expectedStatus,
+            ]
+        );
+
+        return is_int($updated) && $updated > 0;
+    }
 }

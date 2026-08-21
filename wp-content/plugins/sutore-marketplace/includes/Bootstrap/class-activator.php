@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Bootstrap;
 
+use SutoreMarketplace\Admin\StaffCapabilities;
+use SutoreMarketplace\Modules\Listings\Domain\ListingCapabilities;
 use SutoreMarketplace\Frontend\CustomerAccount;
 use SutoreMarketplace\Frontend\MerchantAccount;
 use SutoreMarketplace\Frontend\StaffAccount;
@@ -32,12 +34,10 @@ final class Activator
         ShippingZoneSetup::ensure();
 
         if (!get_role('merchant')) {
-            add_role('merchant', 'Merchant', [
-                'read' => true,
-                'edit_products' => true,
-                'upload_files' => true,
-            ]);
+            add_role('merchant', 'Merchant', ListingCapabilities::merchantCaps());
         }
+        ListingCapabilities::reconcileMerchantRole();
+        StaffCapabilities::reconcile();
 
         foreach (array_merge(
             MerchantAccount::endpointSlugs(),

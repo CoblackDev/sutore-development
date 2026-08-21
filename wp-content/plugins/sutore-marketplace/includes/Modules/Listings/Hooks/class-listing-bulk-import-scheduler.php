@@ -29,7 +29,6 @@ final class ListingBulkImportScheduler
         }
 
         as_enqueue_async_action(self::HOOK_BATCH, [$jobId], self::GROUP);
-        self::dispatchQueueOnShutdown();
 
         return true;
     }
@@ -41,30 +40,5 @@ final class ListingBulkImportScheduler
         }
 
         (new ListingBulkImportService())->processJobBatch($jobId);
-    }
-
-    /**
-     * Run Action Scheduler after the HTTP response when async loopback / WP-Cron did not pick up the job.
-     */
-    private static function dispatchQueueOnShutdown(): void
-    {
-        static $registered = false;
-        if ($registered) {
-            return;
-        }
-
-        $registered = true;
-
-        add_action('shutdown', static function (): void {
-            if (!class_exists(\ActionScheduler_QueueRunner::class)) {
-                return;
-            }
-
-            if (function_exists('fastcgi_finish_request')) {
-                fastcgi_finish_request();
-            }
-
-            \ActionScheduler_QueueRunner::instance()->run('Sutore Marketplace Bulk Import');
-        }, 999);
     }
 }

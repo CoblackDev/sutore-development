@@ -26,23 +26,26 @@ final class YouthDiscount
     public const ORDER_META_ELIGIBLE = '_sutore_marketplace_youth_eligible';
     public const ORDER_META_AMOUNT = '_sutore_marketplace_youth_discount_amount';
 
+    /** Proof TTL: after this, place-order may re-call NVI; cart never does. */
+    public const PROOF_TTL_SECONDS = 86400;
+
     /**
      * @param array<string, mixed> $posted
      */
-    public static function captureFromPosted(array $posted, bool $addNotices = false): void
+    public static function captureFromPosted(array $posted, bool $addNotices = false, bool $allowRemoteVerify = false): void
     {
         $tckno = self::digits((string) ($posted[CheckoutIdentityHooks::CLASSIC_TCKNO_FIELD] ?? ''));
         $birthYear = self::normalizeBirthYear((string) ($posted[CheckoutIdentityHooks::CLASSIC_BIRTH_YEAR_FIELD] ?? ''));
         $firstName = sanitize_text_field((string) ($posted['billing_first_name'] ?? ''));
         $lastName = sanitize_text_field((string) ($posted['billing_last_name'] ?? ''));
 
-        self::captureIdentity($tckno, $birthYear, $firstName, $lastName, $addNotices);
+        self::captureIdentity($tckno, $birthYear, $firstName, $lastName, $addNotices, $allowRemoteVerify);
     }
 
     /**
      * @param array<string, mixed> $additionalFields
      */
-    public static function captureFromBlocks(\WC_Customer $customer, array $additionalFields, bool $addNotices = false): void
+    public static function captureFromBlocks(\WC_Customer $customer, array $additionalFields, bool $addNotices = false, bool $allowRemoteVerify = false): void
     {
         $tckno = self::digits((string) ($additionalFields[CheckoutIdentityHooks::BLOCKS_TCKNO_ID] ?? ''));
         if ($tckno === '') {
@@ -59,12 +62,22 @@ final class YouthDiscount
             $birthYear,
             (string) $customer->get_billing_first_name(),
             (string) $customer->get_billing_last_name(),
-            $addNotices
+            $addNotices,
+            $allowRemoteVerify
         );
     }
 
-    public static function captureIdentity(string $tckno, int $birthYear, string $firstName, string $lastName, bool $addNotices = false): void
-    {
+    /**
+     * @param bool $allowRemoteVerify When false (cart/review), only reuse local proof — never call NVI.
+     */
+    public static function captureIdentity(
+        string $tckno,
+        int $birthYear,
+        string $firstName,
+        string $lastName,
+        bool $addNotices = false,
+        bool $allowRemoteVerify = false
+    ): void {
         if (!Settings::youthDiscountEnabled()) {
             self::clearSession();
             return;
@@ -104,10 +117,24 @@ final class YouthDiscount
 
         $fingerprint = self::fingerprint($tckno, $birthYear, $firstName, $lastName);
         $existing = self::readState();
-        if (is_array($existing) && ($existing['fingerprint'] ?? '') === $fingerprint && !empty($existing['verified'])) {
+        if (
+            is_array($existing)
+            && ($existing['fingerprint'] ?? '') === $fingerprint
+            && !empty($existing['verified'])
+            && self::proofIsFresh($existing)
+        ) {
             $existing['eligible'] = self::isAgeEligible($birthYear);
             $existing['birth_year'] = $birthYear;
-            self::writeState($existing, get_current_user_id());
+            $existing['tckno'] = $tckno;
+            self::writeState($existing, get_current_user_id(), false);
+            return;
+        }
+
+        if (!$allowRemoteVerify) {
+            // Cart/review: do not call NVI; clear stale proof so fee is not applied on mismatch.
+            if (!is_array($existing) || ($existing['fingerprint'] ?? '') !== $fingerprint) {
+                self::clearSession();
+            }
             return;
         }
 
@@ -129,6 +156,7 @@ final class YouthDiscount
             if ($userId > 0) {
                 update_user_meta($userId, self::USER_META_ELIGIBLE, '0');
                 delete_user_meta($userId, self::USER_META_FINGERPRINT);
+                delete_user_meta($userId, self::USER_META_VERIFIED_AT);
             }
             if ($addNotices) {
                 wc_add_notice($verified->get_error_message(), 'error');
@@ -142,8 +170,9 @@ final class YouthDiscount
             'fingerprint' => $fingerprint,
             'verified' => true,
             'eligible' => self::isAgeEligible($birthYear),
+            'verified_at' => time(),
         ];
-        self::writeState($state, get_current_user_id());
+        self::writeState($state, get_current_user_id(), true);
     }
 
     /**
@@ -291,33 +320,61 @@ final class YouthDiscount
     private static function readState(): ?array
     {
         $session = self::sessionGet();
-        if (is_array($session) && !empty($session['verified'])) {
+        if (is_array($session) && !empty($session['verified']) && self::proofIsFresh($session)) {
             return $session;
         }
 
         $userId = get_current_user_id();
         if ($userId <= 0) {
-            return $session;
+            return null;
         }
 
         $fingerprint = (string) get_user_meta($userId, self::USER_META_FINGERPRINT, true);
         $birthYear = (int) get_user_meta($userId, CheckoutIdentityHooks::USER_META_BIRTH_YEAR, true);
+        $verifiedAt = (int) get_user_meta($userId, self::USER_META_VERIFIED_AT, true);
         if ($fingerprint === '' || $birthYear <= 0) {
-            return $session;
+            return null;
         }
 
-        return [
+        $state = [
             'tckno' => (string) get_user_meta($userId, CheckoutIdentityHooks::USER_META_TCKNO, true),
             'birth_year' => $birthYear,
             'fingerprint' => $fingerprint,
             'verified' => true,
             'eligible' => (string) get_user_meta($userId, self::USER_META_ELIGIBLE, true) === '1',
+            'verified_at' => $verifiedAt,
         ];
+
+        if (!self::proofIsFresh($state)) {
+            return null;
+        }
+
+        return $state;
     }
 
     /** @param array<string, mixed> $state */
-    private static function writeState(array $state, int $userId): void
+    private static function proofIsFresh(array $state): bool
     {
+        $at = (int) ($state['verified_at'] ?? 0);
+        if ($at <= 0) {
+            $userId = get_current_user_id();
+            if ($userId > 0) {
+                $at = (int) get_user_meta($userId, self::USER_META_VERIFIED_AT, true);
+            }
+        }
+        if ($at <= 0) {
+            return false;
+        }
+
+        return (time() - $at) <= self::PROOF_TTL_SECONDS;
+    }
+
+    /** @param array<string, mixed> $state */
+    private static function writeState(array $state, int $userId, bool $bumpVerifiedAt = true): void
+    {
+        if ($bumpVerifiedAt || empty($state['verified_at'])) {
+            $state['verified_at'] = time();
+        }
         self::sessionSet($state);
         if ($userId <= 0) {
             return;
@@ -325,7 +382,9 @@ final class YouthDiscount
 
         update_user_meta($userId, self::USER_META_ELIGIBLE, !empty($state['eligible']) ? '1' : '0');
         update_user_meta($userId, self::USER_META_FINGERPRINT, (string) ($state['fingerprint'] ?? ''));
-        update_user_meta($userId, self::USER_META_VERIFIED_AT, time());
+        if ($bumpVerifiedAt) {
+            update_user_meta($userId, self::USER_META_VERIFIED_AT, (int) ($state['verified_at'] ?? time()));
+        }
         update_user_meta($userId, CheckoutIdentityHooks::USER_META_BIRTH_YEAR, (string) ((int) ($state['birth_year'] ?? 0)));
         $tckno = (string) ($state['tckno'] ?? '');
         if ($tckno !== '') {
@@ -363,7 +422,11 @@ final class YouthDiscount
 
     private static function fingerprint(string $tckno, int $birthYear, string $firstName, string $lastName): string
     {
-        return hash('sha256', $tckno . '|' . $birthYear . '|' . $firstName . '|' . $lastName);
+        return hash_hmac(
+            'sha256',
+            $tckno . '|' . $birthYear . '|' . $firstName . '|' . $lastName,
+            wp_salt('auth')
+        );
     }
 
     private static function normalizeName(string $name): string
@@ -380,7 +443,7 @@ final class YouthDiscount
         return strtoupper($name);
     }
 
-    private static function digits(string $raw): string
+    public static function digits(string $raw): string
     {
         return preg_replace('/\D/', '', $raw) ?? '';
     }

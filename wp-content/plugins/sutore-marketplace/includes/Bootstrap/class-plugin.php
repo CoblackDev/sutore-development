@@ -9,6 +9,8 @@ use SutoreMarketplace\Admin\ProductMetaFields;
 use SutoreMarketplace\Frontend\CustomerAccount;
 use SutoreMarketplace\Frontend\MerchantAccount;
 use SutoreMarketplace\Frontend\StaffAccount;
+use SutoreMarketplace\Admin\StaffCapabilities;
+use SutoreMarketplace\Modules\Listings\Domain\ListingCapabilities;
 use SutoreMarketplace\Modules\Contracts\Module as ContractsModule;
 use SutoreMarketplace\Modules\Coupons\Module as CouponsModule;
 use SutoreMarketplace\Modules\Invoices\Module as InvoicesModule;
@@ -27,9 +29,12 @@ use SutoreMarketplace\Shared\Hooks\IysConsentHooks;
 use SutoreMarketplace\Shared\Hooks\YouthDiscountHooks;
 use SutoreMarketplace\Shared\Hooks\CloudflareTunnelHooks;
 use SutoreMarketplace\Shared\Hooks\Cron;
+use SutoreMarketplace\Shared\Hooks\EventRetentionHooks;
 use SutoreMarketplace\Shared\Hooks\PdpIntegration;
+use SutoreMarketplace\Shared\Privacy\PrivacyHandlers;
 use SutoreMarketplace\Shared\Settings\Settings;
 use SutoreMarketplace\Shared\Sms\SmsQueue;
+use SutoreMarketplace\Shared\Effects\OutboundEffectService;
 
 final class Plugin
 {
@@ -54,10 +59,16 @@ final class Plugin
             Schema::install();
         }
 
+        ListingCapabilities::reconcileMerchantRole();
+        StaffCapabilities::reconcile();
+
         Settings::ensureDefaults();
+        OutboundEffectService::register();
         SmsQueue::register();
+        PrivacyHandlers::register();
         (new IysConsentHooks())->register();
         (new CloudflareTunnelHooks())->register();
+        (new EventRetentionHooks())->register();
 
         ListingsModule::boot();
         TasksModule::boot();

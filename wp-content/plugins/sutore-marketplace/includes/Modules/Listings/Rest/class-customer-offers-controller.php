@@ -46,7 +46,7 @@ final class CustomerOffersController
             [
                 'methods' => 'GET',
                 'callback' => [$this, 'context'],
-                'permission_callback' => [$this, 'allowPublicRead'],
+                'permission_callback' => [$this, 'isLoggedIn'],
                 'args' => [
                     'variation_id' => [
                         'type' => 'integer',
@@ -74,11 +74,6 @@ final class CustomerOffersController
             );
         }
 
-        return true;
-    }
-
-    public function allowPublicRead(): bool
-    {
         return true;
     }
 

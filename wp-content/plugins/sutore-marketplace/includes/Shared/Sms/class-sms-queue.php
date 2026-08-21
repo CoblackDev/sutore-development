@@ -4,20 +4,18 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Shared\Sms;
 
+use SutoreMarketplace\Shared\Effects\OutboundEffectService;
+use SutoreMarketplace\Shared\Effects\OutboundEffectType;
+
 /**
- * Deferred SMS delivery for fan-out paths (cron, digest, AskMerchants).
- * Uses Action Scheduler when available; otherwise sends synchronously
- * so behavior matches the previous direct SmsGateway::send path.
+ * Deferred SMS delivery via the shared outbound effects outbox.
+ * Action Scheduler processes effect IDs — never on web request shutdown.
  */
 final class SmsQueue
 {
-    public const HOOK = 'sutore_marketplace_send_sms';
-
-    public const GROUP = 'sutore-marketplace-sms';
-
     public static function register(): void
     {
-        add_action(self::HOOK, [self::class, 'deliver'], 10, 2);
+        // Effects worker is registered by OutboundEffectService::register().
     }
 
     public static function enqueue(string $phone, string $message): void
@@ -28,39 +26,13 @@ final class SmsQueue
             return;
         }
 
-        if (function_exists('as_enqueue_async_action')) {
-            as_enqueue_async_action(self::HOOK, [$phone, $message], self::GROUP);
-            self::dispatchQueueOnShutdown();
-
-            return;
-        }
-
-        SmsGateway::send($phone, $message);
-    }
-
-    public static function deliver(string $phone, string $message): void
-    {
-        SmsGateway::send($phone, $message);
-    }
-
-    private static function dispatchQueueOnShutdown(): void
-    {
-        static $registered = false;
-        if ($registered) {
-            return;
-        }
-        $registered = true;
-
-        add_action('shutdown', static function (): void {
-            if (!class_exists(\ActionScheduler_QueueRunner::class)) {
-                return;
-            }
-
-            if (function_exists('fastcgi_finish_request')) {
-                fastcgi_finish_request();
-            }
-
-            \ActionScheduler_QueueRunner::instance()->run('Sutore Marketplace SMS');
-        }, 999);
+        (new OutboundEffectService())->enqueue(
+            OutboundEffectType::SMS,
+            [
+                'phone' => $phone,
+                'message' => $message,
+            ],
+            'sms:' . hash('sha256', $phone . "\0" . $message . "\0" . wp_generate_uuid4())
+        );
     }
 }

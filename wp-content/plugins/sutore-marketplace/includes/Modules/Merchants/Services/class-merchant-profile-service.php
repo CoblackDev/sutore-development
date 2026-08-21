@@ -79,7 +79,8 @@ final class MerchantProfileService
         $otp = (new OtpService())->verifyAndConsume(
             $userId,
             OtpPurpose::MERCHANT_PROFILE,
-            (string) ($input['otp_code'] ?? '')
+            (string) ($input['otp_code'] ?? ''),
+            $input
         );
         if ($otp instanceof \WP_Error) {
             return $otp;

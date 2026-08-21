@@ -17,7 +17,6 @@ final class OutletPage
             return;
         }
 
-        (new \SutoreMarketplace\Modules\Listings\Services\OutletService())->runPass();
         AdminAssets::enqueue();
 
         $windows = (new OutletQueryPresenter())->listForAdmin();

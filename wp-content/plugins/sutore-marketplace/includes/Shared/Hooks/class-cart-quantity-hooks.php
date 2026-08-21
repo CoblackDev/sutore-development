@@ -43,8 +43,9 @@ final class CartQuantityHooks
 
         $max = Settings::cartMaxQuantity();
         $current = (int) WC()->cart->get_cart_contents_count();
+        $requested = max(1, (int) $quantity);
 
-        if ($current >= $max) {
+        if ($current + $requested > $max) {
             wc_add_notice(
                 sprintf(
                     __('You can purchase a maximum of %d items in a single order.', 'sutore-marketplace'),

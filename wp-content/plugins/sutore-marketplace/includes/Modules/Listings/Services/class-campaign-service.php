@@ -425,17 +425,23 @@ final class CampaignService
             );
         }
 
-        $this->listings->update((int) $listing->variationId, [
-            'asking' => $math['asking_effective'],
-            'campaign_id' => (int) $offer->campaign_id,
-            'campaign_status' => 'active',
-        ]);
-
-        $this->offers->update($offerId, [
+        $claimed = $this->offers->updateIfStatus($offerId, CampaignOfferStatus::PENDING, [
             'status' => CampaignOfferStatus::ACCEPTED,
             'compare_regular' => $math['compare_regular'],
             'customer_sale' => $math['customer_sale'],
             'responded_at' => current_time('mysql'),
+        ]);
+        if (!$claimed) {
+            return new \WP_Error(
+                'sutore_campaign_offer_status',
+                __('This offer can no longer be accepted.', 'sutore-marketplace')
+            );
+        }
+
+        $this->listings->update((int) $listing->variationId, [
+            'asking' => $math['asking_effective'],
+            'campaign_id' => (int) $offer->campaign_id,
+            'campaign_status' => 'active',
         ]);
 
         CampaignWcSaleSync::writeSale(
@@ -474,10 +480,16 @@ final class CampaignService
             return new \WP_Error('sutore_campaign_offer_status', __('This offer can no longer be declined.', 'sutore-marketplace'));
         }
 
-        $this->offers->update($offerId, [
+        $claimed = $this->offers->updateIfStatus($offerId, CampaignOfferStatus::PENDING, [
             'status' => CampaignOfferStatus::DECLINED,
             'responded_at' => current_time('mysql'),
         ]);
+        if (!$claimed) {
+            return new \WP_Error(
+                'sutore_campaign_offer_status',
+                __('This offer can no longer be declined.', 'sutore-marketplace')
+            );
+        }
 
         $listing = $this->listings->find((int) $offer->variation_id);
         if ($listing && $listing->variationId && $listing->campaignStatus === 'offer'

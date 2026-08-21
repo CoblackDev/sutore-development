@@ -172,6 +172,59 @@ final class CustomerOfferRepository
         ));
     }
 
+    /**
+     * Atomically consume one daily offer slot for $customerId.
+     * Returns false when the daily cap is already reached.
+     */
+    public function tryConsumeDailySlot(int $customerId, int $cap): bool
+    {
+        if ($customerId <= 0 || $cap <= 0) {
+            return false;
+        }
+
+        global $wpdb;
+        $table = Schema::table('customer_offer_daily_counters');
+        $day = wp_date('Y-m-d');
+        $now = current_time('mysql');
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $wpdb->query($wpdb->prepare(
+            "INSERT INTO `{$table}` (customer_id, day_ymd, offer_count, created_at, updated_at)
+             VALUES (%d, %s, 1, %s, %s)
+             ON DUPLICATE KEY UPDATE
+               offer_count = IF(offer_count < %d, offer_count + 1, offer_count),
+               updated_at = IF(offer_count < %d, VALUES(updated_at), updated_at)",
+            $customerId,
+            $day,
+            $now,
+            $now,
+            $cap,
+            $cap
+        ));
+
+        return (int) $wpdb->rows_affected > 0;
+    }
+
+    public function releaseDailySlot(int $customerId): void
+    {
+        if ($customerId <= 0) {
+            return;
+        }
+
+        global $wpdb;
+        $table = Schema::table('customer_offer_daily_counters');
+        $day = wp_date('Y-m-d');
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $wpdb->query($wpdb->prepare(
+            "UPDATE `{$table}`
+             SET offer_count = GREATEST(0, offer_count - 1), updated_at = %s
+             WHERE customer_id = %d AND day_ymd = %s AND offer_count > 0",
+            current_time('mysql'),
+            $customerId,
+            $day
+        ));
+    }
+
     /** @return object[] */
     public function findPendingExpired(int $limit = 100): array
     {

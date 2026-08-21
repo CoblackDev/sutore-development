@@ -75,6 +75,8 @@ final class AccountDeletionService
     {
         require_once ABSPATH . 'wp-admin/includes/user.php';
 
+        $this->purgeProfilePii($userId);
+
         if (get_current_user_id() === $userId) {
             wp_logout();
         }
@@ -87,5 +89,41 @@ final class AccountDeletionService
         }
 
         return true;
+    }
+
+    /**
+     * Clear merchant profile PII before WP user delete. Accounting rows keep merchant_id.
+     */
+    private function purgeProfilePii(int $userId): void
+    {
+        global $wpdb;
+        $table = \SutoreMarketplace\Shared\Database\Schema::table('merchant_profiles');
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $wpdb->update(
+            $table,
+            [
+                'account_name' => '',
+                'account_lastname' => '',
+                'account_iban' => '',
+                'account_tckno' => '',
+                'account_birth_year' => '',
+                'account_email' => '',
+                'account_phone' => '',
+                'account_city' => '',
+                'account_state' => '',
+                'tckno_verified' => 0,
+                'tckno_verified_at' => 0,
+                'tckno_verify_method' => '',
+                'marketing_consent' => 0,
+                'updated_at' => current_time('mysql'),
+            ],
+            ['user_id' => $userId]
+        );
+
+        delete_user_meta($userId, \SutoreMarketplace\Shared\Hooks\CheckoutIdentityHooks::USER_META_TCKNO);
+        delete_user_meta($userId, \SutoreMarketplace\Shared\Hooks\CheckoutIdentityHooks::USER_META_BIRTH_YEAR);
+        delete_user_meta($userId, \SutoreMarketplace\Shared\Services\YouthDiscount::USER_META_FINGERPRINT);
+        delete_user_meta($userId, \SutoreMarketplace\Shared\Services\YouthDiscount::USER_META_ELIGIBLE);
+        delete_user_meta($userId, \SutoreMarketplace\Shared\Services\YouthDiscount::USER_META_VERIFIED_AT);
     }
 }

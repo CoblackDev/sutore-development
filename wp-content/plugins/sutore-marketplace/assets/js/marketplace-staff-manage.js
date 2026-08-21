@@ -8,6 +8,31 @@
     return i18n[key] || def;
   }
 
+  function mpRequest(method, path, data) {
+    var core = window.SutoreMarketplace;
+    if (core && typeof core.request === 'function') {
+      return core.request(method, path, {
+        query: method === 'GET' ? data || {} : undefined,
+        body: method !== 'GET' ? data || {} : undefined,
+        restUrl: cfg.restUrl,
+        restNonce: cfg.restNonce
+      });
+    }
+    var opts = {
+      url: (cfg.restUrl || '') + path,
+      method: method,
+      dataType: 'json',
+      headers: { 'X-WP-Nonce': cfg.restNonce || '' }
+    };
+    if (method === 'GET') {
+      opts.data = data || {};
+    } else {
+      opts.contentType = 'application/json';
+      opts.data = JSON.stringify(data || {});
+    }
+    return $.ajax(opts);
+  }
+
   function esc(str) {
     return $('<div/>').text(str == null ? '' : String(str)).html();
   }
@@ -700,13 +725,7 @@
     if (search) {
       data.search = search;
     }
-    return $.ajax({
-      url: (cfg.restUrl || '') + 'admin/processing-orders',
-      method: 'GET',
-      dataType: 'json',
-      data: data,
-      headers: { 'X-WP-Nonce': cfg.restNonce || '' }
-    }).then(function (res) {
+    return mpRequest('GET', 'admin/processing-orders', data).then(function (res) {
       var items = (res && res.data && res.data.items) || [];
       return items.map(function (row) {
         return {
@@ -723,13 +742,7 @@
     if (search) {
       data.search = search;
     }
-    return $.ajax({
-      url: (cfg.restUrl || '') + 'fulfillments/' + listingId + '/swap-candidates',
-      method: 'GET',
-      dataType: 'json',
-      data: data,
-      headers: { 'X-WP-Nonce': cfg.restNonce || '' }
-    }).then(function (res) {
+    return mpRequest('GET', 'fulfillments/' + listingId + '/swap-candidates', data).then(function (res) {
       var items = (res && res.data && res.data.items) || [];
       return items.map(function (row) {
         return {
@@ -743,13 +756,7 @@
   }
 
   function fetchSendableCampaigns() {
-    return $.ajax({
-      url: (cfg.restUrl || '') + 'admin/campaigns',
-      method: 'GET',
-      dataType: 'json',
-      data: { sendable: 1 },
-      headers: { 'X-WP-Nonce': cfg.restNonce || '' }
-    }).then(function (res) {
+    return mpRequest('GET', 'admin/campaigns', { sendable: 1 }).then(function (res) {
       var items = (res && res.data && res.data.items) || [];
       return items.map(function (item) {
         var parts = [item.name || '#' + String(item.id || '')];
@@ -1343,33 +1350,15 @@
   }
 
   function fetchDetail(fulfillmentId) {
-    return $.ajax({
-      url: (cfg.restUrl || '') + 'fulfillments/' + fulfillmentId,
-      method: 'GET',
-      dataType: 'json',
-      headers: { 'X-WP-Nonce': cfg.restNonce || '' }
-    });
+    return mpRequest('GET', 'fulfillments/' + fulfillmentId);
   }
 
   function fetchList(params) {
-    return $.ajax({
-      url: (cfg.restUrl || '') + 'fulfillments',
-      method: 'GET',
-      dataType: 'json',
-      data: params || {},
-      headers: { 'X-WP-Nonce': cfg.restNonce || '' }
-    });
+    return mpRequest('GET', 'fulfillments', params || {});
   }
 
   function postAction(fulfillmentId, body) {
-    return $.ajax({
-      url: (cfg.restUrl || '') + 'fulfillments/' + fulfillmentId + '/actions',
-      method: 'POST',
-      contentType: 'application/json',
-      dataType: 'json',
-      headers: { 'X-WP-Nonce': cfg.restNonce || '' },
-      data: JSON.stringify(body || {})
-    });
+    return mpRequest('POST', 'fulfillments/' + fulfillmentId + '/actions', body || {});
   }
 
   function postCampaignOffer(campaignId, listingIds) {
@@ -2554,14 +2543,7 @@
     Object.keys(extra).forEach(function (key) {
       body[key] = extra[key];
     });
-    return $.ajax({
-      url: (cfg.restUrl || '') + 'fulfillments/bulk-actions',
-      method: 'POST',
-      contentType: 'application/json',
-      dataType: 'json',
-      headers: { 'X-WP-Nonce': cfg.restNonce || '' },
-      data: JSON.stringify(body)
-    });
+    return mpRequest('POST', 'fulfillments/bulk-actions', body);
   }
 
   function showToast(message, type) {

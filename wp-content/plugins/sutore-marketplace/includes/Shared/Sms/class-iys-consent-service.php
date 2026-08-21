@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Shared\Sms;
 
+use SutoreMarketplace\Shared\Effects\OutboundEffectService;
+use SutoreMarketplace\Shared\Effects\OutboundEffectType;
+
 final class IysConsentService
 {
-    public function __construct(
-        private readonly IysClient $client = new IysClient(),
-    ) {
-    }
-
     /**
      * @param list<string> $identifiers
      */
     public function grant(array $identifiers): void
     {
-        $this->client->submit($identifiers, IysPayload::STATUS_GRANT);
+        $this->enqueue(IysPayload::STATUS_GRANT, $identifiers);
     }
 
     /**
@@ -24,7 +22,7 @@ final class IysConsentService
      */
     public function revoke(array $identifiers): void
     {
-        $this->client->submit($identifiers, IysPayload::STATUS_REVOKE);
+        $this->enqueue(IysPayload::STATUS_REVOKE, $identifiers);
     }
 
     public function sync(
@@ -36,7 +34,7 @@ final class IysConsentService
         bool $newConsent
     ): void {
         foreach (self::plannedCalls($oldEmail, $oldPhone, $newEmail, $newPhone, $oldConsent, $newConsent) as $call) {
-            $this->client->submit($call['identifiers'], $call['status']);
+            $this->enqueue($call['status'], $call['identifiers']);
         }
     }
 
@@ -89,6 +87,29 @@ final class IysConsentService
         }
 
         return $calls;
+    }
+
+    /**
+     * @param list<string> $identifiers
+     */
+    private function enqueue(string $status, array $identifiers): void
+    {
+        $identifiers = array_values(array_filter(array_map('strval', $identifiers)));
+        if ($identifiers === []) {
+            return;
+        }
+
+        $forHash = $identifiers;
+        sort($forHash);
+        $dedupe = 'iys:' . $status . ':' . hash('sha256', implode('|', $forHash) . '|' . wp_generate_uuid4());
+        (new OutboundEffectService())->enqueue(
+            OutboundEffectType::IYS,
+            [
+                'status' => $status,
+                'identifiers' => $identifiers,
+            ],
+            $dedupe
+        );
     }
 
     /**

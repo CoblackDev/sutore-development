@@ -95,7 +95,7 @@ final class CustomerOfferService
         }
 
         $dayCap = CustomerOfferGuardrails::maxPerDay();
-        if ($this->offers->countCreatedToday($customerId) >= $dayCap) {
+        if (!$this->offers->tryConsumeDailySlot($customerId, $dayCap)) {
             return new \WP_Error(
                 'sutore_customer_offer_daily_limit',
                 sprintf(
@@ -108,18 +108,24 @@ final class CustomerOfferService
 
         $bid = ListingPriceValidator::requireValidAsking($bidAmount);
         if (is_wp_error($bid)) {
+            $this->offers->releaseDailySlot($customerId);
+
             return $bid;
         }
 
         $asking = (float) $listing->asking;
         $minBid = CustomerOfferGuardrails::minBidForAsking($asking);
         if ((int) $bid >= (int) $asking) {
+            $this->offers->releaseDailySlot($customerId);
+
             return new \WP_Error(
                 'sutore_customer_offer_bid_high',
                 __('Your offer must be below the current price. Add the product to your cart to buy at the listed price.', 'sutore-marketplace')
             );
         }
         if ((int) $bid < $minBid) {
+            $this->offers->releaseDailySlot($customerId);
+
             return new \WP_Error(
                 'sutore_customer_offer_bid_low',
                 sprintf(
@@ -133,6 +139,8 @@ final class CustomerOfferService
 
         $couponAmount = $this->couponAmountForBid($asking, (float) $bid);
         if ($couponAmount <= 0) {
+            $this->offers->releaseDailySlot($customerId);
+
             return new \WP_Error(
                 'sutore_customer_offer_bid',
                 __('This offer would not change the checkout price.', 'sutore-marketplace')
@@ -154,6 +162,14 @@ final class CustomerOfferService
             'coupon_code' => '',
             'origin_offer_id' => null,
         ]);
+        if ($offerId <= 0) {
+            $this->offers->releaseDailySlot($customerId);
+
+            return new \WP_Error(
+                'sutore_customer_offer_create',
+                __('Your offer could not be saved. Please try again.', 'sutore-marketplace')
+            );
+        }
 
         $this->events->log('customer_offer_sent', [
             'offer_id' => $offerId,

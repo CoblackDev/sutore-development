@@ -60,29 +60,53 @@ final class TaskProgressService
 
         if (!$existing) {
             $this->progress->create($merchantId, (int) $def->id, $by);
-            $count = $by;
-            $status = 'in_progress';
-        } else {
-            if ($existing->status === 'completed') {
-                return ['ok' => true, 'status' => 'completed', 'progress' => (int) $existing->progress_count];
+            $existing = $this->progress->find($merchantId, (int) $def->id);
+            if (!$existing) {
+                return ['ok' => false, 'reason' => 'create_failed'];
             }
-            $count = (int) $existing->progress_count + $by;
-            $status = $count >= (int) $def->target_count ? 'completed' : 'in_progress';
-            $this->progress->update((int) $existing->id, [
-                'progress_count' => $count,
-                'status' => $status,
-                'completed_at' => $status === 'completed' ? $now : null,
-            ]);
+            // Race: another worker may have created first — fall through to atomic bump if already > $by.
+            if ((int) $existing->progress_count === $by && $existing->status === 'in_progress') {
+                $count = $by;
+                $status = $count >= (int) $def->target_count ? 'completed' : 'in_progress';
+                if ($status === 'completed') {
+                    $this->progress->update((int) $existing->id, [
+                        'status' => 'completed',
+                        'completed_at' => $now,
+                    ]);
+                    $this->onCardCompleted($merchantId, $def, $count);
+                }
+
+                return [
+                    'ok' => true,
+                    'status' => $status,
+                    'progress' => $count,
+                    'target' => (int) $def->target_count,
+                ];
+            }
         }
 
-        if ($status === 'completed') {
-            $this->onCardCompleted($merchantId, $def, $count);
+        if ($existing->status === 'completed') {
+            return ['ok' => true, 'status' => 'completed', 'progress' => (int) $existing->progress_count];
+        }
+
+        $bumped = $this->progress->incrementIfInProgress((int) $existing->id, $by, (int) $def->target_count);
+        if ($bumped === null) {
+            $fresh = $this->progress->find($merchantId, (int) $def->id);
+            if ($fresh && $fresh->status === 'completed') {
+                return ['ok' => true, 'status' => 'completed', 'progress' => (int) $fresh->progress_count];
+            }
+
+            return ['ok' => false, 'reason' => 'conflict'];
+        }
+
+        if ($bumped['status'] === 'completed') {
+            $this->onCardCompleted($merchantId, $def, $bumped['progress_count']);
         }
 
         return [
             'ok' => true,
-            'status' => $status,
-            'progress' => $count,
+            'status' => $bumped['status'],
+            'progress' => $bumped['progress_count'],
             'target' => (int) $def->target_count,
         ];
     }

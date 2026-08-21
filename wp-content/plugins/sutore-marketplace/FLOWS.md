@@ -309,7 +309,7 @@ Guardrail (`CustomerOfferGuardrails`): açık/kapalı, asking’in min yüzdesi 
 
 - Yalnızca **`publish` kazanan** listing’e; teklif asking’den düşük ve min % üstü; kampanya meşgul değil; aynı parent+bedende tek pending; kendi listing’ine yok.
 - İptal: kendi pending → `cancelled`.
-- Context (PDP): `GET /my-offers/context?variation_id=` (public).
+- Context (PDP): `GET /my-offers/context?variation_id=` (logged-in; seller `asking` not exposed).
 
 ### Satıcı (`/price-offers`)
 
@@ -512,7 +512,7 @@ Durum: `queued` → `processing` → `waiting_job` / `waiting_pdf` → `sent` | 
 
 Satış ve payout fatura hatasında **durmaz**; cron `sutore_marketplace_invoice_queue` (her dakika) + Action Scheduler `sutore_marketplace_process_invoice` yeniden dener.
 
-PDF: `GET /invoices/{id}/pdf` — staff, ilgili satıcı (komisyon) veya sipariş müşterisi (hizmet/güvence). Uploads public URL yok (`InvoiceStorage`).
+PDF: `GET /invoices/{id}/pdf` — staff, ilgili satıcı (komisyon) veya sipariş müşterisi (hizmet/güvence). Dosyalar document root dışında (`dirname(ABSPATH)/sutore-private/invoices` veya `SUTORE_MARKETPLACE_PRIVATE_DIR`); public uploads URL yok (`InvoiceStorage`). Nginx altında ayrıca `location ^~ /sutore-private/` ve `location ^~ /wp-content/sutore-private/` deny edilmelidir.
 
 Ayar: Settings → Invoices + token option `sutore_marketplace_parasut_tokens`. Seed varsayılan kapalı.
 
@@ -573,18 +573,19 @@ Kanal matrisi fulfillment ayarında: `merchant_notification_channels` (panel + s
 
 ### SMS
 
-NetGSM: `netgsm_usercode`, `netgsm_password`, `netgsm_header`, `netgsm_encoding`, `sms_simulation_mode`.  
-Gönderim kuyruğu: Action Scheduler `sutore_marketplace_send_sms`.
+Fan-out SMS `SmsQueue` → `outbound_effects` outbox → Action Scheduler `sutore_marketplace_process_effect`. Simulation modunda effect aynı istekte işlenir (shutdown runner yok). Provider false sonucu effect’i `pending`/`failed` yapar; başarılı teslim `done`.
+
+NetGSM: `netgsm_usercode`, `netgsm_password`, `netgsm_header`, `netgsm_encoding`, `sms_simulation_mode`.
 
 Müşteri/admin şablonları `Orders\Settings\SmsTemplates` (ödeme, confirm, kargo, teslim, ön sipariş, sipariş iptal/iade, …). Satıcı olayları `NotificationType` → aynı şablon haritası (ör. `sale.received` → `seller_confirm_request`).
 
 ### Webhook
 
-`webhook_url` + `webhook_secret` (HMAC `X-Sutore-Signature`). Örnekler: `fulfillment.sold`, `fulfillment.confirmed`, `fulfillment.delivered_to_customer`, `fulfillment.chargeback`, `listing.pre_order`, `pre_order.accepted`, `payout.paid`.
+`webhook_url` + `webhook_secret` (HMAC `X-Sutore-Signature`). Body’de `event_id`; header `X-Sutore-Event-Id`. Gönderim outbox üzerinden; yalnız HTTP 2xx success sayılır. Örnekler: `fulfillment.sold`, `fulfillment.confirmed`, `fulfillment.delivered_to_customer`, `fulfillment.chargeback`, `listing.pre_order`, `pre_order.accepted`, `payout.paid`.
 
 ### İYS
 
-Hook: `sutore_marketplace_marketing_opt_in` / `opt_out` → NetGSM `/iys/add` (`ONAY`/`RET`, `EPOSTA`/`MESAJ`). `netgsm_brand_code` boşsa veya simülasyon açıksa API çağrılmaz; rıza yerelde saklanır (`marketing_consent`). Hesap silmede RET gider.
+Hook: `sutore_marketplace_marketing_opt_in` / `opt_out` → `IysConsentService` → outbox (`effect_type=iys`) → worker `IysClient::submit` (`ONAY`/`RET`). `netgsm_brand_code` boşsa veya simülasyon açıksa API çağrılmaz; rıza yerelde saklanır (`marketing_consent`). Hesap silmede RET outbox’a yazılır.
 
 ---
 
@@ -628,7 +629,7 @@ Müşteri mağaza: `/wc/store/v1/*`, `/wc/v3/*`, `/wp/v2/*`. Plugin domain’i n
 | GET/POST | `/catalog-product-requests` | Satıcı |
 | POST | `/catalog-product-requests/{id}/cancel` | Satıcı |
 | GET/POST | `/my-offers` | Müşteri |
-| GET | `/my-offers/context` | Public |
+| GET | `/my-offers/context` | Logged-in customer |
 | POST | `/my-offers/{id}/cancel` | Müşteri |
 | GET | `/price-offers` | Satıcı |
 | POST | `/price-offers/{id}/accept\|decline` | Satıcı |
@@ -675,14 +676,22 @@ Müşteri mağaza: `/wc/store/v1/*`, `/wc/v3/*`, `/wp/v2/*`. Plugin domain’i n
 | `sutore_marketplace_behavior_daily` | daily ~03:00 | Skor, seviye, aylık kartlar |
 | `sutore_marketplace_invoice_queue` | her dakika | Fatura kuyruğu |
 | `sutore_marketplace_process_invoice` | AS | Tek fatura işi |
-| `sutore_marketplace_send_sms` | AS | SMS gönderimi |
+| `sutore_marketplace_process_effect` | AS | SMS / webhook / İYS outbox |
+| `sutore_marketplace_effects_retry` | hourly | Due effect yeniden deneme |
+| `sutore_marketplace_purge_old_events` | daily | `event_retention_days` cleanup |
 | `sutore_marketplace_bulk_import_batch` | AS | Toplu listing |
 
 ---
 
 ## 19. Tablolar ve ayarlar
 
-Şema sürümü: `Schema::VERSION` = 48. Option: `sutore_marketplace_db_version`. Prefix: `{wpdb}sutore_marketplace_`.
+Şema sürümü: `Schema::VERSION` = 102 (production baseline; historical migrators removed). Option: `sutore_marketplace_db_version`. Prefix: `{wpdb}sutore_marketplace_`. Table registry: `Schema::tableSuffixes()`. Listing satırında `last_operation_id` (STATE-01 idempotency).
+
+**STATE-01:** `ListingRepository::transition(...)` → `TransitionResult` (`changed` / `already_done` / `conflict`). Claim, pre-order claim, fulfillment `advanceStatus` / intervention bu primitive’i kullanır. Webhook outbox dedupe: `webhook:{event}:{operation_id}`.
+
+**FulfillmentService:** ince facade; komutlar `PaymentReservationCommands`, `MerchantFulfillmentCommands`, `StaffFulfillmentCommands`, `SourcingSwapCommands`, `PayoutCommands` (+ `FulfillmentCommandSupport`).
+
+**UI-01:** tek HTTP helper `SutoreMarketplace.request(method, path, opts)`; staff/admin/PDP yerel ajax/fetch bu helper’a bağlanır.
 
 | Tablo | Amaç |
 |---|---|
@@ -692,6 +701,7 @@ Müşteri mağaza: `/wc/store/v1/*`, `/wc/v3/*`, `/wp/v2/*`. Plugin domain’i n
 | `campaigns` / `campaign_offers` | Kampanya pencereleri ve teklifler |
 | `outlet_windows` / `outlet_items` / `outlet_optins` | Outlet |
 | `customer_offers` | Müşteri fiyat teklifi + kupon bağı |
+| `customer_offer_daily_counters` | Günlük teklif kotası (atomik) |
 | `catalog_product_requests` | Katalog talep kuyruğu |
 | `merchant_profiles` | Profil, seviye, skor, referral, rıza |
 | `merchant_restrictions` | Yasaklar |
@@ -701,8 +711,9 @@ Müşteri mağaza: `/wc/store/v1/*`, `/wc/v3/*`, `/wp/v2/*`. Plugin domain’i n
 | `merchant_events` | Satıcı audit |
 | `task_definitions` / `merchant_task_progress` / `merchant_rewards` | Görevler |
 | `invoices` | Paraşüt kuyruğu |
+| `outbound_effects` | SMS / webhook / İYS outbox |
 
-Eski `…_fulfillments` yalnızca tek seferlik migration okumasında vardır; runtime kullanmaz.
+Uninstall varsayılan olarak tabloları **korur**; drop için `SUTORE_MARKETPLACE_PURGE_ON_UNINSTALL` gerekir. Table registry: `Schema::tableSuffixes()`.
 
 ### Option’lar
 

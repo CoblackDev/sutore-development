@@ -8,8 +8,8 @@ use SutoreMarketplace\Shared\Sms\SmsGateway;
 
 final class OtpSmsGateway
 {
-    public static function send(string $phone, string $message): void
+    public static function send(string $phone, string $message): bool
     {
-        SmsGateway::send($phone, $message);
+        return SmsGateway::send($phone, $message);
     }
 }

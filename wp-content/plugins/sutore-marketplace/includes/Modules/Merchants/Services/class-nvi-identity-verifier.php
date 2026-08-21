@@ -10,14 +10,19 @@ use SutoreMarketplace\Shared\Security\OutboundUrl;
 /**
  * NVI KPS Public TC kimlik doğrulama (HTTP SOAP).
  *
- * Not: NVI public web servisi Eylül 2025 itibarıyla programatik erişime kapatılmış olabilir.
- * Kurumsal KPS erişimi için ayarlardan endpoint güncellenebilir.
+ * Endpoint is allowlisted — not a free-form admin URL — so PII cannot be
+ * redirected to an attacker-controlled host via settings.
  */
 final class NviIdentityVerifier
 {
     private const DEFAULT_ENDPOINT = 'https://tckimlik.nvi.gov.tr/Service/KPSPublic.asmx';
     private const SOAP_ACTION = 'http://tckimlik.nvi.gov.tr/WS/TCKimlikNoDogrula';
     private const SOAP_NS = 'http://tckimlik.nvi.gov.tr/WS';
+
+    /** @var list<string> */
+    private const ALLOWED_HOSTS = [
+        'tckimlik.nvi.gov.tr',
+    ];
 
     public static function verify(string $tc, string $firstName, string $lastName, int $birthYear): bool|\WP_Error
     {
@@ -50,13 +55,14 @@ final class NviIdentityVerifier
 
     private static function callService(string $tc, string $firstName, string $lastName, int $birthYear): bool|\WP_Error
     {
-        $endpoint = Settings::tcVerificationNviEndpoint();
-        if (!OutboundUrl::isSafe($endpoint)) {
+        $endpoint = self::resolveEndpoint();
+        if ($endpoint === '') {
             return new \WP_Error(
                 'sutore_nvi_service_error',
                 __('Could not reach the TC identity verification service. Please try again later.', 'sutore-marketplace')
             );
         }
+
         $envelope = '<?xml version="1.0" encoding="utf-8"?>'
             . '<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
             . '<soap:Body>'
@@ -70,6 +76,7 @@ final class NviIdentityVerifier
 
         $response = wp_remote_post($endpoint, [
             'timeout' => 20,
+            'redirection' => 0,
             'headers' => [
                 'Content-Type' => 'text/xml; charset=utf-8',
                 'SOAPAction' => '"' . self::SOAP_ACTION . '"',
@@ -119,6 +126,35 @@ final class NviIdentityVerifier
         }
 
         return true;
+    }
+
+    private static function resolveEndpoint(): string
+    {
+        $configured = trim((string) Settings::get('tc_verification_nvi_endpoint', ''));
+        if ($configured === '') {
+            $configured = self::DEFAULT_ENDPOINT;
+        }
+
+        if (!OutboundUrl::isSafe($configured) || !self::isAllowedEndpoint($configured)) {
+            return OutboundUrl::isSafe(self::DEFAULT_ENDPOINT) && self::isAllowedEndpoint(self::DEFAULT_ENDPOINT)
+                ? self::DEFAULT_ENDPOINT
+                : '';
+        }
+
+        return $configured;
+    }
+
+    private static function isAllowedEndpoint(string $url): bool
+    {
+        $host = strtolower((string) (wp_parse_url($url, PHP_URL_HOST) ?? ''));
+        $path = (string) (wp_parse_url($url, PHP_URL_PATH) ?? '');
+
+        if (!in_array($host, self::ALLOWED_HOSTS, true)) {
+            return false;
+        }
+
+        return str_ends_with(strtolower($path), '/kpspublic.asmx')
+            || str_ends_with(strtolower($path), 'kpspublic.asmx');
     }
 
     private static function isHtmlErrorResponse(string $body): bool

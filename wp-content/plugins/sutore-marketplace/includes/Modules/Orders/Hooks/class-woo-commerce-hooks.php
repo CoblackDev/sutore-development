@@ -15,9 +15,10 @@ final class WooCommerceHooks
     {
         add_action('woocommerce_payment_complete', [$this, 'onPaymentComplete'], 10, 1);
         add_action('woocommerce_pre_payment_complete', [$this, 'onPrePayment'], 10, 1);
-        // COD / BACS etc. never call payment_complete for paid-at-later gateways.
+        // COD etc. may never call payment_complete — processing means funds accepted.
         add_action('woocommerce_order_status_processing', [$this, 'onOrderConfirmed'], 10, 1);
-        add_action('woocommerce_order_status_on-hold', [$this, 'onOrderConfirmed'], 10, 1);
+        // BACS / cheque on-hold: reserve listing only (not “payment received”).
+        add_action('woocommerce_order_status_on-hold', [$this, 'onOrderOnHold'], 10, 1);
         add_action('woocommerce_order_status_completed', [$this, 'onOrderCompleted'], 10, 1);
         add_action('woocommerce_order_status_refunded', [$this, 'onOrderRefunded'], 10, 1);
         add_action('woocommerce_order_status_cancelled', [$this, 'onOrderCancelled'], 10, 1);
@@ -57,6 +58,11 @@ final class WooCommerceHooks
     public function onOrderConfirmed(int $orderId): void
     {
         (new PaymentHandler())->onOrderConfirmed($orderId);
+    }
+
+    public function onOrderOnHold(int $orderId): void
+    {
+        (new PaymentHandler())->onOrderOnHold($orderId);
     }
 
     public function onPrePayment(int $orderId): void

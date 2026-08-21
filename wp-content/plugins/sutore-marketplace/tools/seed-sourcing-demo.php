@@ -78,13 +78,7 @@ function seed_log(string $msg): void
 
 function ensure_merchant_role(): void
 {
-    if (!get_role('merchant')) {
-        add_role('merchant', 'Merchant', [
-            'read' => true,
-            'edit_products' => true,
-            'upload_files' => true,
-        ]);
-    }
+    \SutoreMarketplace\Modules\Listings\Domain\ListingCapabilities::reconcileMerchantRole();
 }
 
 function upsert_user(string $login, string $email, string $display, string $role, string $level = MerchantLevels::VERIFIED): int

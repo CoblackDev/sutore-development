@@ -5,39 +5,40 @@ declare(strict_types=1);
 namespace SutoreMarketplace\Modules\Orders\Services;
 
 use SutoreMarketplace\Modules\Orders\Settings\Settings;
+use SutoreMarketplace\Shared\Effects\OutboundEffectService;
+use SutoreMarketplace\Shared\Effects\OutboundEffectType;
 use SutoreMarketplace\Shared\Security\OutboundUrl;
-use SutoreMarketplace\Shared\Security\SecretBox;
 
 final class WebhookNotifier
 {
     /** @param array<string, mixed> $payload */
-    public static function dispatch(string $event, array $payload): void
+    public static function dispatch(string $event, array $payload, string $operationId = ''): void
     {
         $url = trim((string) Settings::get('webhook_url', ''));
         if ($url === '' || !OutboundUrl::isSafe($url)) {
             return;
         }
 
-        $body = [
-            'event' => $event,
-            'timestamp' => current_time('mysql'),
-            'payload' => $payload,
-        ];
-
-        $args = [
-            'timeout' => 15,
-            'headers' => [
-                'Content-Type' => 'application/json',
-            ],
-            'body' => wp_json_encode($body),
-        ];
-
-        $secret = trim(SecretBox::open((string) Settings::get('webhook_secret', '')));
-        if ($secret !== '') {
-            $args['headers']['X-Sutore-Signature'] = hash_hmac('sha256', (string) $args['body'], $secret);
+        $operationId = $operationId !== ''
+            ? sanitize_text_field($operationId)
+            : (string) ($payload['operation_id'] ?? '');
+        if ($operationId === '') {
+            $operationId = wp_generate_uuid4();
         }
 
-        wp_remote_post($url, $args);
-        do_action('sutore_marketplace_fulfillment_webhook_sent', $event, $payload, $url);
+        $payload['operation_id'] = $operationId;
+        $payload['event_id'] = $operationId;
+
+        (new OutboundEffectService())->enqueue(
+            OutboundEffectType::WEBHOOK,
+            [
+                'url' => $url,
+                'event' => $event,
+                'event_id' => $operationId,
+                'timestamp' => current_time('mysql'),
+                'payload' => $payload,
+            ],
+            'webhook:' . $event . ':' . $operationId
+        );
     }
 }

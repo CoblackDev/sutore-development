@@ -10,9 +10,19 @@
   };
 
   function rest(path, method, body) {
+    method = method || 'GET';
+    var core = window.SutoreMarketplace;
+    if (core && typeof core.request === 'function') {
+      return core.request(method, path, {
+        query: method === 'GET' ? body : undefined,
+        body: method !== 'GET' ? body || {} : undefined,
+        restUrl: cfg.restUrl,
+        restNonce: cfg.restNonce
+      });
+    }
     return $.ajax({
       url: (cfg.restUrl || '') + path,
-      method: method || 'GET',
+      method: method,
       data: method === 'POST' ? JSON.stringify(body || {}) : body,
       contentType: method === 'POST' ? 'application/json' : undefined,
       beforeSend: function (xhr) {
@@ -82,7 +92,7 @@
   function fillBidBounds(ctx) {
     var $bid = $('#sutore-mp-pdp-offer-bid');
     var minBid = ctx.min_bid || 1;
-    var maxBid = ctx.max_bid || Math.max(0, Number(ctx.asking || 0) - Number(ctx.price_step || 1));
+    var maxBid = ctx.max_bid || Math.max(0, Number(ctx.customer_price || 0) - Number(ctx.price_step || 1));
     $bid.attr('min', minBid);
     $bid.attr('max', maxBid);
     $bid.attr('step', ctx.price_step || 1);
@@ -174,7 +184,7 @@
     });
     $form.prop('hidden', false).data('variation-id', ctx.variation_id);
     $lead.text(
-      t('listedPrice', 'Listed price') + ': ' + money(ctx.asking) + ' · ' +
+      t('listedPrice', 'Listed price') + ': ' + money(ctx.customer_price) + ' · ' +
       t('minBid', 'Minimum offer') + ': ' + money(ctx.min_bid)
     );
     fillBidBounds(ctx);
@@ -247,7 +257,7 @@
       var bid = parseFloat($('#sutore-mp-pdp-offer-bid').val() || '0');
       var $status = $modal().find('.sutore-mp-pdp-offer__status');
       $status.text('');
-      if (bid >= Number(lastCtx.asking || 0)) {
+      if (bid > Number(lastCtx.max_bid || 0)) {
         $status.text(t('bidHigh', 'Your offer must be below the current price. Add the product to your cart to buy at the listed price.'));
         return;
       }

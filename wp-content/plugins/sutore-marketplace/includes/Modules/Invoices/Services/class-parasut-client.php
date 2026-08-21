@@ -54,7 +54,15 @@ final class ParasutClient
      */
     public function requestRaw(string $method, string $path): array
     {
-        $this->throttle();
+        if (!$this->throttle()) {
+            return [
+                'ok' => false,
+                'status' => 429,
+                'body' => '',
+                'content_type' => '',
+                'error' => __('Paraşüt rate limit reached. Retry shortly.', 'sutore-marketplace'),
+            ];
+        }
         $token = $this->accessToken();
         if ($token === '') {
             return [
@@ -66,7 +74,16 @@ final class ParasutClient
             ];
         }
 
-        $url = str_starts_with($path, 'http') ? $path : self::BASE . $path;
+        $url = str_starts_with($path, '/') ? self::BASE . $path : '';
+        if ($url === '' || str_starts_with($path, 'http')) {
+            return [
+                'ok' => false,
+                'status' => 0,
+                'body' => '',
+                'content_type' => '',
+                'error' => __('Invalid Paraşüt API path.', 'sutore-marketplace'),
+            ];
+        }
         $response = $this->sendBinaryRequest($url, $this->binaryRequestArgs($method, [
             'Accept' => 'application/json, application/pdf, */*',
             'Authorization' => 'Bearer ' . $token,
@@ -99,7 +116,13 @@ final class ParasutClient
      */
     public function request(string $method, string $path, ?array $body = null, bool $auth = true, bool $retried = false): array
     {
-        $this->throttle();
+        if (!$this->throttle()) {
+            return [
+                'ok' => false,
+                'status' => 429,
+                'error' => __('Paraşüt rate limit reached. Retry shortly.', 'sutore-marketplace'),
+            ];
+        }
 
         $headers = [
             'Accept' => 'application/vnd.api+json',
@@ -122,7 +145,10 @@ final class ParasutClient
             $args['body'] = wp_json_encode($body);
         }
 
-        $url = str_starts_with($path, 'http') ? $path : self::BASE . $path;
+        $url = str_starts_with($path, '/') ? self::BASE . $path : '';
+        if ($url === '' || str_starts_with($path, 'http')) {
+            return ['ok' => false, 'status' => 0, 'error' => __('Invalid Paraşüt API path.', 'sutore-marketplace')];
+        }
         $response = wp_remote_request($url, $args);
         if (is_wp_error($response)) {
             return ['ok' => false, 'status' => 0, 'error' => $response->get_error_message()];
@@ -160,9 +186,23 @@ final class ParasutClient
 
     public function download(string $url): string|\WP_Error
     {
-        $this->throttle();
-        $response = $this->sendBinaryRequest($url, $this->binaryRequestArgs('GET', [
+        if (!$this->throttle()) {
+            return new \WP_Error(
+                'sutore_invoice_rate_limited',
+                __('Paraşüt rate limit reached. Retry shortly.', 'sutore-marketplace')
+            );
+        }
+        if (!$this->isAllowedArtifactUrl($url)) {
+            return new \WP_Error(
+                'sutore_invoice_pdf_url',
+                __('PDF download URL is not allowed.', 'sutore-marketplace')
+            );
+        }
+        $response = $this->sendBinaryRequest($url, array_merge($this->binaryRequestArgs('GET', [
             'Accept' => 'application/pdf, */*',
+        ]), [
+            'redirection' => 0,
+            'limit_response_size' => 5 * MB_IN_BYTES,
         ]));
         if (is_wp_error($response)) {
             return $response;
@@ -180,8 +220,43 @@ final class ParasutClient
         }
 
         $body = $this->maybeGunzip((string) wp_remote_retrieve_body($response));
+        $contentType = strtolower((string) wp_remote_retrieve_header($response, 'content-type'));
+        if ($body === '' || (!str_starts_with($body, '%PDF') && !str_contains($contentType, 'pdf'))) {
+            return new \WP_Error('sutore_invoice_pdf_empty', __('PDF download was empty.', 'sutore-marketplace'));
+        }
 
-        return $body !== '' ? $body : new \WP_Error('sutore_invoice_pdf_empty', __('PDF download was empty.', 'sutore-marketplace'));
+        return $body;
+    }
+
+    private function isAllowedArtifactUrl(string $url): bool
+    {
+        $url = trim($url);
+        if ($url === '' || strtolower((string) (wp_parse_url($url, PHP_URL_SCHEME) ?? '')) !== 'https') {
+            return false;
+        }
+        $parts = wp_parse_url($url);
+        if (!is_array($parts) || isset($parts['user']) || isset($parts['pass'])) {
+            return false;
+        }
+
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        if ($host === '') {
+            return false;
+        }
+
+        // Paraşüt returns temporary CDN/S3 URLs for e-Archive PDFs.
+        $allowedSuffixes = [
+            'parasut.com',
+            'amazonaws.com',
+            'cloudfront.net',
+        ];
+        foreach ($allowedSuffixes as $suffix) {
+            if ($host === $suffix || str_ends_with($host, '.' . $suffix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function accessToken(bool $forceRefresh = false): string
@@ -217,7 +292,9 @@ final class ParasutClient
     /** @param array<string, string> $fields */
     private function fetchToken(array $fields): string
     {
-        $this->throttle();
+        if (!$this->throttle()) {
+            return '';
+        }
         $response = wp_remote_post(self::BASE . '/oauth/token', [
             'timeout' => 30,
             'body' => $fields,
@@ -311,7 +388,11 @@ final class ParasutClient
         }
     }
 
-    private function throttle(): void
+    /**
+     * Soft in-process rate limiter. Never sleeps on interactive web requests;
+     * CLI/cron/AS workers may wait briefly so Paraşüt batches still succeed.
+     */
+    private function throttle(): bool
     {
         $now = time();
         self::$requestTimes = array_values(array_filter(
@@ -320,16 +401,32 @@ final class ParasutClient
         ));
         if (count(self::$requestTimes) >= self::RATE_MAX) {
             $wait = self::RATE_WINDOW - ($now - self::$requestTimes[0]) + 1;
-            if ($wait > 0 && $wait <= self::RATE_WINDOW) {
+            if ($wait > 0 && $wait <= self::RATE_WINDOW && $this->mayBlockForRateLimit()) {
                 sleep($wait);
+                $now = time();
+                self::$requestTimes = array_values(array_filter(
+                    self::$requestTimes,
+                    static fn (int $t): bool => $t > $now - self::RATE_WINDOW
+                ));
+            } else {
+                return false;
             }
-            $now = time();
-            self::$requestTimes = array_values(array_filter(
-                self::$requestTimes,
-                static fn (int $t): bool => $t > $now - self::RATE_WINDOW
-            ));
         }
         self::$requestTimes[] = $now;
+
+        return true;
+    }
+
+    private function mayBlockForRateLimit(): bool
+    {
+        if (PHP_SAPI === 'cli') {
+            return true;
+        }
+        if (wp_doing_cron() || (defined('DOING_CRON') && DOING_CRON)) {
+            return true;
+        }
+
+        return did_action('action_scheduler_begin_execute') > 0;
     }
 
     /** @param array<string, mixed> $decoded */

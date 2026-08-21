@@ -5,3 +5,15 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libxml2-dev \
     && docker-php-ext-install soap \
     && rm -rf /var/lib/apt/lists/*
+
+# Invoice PDFs and other private artifacts live outside the document root.
+RUN mkdir -p /var/www/sutore-private/invoices \
+    && printf '%s\n' \
+        '<IfModule mod_authz_core.c>' \
+        'Require all denied' \
+        '</IfModule>' \
+        '<IfModule !mod_authz_core.c>' \
+        'Deny from all' \
+        '</IfModule>' \
+        > /var/www/sutore-private/.htaccess \
+    && chown -R www-data:www-data /var/www/sutore-private

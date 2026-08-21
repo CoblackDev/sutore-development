@@ -317,7 +317,12 @@ final class Settings
             return $fallback;
         }
 
-        return OutboundUrl::isSafe($url) ? $url : $fallback;
+        $host = strtolower((string) (wp_parse_url($url, PHP_URL_HOST) ?? ''));
+        if ($host !== 'tckimlik.nvi.gov.tr' || !OutboundUrl::isSafe($url)) {
+            return $fallback;
+        }
+
+        return $url;
     }
 
     private static function isLocalDevelopment(): bool

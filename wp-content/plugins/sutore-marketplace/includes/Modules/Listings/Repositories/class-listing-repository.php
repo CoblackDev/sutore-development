@@ -8,6 +8,7 @@ use SutoreMarketplace\Modules\Listings\Domain\Listing;
 use SutoreMarketplace\Modules\Listings\Domain\ListingConditionRank;
 use SutoreMarketplace\Modules\Listings\Domain\ListingPriceValidator;
 use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
+use SutoreMarketplace\Modules\Listings\Domain\TransitionResult;
 use SutoreMarketplace\Shared\Database\Schema;
 
 final class ListingRepository
@@ -364,7 +365,10 @@ final class ListingRepository
         $now = current_time('mysql');
         $data['created_at'] = $data['created_at'] ?? $now;
         $data['updated_at'] = $data['updated_at'] ?? $now;
-        $wpdb->insert($this->table(), $data);
+        $ok = false !== $wpdb->insert($this->table(), $data);
+        if (!$ok) {
+            return 0;
+        }
         self::clearRequestCache();
 
         return (int) ($data['variation_id'] ?? 0);
@@ -384,6 +388,131 @@ final class ListingRepository
         }
 
         return $ok;
+    }
+
+    /**
+     * Atomically apply $data only while listing_status is still one of $expectedStatuses.
+     * Optionally require an unbound order claim (order_id NULL/0).
+     *
+     * @param list<string>|string $expectedStatuses
+     * @param array<string, mixed> $data
+     */
+    public function updateIfStatus(
+        int $variationId,
+        array|string $expectedStatuses,
+        array $data,
+        bool $requireUnboundOrder = false
+    ): bool {
+        if ($variationId <= 0) {
+            return false;
+        }
+        if (!$this->applyAskingGuard($data)) {
+            return false;
+        }
+
+        $expected = array_values(array_filter(array_map(
+            static fn ($s): string => sanitize_key((string) $s),
+            (array) $expectedStatuses
+        )));
+        if ($expected === []) {
+            return false;
+        }
+
+        global $wpdb;
+        $data['updated_at'] = current_time('mysql');
+
+        $setSql = [];
+        $params = [];
+        foreach ($data as $column => $value) {
+            $column = preg_replace('/[^a-z0-9_]/', '', (string) $column) ?? '';
+            if ($column === '') {
+                continue;
+            }
+            if ($value === null) {
+                $setSql[] = "`{$column}` = NULL";
+                continue;
+            }
+            $setSql[] = "`{$column}` = %s";
+            $params[] = is_bool($value) ? (int) $value : $value;
+        }
+        if ($setSql === []) {
+            return false;
+        }
+
+        $statusPlaceholders = implode(',', array_fill(0, count($expected), '%s'));
+        $params = array_merge($params, [$variationId], $expected);
+
+        $orderClause = '';
+        if ($requireUnboundOrder) {
+            $orderClause = ' AND (order_id IS NULL OR order_id = 0)';
+        }
+
+        $table = $this->table();
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- columns whitelisted above; values prepared.
+        $updated = $wpdb->query($wpdb->prepare(
+            "UPDATE {$table} SET " . implode(', ', $setSql)
+            . " WHERE variation_id = %d AND listing_status IN ({$statusPlaceholders}){$orderClause}",
+            ...$params
+        ));
+
+        if (is_int($updated) && $updated > 0) {
+            self::clearRequestCache();
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Claim a market listing for an order (CAS). Returns true only when this caller wins.
+     *
+     * @param list<string> $expectedStatuses
+     * @param array<string, mixed> $data Must include listing_status, order_id, order_item_id.
+     */
+    public function claimForOrder(int $variationId, array $expectedStatuses, array $data): bool
+    {
+        return $this->transition($variationId, $expectedStatuses, $data, '', true)->isChanged();
+    }
+
+    /**
+     * Atomic listing transition with operation_id idempotency (STATE-01).
+     * Side effects must run only when {@see TransitionResult::isChanged()}.
+     *
+     * @param list<string>|string $expectedStatuses
+     * @param array<string, mixed> $data
+     */
+    public function transition(
+        int $variationId,
+        array|string $expectedStatuses,
+        array $data,
+        string $operationId = '',
+        bool $requireUnboundOrder = false
+    ): TransitionResult {
+        $operationId = $operationId !== '' ? sanitize_text_field($operationId) : wp_generate_uuid4();
+        if ($variationId <= 0 || $operationId === '') {
+            return TransitionResult::conflict($operationId !== '' ? $operationId : 'invalid');
+        }
+
+        $existing = $this->find($variationId);
+        if ($existing === null) {
+            return TransitionResult::conflict($operationId);
+        }
+        if ($existing->lastOperationId !== null && $existing->lastOperationId === $operationId) {
+            return TransitionResult::alreadyDone($operationId);
+        }
+
+        $data['last_operation_id'] = $operationId;
+        if ($this->updateIfStatus($variationId, $expectedStatuses, $data, $requireUnboundOrder)) {
+            return TransitionResult::changed($operationId);
+        }
+
+        $fresh = $this->find($variationId);
+        if ($fresh !== null && $fresh->lastOperationId === $operationId) {
+            return TransitionResult::alreadyDone($operationId);
+        }
+
+        return TransitionResult::conflict($operationId);
     }
 
     public function delete(int $variationId): bool

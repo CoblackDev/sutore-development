@@ -6,31 +6,47 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
     exit;
 }
 
+/**
+ * Default uninstall keeps marketplace tables and options (financial/audit trail).
+ * Define SUTORE_MARKETPLACE_PURGE_ON_UNINSTALL as true in wp-config.php before
+ * deleting the plugin to drop custom tables and options.
+ */
+if (!defined('SUTORE_MARKETPLACE_PURGE_ON_UNINSTALL') || !SUTORE_MARKETPLACE_PURGE_ON_UNINSTALL) {
+    return;
+}
+
 global $wpdb;
 
-$tables = [
-    'sutore_marketplace_merchant_notifications',
-    'sutore_marketplace_merchant_payout_lines',
-    'sutore_marketplace_merchant_profiles',
-    'sutore_marketplace_campaign_offers',
-    'sutore_marketplace_campaigns',
-    'sutore_marketplace_outlet_optins',
-    'sutore_marketplace_outlet_items',
-    'sutore_marketplace_outlet_windows',
-    'sutore_marketplace_customer_offers',
-    'sutore_marketplace_listings',
-    'sutore_marketplace_listing_conditions',
-    'sutore_marketplace_sourcing_requests',
-    'sutore_marketplace_listing_events',
-    'sutore_marketplace_merchant_restrictions',
-    'sutore_marketplace_task_definitions',
-    'sutore_marketplace_merchant_task_progress',
-    'sutore_marketplace_merchant_rewards',
-    'sutore_marketplace_invoices',
+// Keep in sync with Schema::tableSuffixes().
+$suffixes = [
+    'merchant_profiles',
+    'campaigns',
+    'campaign_offers',
+    'listings',
+    'listing_conditions',
+    'listing_events',
+    'merchant_restrictions',
+    'task_definitions',
+    'merchant_task_progress',
+    'merchant_rewards',
+    'merchant_payout_lines',
+    'merchant_notifications',
+    'merchant_events',
+    'merchant_commission_overrides',
+    'catalog_product_requests',
+    'outlet_windows',
+    'outlet_items',
+    'outlet_optins',
+    'customer_offers',
+    'customer_offer_daily_counters',
+    'invoices',
+    'outbound_effects',
 ];
 
-foreach ($tables as $table) {
-    $wpdb->query('DROP TABLE IF EXISTS ' . $wpdb->prefix . $table);
+foreach ($suffixes as $suffix) {
+    $table = $wpdb->prefix . 'sutore_marketplace_' . $suffix;
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- controlled suffix list.
+    $wpdb->query("DROP TABLE IF EXISTS `{$table}`");
 }
 
 delete_option('sutore_marketplace_settings');

@@ -89,6 +89,27 @@ final class ProductSizeLookup
         return $variationTaxonomies[0];
     }
 
+    public static function assertTermAllowedForParent(int $parentId, int $termId): true|\WP_Error
+    {
+        if ($parentId <= 0 || $termId <= 0) {
+            return new \WP_Error(
+                'sutore_marketplace_size',
+                __('Select a valid size.', 'sutore-marketplace')
+            );
+        }
+
+        foreach (self::termsForParent($parentId) as $term) {
+            if ((int) $term['term_id'] === $termId) {
+                return true;
+            }
+        }
+
+        return new \WP_Error(
+            'sutore_marketplace_size',
+            __('Select a valid size for this product.', 'sutore-marketplace')
+        );
+    }
+
     public static function axisLabelForTaxonomy(string $taxonomy): string
     {
         if ($taxonomy === self::PRIMARY_SIZE_TAXONOMY || str_contains($taxonomy, 'beden')) {

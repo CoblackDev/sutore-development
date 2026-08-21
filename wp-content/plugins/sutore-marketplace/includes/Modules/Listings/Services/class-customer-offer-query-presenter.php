@@ -76,7 +76,6 @@ final class CustomerOfferQueryPresenter
             'can_offer' => false,
             'logged_in' => $customerId > 0,
             'variation_id' => $variationId,
-            'asking' => 0.0,
             'customer_price' => 0.0,
             'min_bid' => 0,
             'max_bid' => 0,
@@ -88,6 +87,12 @@ final class CustomerOfferQueryPresenter
             'accepted_offer' => null,
             'reason' => '',
         ];
+
+        if ($customerId <= 0) {
+            $empty['reason'] = 'login';
+
+            return $empty;
+        }
 
         if (!$enabled) {
             $empty['reason'] = 'disabled';
@@ -103,27 +108,29 @@ final class CustomerOfferQueryPresenter
         $onSale = $listing->listingStatus === ListingStatus::PUBLISH
             && $listing->campaignStatus === 'none';
 
-        if ($customerId <= 0 && !$onSale) {
-            $empty['reason'] = $listing->listingStatus !== ListingStatus::PUBLISH ? 'not_on_sale' : 'campaign';
+        // Non-public listings: only reveal pricing to the offer owner or staff.
+        if (!$onSale) {
+            $pendingEarly = $this->offers->findPendingForCustomerProductSize(
+                $customerId,
+                (int) $listing->parentProductId,
+                (int) $listing->sizeTermId
+            );
+            $acceptedEarly = $this->offers->findAcceptedForListingAndCustomer((int) $listing->variationId, $customerId);
+            if (!$pendingEarly && !$acceptedEarly && !user_can($customerId, 'manage_woocommerce')) {
+                $empty['reason'] = $listing->listingStatus !== ListingStatus::PUBLISH ? 'not_on_sale' : 'campaign';
 
-            return $empty;
+                return $empty;
+            }
         }
 
         $asking = (float) $listing->asking;
-        $empty['asking'] = $asking;
+        // Customer-facing price only — seller asking stays internal.
         $empty['customer_price'] = MarketplacePricing::customerPrice($listing);
         $empty['min_bid'] = CustomerOfferGuardrails::minBidForAsking($asking);
         $empty['max_bid'] = CustomerOfferGuardrails::maxBidForAsking($asking);
         $empty['parent_product_id'] = (int) $listing->parentProductId;
         $empty['size_term_id'] = (int) $listing->sizeTermId;
         $empty['size_label'] = ProductSizeLookup::labelForTermId((int) $listing->sizeTermId);
-
-        if ($customerId <= 0) {
-            $empty['reason'] = 'login';
-            $empty['can_offer'] = false;
-
-            return $empty;
-        }
 
         if ((int) $listing->merchantId === $customerId) {
             $empty['reason'] = 'own_listing';

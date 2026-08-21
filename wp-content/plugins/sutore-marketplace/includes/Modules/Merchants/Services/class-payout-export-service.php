@@ -151,7 +151,7 @@ final class PayoutExportService
             \SutoreMarketplace\Modules\Invoices\Domain\InvoiceKind::SELLER_COMMISSION
         );
 
-        return [
+        return array_map([$this, 'csvCell'], [
             $orderId > 0 ? (string) $orderId : '',
             $customers[$orderId] ?? '',
             $title,
@@ -182,7 +182,17 @@ final class PayoutExportService
             PayoutStatus::label((string) ($payout->payout_status ?? '')),
             PayoutSchedule::formatDateWithWeekday((string) ($payout->scheduled_payout_date ?? '')),
             (string) ($payout->payment_ref ?? ''),
-        ];
+        ]);
+    }
+
+    private function csvCell(string $value): string
+    {
+        $value = (string) $value;
+        if ($value !== '' && preg_match('/^[=+\-@\t\r]/', $value)) {
+            return "'" . $value;
+        }
+
+        return $value;
     }
 
     /**

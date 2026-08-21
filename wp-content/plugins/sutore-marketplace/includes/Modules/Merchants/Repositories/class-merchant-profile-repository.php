@@ -7,6 +7,7 @@ namespace SutoreMarketplace\Modules\Merchants\Repositories;
 use SutoreMarketplace\Modules\Merchants\Support\MerchantMeta;
 use SutoreMarketplace\Shared\Database\Schema;
 use SutoreMarketplace\Shared\Domain\MerchantLevels;
+use SutoreMarketplace\Shared\Security\SecretBox;
 
 final class MerchantProfileRepository
 {
@@ -65,8 +66,12 @@ final class MerchantProfileRepository
             'user_id' => $userId,
             'account_name' => (string) ($profile[MerchantMeta::ACCOUNT_NAME] ?? $existing['account_name'] ?? ''),
             'account_lastname' => (string) ($profile[MerchantMeta::ACCOUNT_LASTNAME] ?? $existing['account_lastname'] ?? ''),
-            'account_iban' => (string) ($profile[MerchantMeta::ACCOUNT_IBAN] ?? $existing['account_iban'] ?? ''),
-            'account_tckno' => (string) ($profile[MerchantMeta::ACCOUNT_TCKNO] ?? $existing['account_tckno'] ?? ''),
+            'account_iban' => $this->sealSecretField(
+                (string) ($profile[MerchantMeta::ACCOUNT_IBAN] ?? $existing['account_iban'] ?? '')
+            ),
+            'account_tckno' => $this->sealSecretField(
+                (string) ($profile[MerchantMeta::ACCOUNT_TCKNO] ?? $existing['account_tckno'] ?? '')
+            ),
             'account_birth_year' => (string) ($profile[MerchantMeta::ACCOUNT_BIRTH_YEAR] ?? $existing['account_birth_year'] ?? ''),
             'account_email' => (string) ($profile[MerchantMeta::ACCOUNT_EMAIL] ?? $existing['account_email'] ?? ''),
             'account_phone' => (string) ($profile[MerchantMeta::ACCOUNT_PHONE] ?? $existing['account_phone'] ?? ''),
@@ -281,6 +286,32 @@ final class MerchantProfileRepository
             $out[(string) $key] = is_scalar($value) || $value === null ? (string) $value : '';
         }
 
+        foreach ([MerchantMeta::ACCOUNT_IBAN, MerchantMeta::ACCOUNT_TCKNO] as $secretKey) {
+            $raw = (string) ($out[$secretKey] ?? '');
+            if ($raw === '') {
+                continue;
+            }
+            if (SecretBox::isSealed($raw)) {
+                $out[$secretKey] = SecretBox::open($raw);
+                continue;
+            }
+            // One-shot seal of legacy plaintext on next write path; open as-is for reads.
+            $out[$secretKey] = $raw;
+        }
+
         return $out;
+    }
+
+    private function sealSecretField(string $plain): string
+    {
+        $plain = trim($plain);
+        if ($plain === '') {
+            return '';
+        }
+        if (SecretBox::isSealed($plain)) {
+            return $plain;
+        }
+
+        return SecretBox::seal($plain);
     }
 }

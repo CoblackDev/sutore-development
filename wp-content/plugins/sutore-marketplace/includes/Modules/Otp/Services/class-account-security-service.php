@@ -25,7 +25,8 @@ final class AccountSecurityService
         $otp = (new OtpService())->verifyAndConsume(
             $userId,
             OtpPurpose::ACCOUNT_DETAILS,
-            (string) ($input['otp_code'] ?? '')
+            (string) ($input['otp_code'] ?? ''),
+            $input
         );
         if ($otp instanceof \WP_Error) {
             return $otp;
@@ -77,7 +78,8 @@ final class AccountSecurityService
         $otp = (new OtpService())->verifyAndConsume(
             $userId,
             OtpPurpose::PASSWORD_CHANGE,
-            (string) ($input['otp_code'] ?? '')
+            (string) ($input['otp_code'] ?? ''),
+            $input
         );
         if ($otp instanceof \WP_Error) {
             return $otp;
@@ -111,7 +113,8 @@ final class AccountSecurityService
         $otp = (new OtpService())->verifyAndConsume(
             $userId,
             OtpPurpose::ACCOUNT_DELETE,
-            (string) ($input['otp_code'] ?? '')
+            (string) ($input['otp_code'] ?? ''),
+            $input
         );
         if ($otp instanceof \WP_Error) {
             return $otp;

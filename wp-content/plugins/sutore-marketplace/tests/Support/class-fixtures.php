@@ -29,9 +29,7 @@ final class Fixtures
 
     public static function ensureMerchantRole(): void
     {
-        if (get_role('merchant') === null) {
-            add_role('merchant', 'Merchant', ['read' => true]);
-        }
+        \SutoreMarketplace\Modules\Listings\Domain\ListingCapabilities::reconcileMerchantRole();
     }
 
     public static function adminId(): int

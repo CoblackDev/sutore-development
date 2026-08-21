@@ -49,7 +49,7 @@ tools/                Seed, i18n (`sync_po.py`, `audit_i18n.py`)
 languages/            .po / .mo
 ```
 
-`Plugin::boot()` modülleri ve paylaşılan hook’ları kaydeder; şema sürümü gerideyse `Schema::install()` çalışır (`Schema::VERSION` = 48).
+`Plugin::boot()` modülleri ve paylaşılan hook’ları kaydeder; şema sürümü gerideyse `Schema::install()` çalışır (`Schema::VERSION` = 101, temiz production baseline).
 
 ---
 

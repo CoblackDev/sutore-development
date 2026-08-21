@@ -216,24 +216,48 @@
     }
 
     var spec = route(data || {});
-    var url = cfg.restUrl + spec.path;
-    var ajaxOpts = {
-      url: url,
-      method: spec.method,
-      dataType: 'json',
-      headers: { 'X-WP-Nonce': cfg.restNonce || '' }
-    };
+    return cfg.request(spec.method, spec.path, {
+      query: spec.query,
+      body: spec.body
+    });
+  };
 
-    if (spec.method === 'GET') {
-      if (spec.query) {
-        ajaxOpts.data = spec.query;
-      }
-    } else if (spec.body) {
-      ajaxOpts.contentType = 'application/json';
-      ajaxOpts.data = JSON.stringify(spec.body);
+  /**
+   * Single REST helper (UI-01). Prefer this over ad-hoc fetch/$.ajax.
+   * @param {string} method
+   * @param {string} path relative to restUrl (no leading slash required)
+   * @param {{query?: object, body?: object, headers?: object, restUrl?: string, restNonce?: string}} opts
+   * @returns {JQuery.Promise}
+   */
+  cfg.request = function (method, path, opts) {
+    opts = opts || {};
+    var d = $.Deferred();
+    var restUrl = opts.restUrl || cfg.restUrl;
+    var restNonce = opts.restNonce || cfg.restNonce;
+    if (!restUrl) {
+      d.resolve({ success: false, data: { message: cfg.t('restRouteMissing', 'REST route missing') } });
+      return d.promise();
     }
 
-    var d = $.Deferred();
+    var url = restUrl + String(path || '').replace(/^\//, '');
+    var ajaxOpts = {
+      url: url,
+      method: String(method || 'GET').toUpperCase(),
+      dataType: 'json',
+      headers: Object.assign({ 'X-WP-Nonce': restNonce || '' }, opts.headers || {})
+    };
+
+    if (ajaxOpts.method === 'GET') {
+      if (opts.query) {
+        ajaxOpts.data = opts.query;
+      }
+    } else if (opts.body !== undefined) {
+      ajaxOpts.contentType = 'application/json';
+      ajaxOpts.data = typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body || {});
+    } else if (opts.query) {
+      ajaxOpts.data = opts.query;
+    }
+
     var req = $.ajax(ajaxOpts);
     req.done(function (res) {
       d.resolve(normalizeResponse(res));

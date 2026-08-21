@@ -8,6 +8,7 @@ use SutoreMarketplace\Shared\Database\Schema;
 use SutoreMarketplace\Modules\Orders\Settings\Settings;
 use SutoreMarketplace\Modules\Orders\Domain\StaffQueueFilter;
 use SutoreMarketplace\Modules\Listings\Domain\ListingStatus;
+use SutoreMarketplace\Modules\Listings\Domain\TransitionResult;
 use SutoreMarketplace\Modules\Listings\Repositories\ListingRepository;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutStatus;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule;
@@ -202,6 +203,38 @@ final class FulfillmentRepository
         $data['updated_at'] = current_time('mysql');
 
         return false !== $wpdb->update($this->table(), $data, ['variation_id' => $id]);
+    }
+
+    /**
+     * Atomically apply $data only while listing_status (fulfillment_status) is $expectedStatus.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function updateIfStatus(int $id, string $expectedStatus, array $data): bool
+    {
+        return $this->transition($id, $expectedStatus, $data)->isChanged();
+    }
+
+    /**
+     * @param list<string>|string $expectedStatus
+     * @param array<string, mixed> $data
+     */
+    public function transition(
+        int $id,
+        array|string $expectedStatus,
+        array $data,
+        string $operationId = ''
+    ): TransitionResult {
+        if ($id <= 0) {
+            return TransitionResult::conflict($operationId !== '' ? $operationId : 'invalid');
+        }
+
+        if (array_key_exists('fulfillment_status', $data)) {
+            $data['listing_status'] = (string) $data['fulfillment_status'];
+            unset($data['fulfillment_status']);
+        }
+
+        return (new ListingRepository())->transition($id, $expectedStatus, $data, $operationId);
     }
 
     /** @return array{items: object[], total: int} */

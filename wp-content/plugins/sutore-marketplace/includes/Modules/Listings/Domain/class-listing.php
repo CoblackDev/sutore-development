@@ -48,6 +48,7 @@ final class Listing
         public readonly ?string $notes = null,
         public readonly ?float $commissionPercent = null,
         public readonly ?float $saleCommissionPercent = null,
+        public readonly ?string $lastOperationId = null,
     ) {
     }
 
@@ -103,6 +104,9 @@ final class Listing
             notes: isset($row->notes) && $row->notes !== null ? (string) $row->notes : null,
             commissionPercent: self::optionalDecimal($row->commission_percent ?? null),
             saleCommissionPercent: self::optionalDecimal($row->sale_commission_percent ?? null),
+            lastOperationId: isset($row->last_operation_id) && $row->last_operation_id !== null && $row->last_operation_id !== ''
+                ? (string) $row->last_operation_id
+                : null,
         );
     }
 
@@ -156,6 +160,7 @@ final class Listing
             'return_window_ends_at' => $this->returnWindowEndsAt,
             'commission_percent' => $this->commissionPercent,
             'sale_commission_percent' => $this->saleCommissionPercent,
+            'last_operation_id' => $this->lastOperationId,
             'created_at' => $this->createdAt,
             'updated_at' => $this->updatedAt,
         ];

@@ -21,8 +21,6 @@ final class CampaignsPage
             return;
         }
 
-        (new CampaignService())->runExpiryPass(50);
-
         AdminAssets::enqueueCampaigns();
 
         $items = (new CampaignRepository())->all();

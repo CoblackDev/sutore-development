@@ -24,14 +24,7 @@ final class ListingPolicy
             return new \WP_Error('sutore_marketplace_auth', __('You must log in.', 'sutore-marketplace'));
         }
 
-        $roles = (array) $user->roles;
-        foreach (self::ALLOWED_ROLES as $role) {
-            if (in_array($role, $roles, true)) {
-                return true;
-            }
-        }
-
-        if (user_can($userId, 'manage_woocommerce')) {
+        if (ListingCapabilities::userCanManageOwn($userId)) {
             return true;
         }
 
@@ -48,7 +41,7 @@ final class ListingPolicy
             return true;
         }
 
-        if (user_can($userId, 'manage_woocommerce') || user_can($userId, 'edit_others_products')) {
+        if (user_can($userId, 'manage_woocommerce')) {
             return true;
         }
 

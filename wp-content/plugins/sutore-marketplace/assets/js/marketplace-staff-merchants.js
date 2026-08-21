@@ -47,6 +47,15 @@
   }
 
   function ajax(method, path, data) {
+    var core = window.SutoreMarketplace;
+    if (core && typeof core.request === 'function') {
+      return core.request(method, path, {
+        query: method === 'GET' ? data || {} : undefined,
+        body: method !== 'GET' ? data || {} : undefined,
+        restUrl: cfg.restUrl,
+        restNonce: cfg.restNonce
+      });
+    }
     var opts = {
       url: (cfg.restUrl || '') + path,
       method: method,

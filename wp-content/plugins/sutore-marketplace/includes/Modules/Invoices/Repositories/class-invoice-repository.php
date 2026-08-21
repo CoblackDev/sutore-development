@@ -190,11 +190,15 @@ final class InvoiceRepository
     {
         global $wpdb;
         $now = current_time('mysql');
+        $stale = wp_date('Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS);
         $updated = $wpdb->query($wpdb->prepare(
             "UPDATE {$this->table()}
              SET status = %s, updated_at = %s
              WHERE id = %d
-               AND status IN (%s, %s, %s, %s, %s)",
+               AND (
+                    status IN (%s, %s, %s, %s)
+                    OR (status = %s AND updated_at <= %s)
+               )",
             InvoiceStatus::PROCESSING,
             $now,
             $id,
@@ -202,7 +206,8 @@ final class InvoiceRepository
             InvoiceStatus::WAITING_JOB,
             InvoiceStatus::WAITING_PDF,
             InvoiceStatus::ERROR,
-            InvoiceStatus::PROCESSING
+            InvoiceStatus::PROCESSING,
+            $stale
         ));
 
         return (int) $updated === 1;

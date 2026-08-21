@@ -59,12 +59,22 @@ final class OtpService
             'expires_at' => $expiresAt,
             'purpose' => $purpose,
             'phone' => $phone,
+            'payload_fp' => self::payloadFingerprint($purpose, $payload),
         ], $ttl);
         $this->clearAttempts($userId);
         $this->bumpRequestCount($userId);
         $this->bumpPhoneCount($phone);
 
-        OtpSmsGateway::send($phone, OtpSettings::smsMessage($code));
+        $sent = OtpSmsGateway::send($phone, OtpSettings::smsMessage($code));
+        if (!$sent) {
+            $this->clearSession($userId);
+
+            return new \WP_Error(
+                'sutore_otp_sms_failed',
+                __('Verification code could not be sent. Please try again.', 'sutore-marketplace'),
+                ['status' => 502]
+            );
+        }
 
         $response = [
             'purpose' => $purpose,
@@ -83,7 +93,10 @@ final class OtpService
         return $response;
     }
 
-    public function verifyAndConsume(int $userId, string $purpose, string $code): true|\WP_Error
+    /**
+     * @param array<string, mixed> $payload Must match the payload used when the code was requested.
+     */
+    public function verifyAndConsume(int $userId, string $purpose, string $code, array $payload = []): true|\WP_Error
     {
         if (!OtpSettings::isEnabled()) {
             if (wp_get_environment_type() === 'production') {
@@ -121,6 +134,14 @@ final class OtpService
             ));
         }
 
+        $expectedFp = (string) ($session['payload_fp'] ?? '');
+        if ($expectedFp !== '' && !hash_equals($expectedFp, self::payloadFingerprint($purpose, $payload))) {
+            return $this->failAttempt($userId, new \WP_Error(
+                'sutore_otp_payload_mismatch',
+                __('Verification session expired. Please request a new code.', 'sutore-marketplace')
+            ));
+        }
+
         $expiresAt = (int) ($session['expires_at'] ?? 0);
         if ($expiresAt <= 0 || time() >= $expiresAt) {
             return $this->failAttempt($userId, new \WP_Error(
@@ -140,6 +161,40 @@ final class OtpService
         $this->clearSession($userId);
 
         return true;
+    }
+
+    /**
+     * Canonical fingerprint of the sensitive fields covered by this OTP challenge.
+     *
+     * @param array<string, mixed> $payload
+     */
+    public static function payloadFingerprint(string $purpose, array $payload): string
+    {
+        $parts = match ($purpose) {
+            OtpPurpose::ACCOUNT_DETAILS => [
+                sanitize_text_field((string) ($payload['user_name'] ?? $payload['first_name'] ?? '')),
+                sanitize_text_field((string) ($payload['user_lastname'] ?? $payload['last_name'] ?? '')),
+                strtolower(sanitize_email((string) ($payload['user_email'] ?? $payload['email'] ?? ''))),
+                OtpPhoneResolver::normalize((string) ($payload['user_phone'] ?? $payload['phone'] ?? '')),
+                !empty($payload['marketing_consent']) ? '1' : '0',
+            ],
+            OtpPurpose::MERCHANT_PROFILE => [
+                sanitize_text_field((string) ($payload['account_name'] ?? $payload['first_name'] ?? '')),
+                sanitize_text_field((string) ($payload['account_lastname'] ?? $payload['last_name'] ?? '')),
+                OtpPhoneResolver::normalize((string) ($payload['account_phone'] ?? $payload['phone'] ?? '')),
+                preg_replace('/\D/', '', (string) ($payload['account_tckno'] ?? $payload['tckno'] ?? '')) ?? '',
+                sanitize_text_field((string) ($payload['account_iban'] ?? $payload['iban'] ?? '')),
+                sanitize_text_field((string) ($payload['account_birth_year'] ?? $payload['birth_year'] ?? '')),
+            ],
+            OtpPurpose::PASSWORD_CHANGE => [
+                'password_change',
+                hash('sha256', (string) ($payload['new_password'] ?? '')),
+            ],
+            OtpPurpose::ACCOUNT_DELETE => ['account_delete'],
+            default => [$purpose],
+        };
+
+        return hash_hmac('sha256', $purpose . '|' . implode('|', $parts), wp_salt('auth'));
     }
 
     /** @param array<string, mixed> $payload */

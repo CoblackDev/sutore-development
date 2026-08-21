@@ -10,7 +10,7 @@ final class AdminAssets
 
     public static function enqueue(): void
     {
-        if (!current_user_can(AdminMenu::CAP)) {
+        if (!StaffCapabilities::canManageOps()) {
             return;
         }
 
@@ -23,7 +23,7 @@ final class AdminAssets
         wp_enqueue_script(
             self::SCRIPT,
             SUTORE_MARKETPLACE_URL . 'assets/js/marketplace-admin.js',
-            [],
+            ['jquery', 'sutore-marketplace-core'],
             SUTORE_MARKETPLACE_VERSION,
             true
         );
@@ -51,7 +51,7 @@ final class AdminAssets
         wp_enqueue_script(
             'sutore-marketplace-campaigns-admin',
             SUTORE_MARKETPLACE_URL . 'assets/js/marketplace-campaigns-admin.js',
-            [self::SCRIPT],
+            [self::SCRIPT, 'jquery', 'sutore-marketplace-core'],
             SUTORE_MARKETPLACE_VERSION,
             true
         );

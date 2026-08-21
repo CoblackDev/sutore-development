@@ -21,20 +21,28 @@ final class PaymentHandler
 
     public function onPaymentComplete(int $orderId): void
     {
-        $this->startMarketplaceSale($orderId);
+        $this->startMarketplaceSale($orderId, true);
     }
 
     /**
-     * Gateways like COD / BACS move the order to processing/on-hold without
-     * calling woocommerce_payment_complete. Those paths must still reserve the
-     * sold listing and advance the sale queue.
+     * COD / similar gateways move to processing without payment_complete.
+     * Treat processing as paid claim (same as payment_complete).
      */
     public function onOrderConfirmed(int $orderId): void
     {
-        $this->startMarketplaceSale($orderId);
+        $this->startMarketplaceSale($orderId, true);
     }
 
-    private function startMarketplaceSale(int $orderId): void
+    /**
+     * BACS / cheque style on-hold: reserve the listing (payment status) without
+     * treating funds as received. Later payment_complete / processing advances to sold.
+     */
+    public function onOrderOnHold(int $orderId): void
+    {
+        $this->startMarketplaceSale($orderId, false);
+    }
+
+    private function startMarketplaceSale(int $orderId, bool $fundsReceived): void
     {
         if (isset(self::$startedInRequest[$orderId])) {
             return;
@@ -51,11 +59,16 @@ final class PaymentHandler
 
         self::$startedInRequest[$orderId] = true;
 
-        Notifications::sendEvent(
-            'payment_received_customer',
-            (string) $order->get_billing_phone(),
-            Notifications::baseVars($order, __('Your order', 'sutore-marketplace'))
-        );
+        if ($fundsReceived) {
+            Notifications::sendEvent(
+                'payment_received_customer',
+                (string) $order->get_billing_phone(),
+                Notifications::baseVars($order, __('Your order', 'sutore-marketplace'))
+            );
+        }
+
+        $hadMarketplace = false;
+        $failed = false;
 
         foreach ($order->get_items() as $itemId => $item) {
             $variationId = (int) $item->get_variation_id();
@@ -67,11 +80,26 @@ final class PaymentHandler
                 continue;
             }
 
-            $this->fulfillment->onPaymentComplete($listing, $orderId, (int) $itemId);
+            $hadMarketplace = true;
+            $result = $fundsReceived
+                ? $this->fulfillment->onPaymentComplete($listing, $orderId, (int) $itemId)
+                : $this->fulfillment->onPaymentReserved($listing, $orderId, (int) $itemId);
+
+            if (is_wp_error($result)) {
+                $failed = true;
+                $order->add_order_note(sprintf(
+                    /* translators: 1: variation id, 2: error message */
+                    __('Marketplace claim failed for product #%1$d: %2$s', 'sutore-marketplace'),
+                    (int) $listing->variationId,
+                    $result->get_error_message()
+                ));
+            }
         }
 
-        $order->update_meta_data(self::META_SALE_STARTED, 'yes');
-        $order->save();
+        if ($hadMarketplace && !$failed) {
+            $order->update_meta_data(self::META_SALE_STARTED, 'yes');
+            $order->save();
+        }
     }
 
     public function onPrePayment(int $orderId): void

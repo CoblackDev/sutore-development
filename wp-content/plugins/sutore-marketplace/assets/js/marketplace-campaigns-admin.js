@@ -81,6 +81,37 @@
     }
   }
 
+  function adminRequest(method, path, body) {
+    var core = window.SutoreMarketplace;
+    if (core && typeof core.request === 'function') {
+      return Promise.resolve(
+        core.request(method, path, {
+          body: body,
+          restUrl: cfg.restUrl,
+          restNonce: cfg.restNonce
+        })
+      ).then(function (json) {
+        if (!json || json.success !== true) {
+          throw new Error((json && json.message) || (json && json.data && json.data.message) || (i18n.error || 'Error'));
+        }
+        return json.data || {};
+      });
+    }
+    return fetch((cfg.restUrl || '') + path.replace(/^\//, ''), {
+      method: method || 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.restNonce || '' },
+      body: JSON.stringify(body || {})
+    }).then(function (res) {
+      return res.json().then(function (json) {
+        if (!res.ok || !json || json.success !== true) {
+          throw new Error((json && json.message) || (i18n.error || 'Error'));
+        }
+        return json.data || {};
+      });
+    });
+  }
+
   function refreshPreview() {
     if (!previewOut) {
       return;
@@ -90,23 +121,12 @@
     if (samplesOut) {
       samplesOut.innerHTML = '';
     }
-    fetch((cfg.restUrl || '') + 'admin/campaigns/preview', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.restNonce || '' },
-      body: JSON.stringify({ targeting: collectTargeting(form) })
-    }).then(function (res) {
-      return res.json().then(function (json) {
-        if (!res.ok || !json || json.success !== true) {
-          throw new Error((json && json.message) || (i18n.error || 'Error'));
-        }
-        if (seq !== requestSeq) {
-          return;
-        }
-        var data = json.data || {};
-        previewOut.textContent = formatPreview(data);
-        renderSamples(data);
-      });
+    adminRequest('POST', 'admin/campaigns/preview', { targeting: collectTargeting(form) }).then(function (data) {
+      if (seq !== requestSeq) {
+        return;
+      }
+      previewOut.textContent = formatPreview(data);
+      renderSamples(data);
     }).catch(function (err) {
       if (seq !== requestSeq) {
         return;
@@ -165,18 +185,8 @@
       notes: form.notes.value,
       targeting: collectTargeting(form)
     };
-    fetch((cfg.restUrl || '') + 'admin/campaigns', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.restNonce || '' },
-      body: JSON.stringify(body)
-    }).then(function (res) {
-      return res.json().then(function (json) {
-        if (!res.ok || !json || json.success !== true) {
-          throw new Error((json && json.message) || 'Error');
-        }
-        window.location.reload();
-      });
+    adminRequest('POST', 'admin/campaigns', body).then(function () {
+      window.location.reload();
     }).catch(function (err) {
       window.alert(err.message || 'Error');
     });

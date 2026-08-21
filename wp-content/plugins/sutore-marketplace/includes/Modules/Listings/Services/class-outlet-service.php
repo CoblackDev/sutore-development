@@ -155,6 +155,15 @@ final class OutletService
             return new \WP_Error('sutore_outlet_ended', __('Outlet window has already ended.', 'sutore-marketplace'));
         }
 
+        // openWindow CAS expects SCHEDULED → ACTIVE (cron + concurrent publish).
+        if ($window->status === OutletWindowStatus::DRAFT) {
+            $this->windows->update($windowId, ['status' => OutletWindowStatus::SCHEDULED]);
+            $window = $this->windows->find($windowId);
+            if (!$window) {
+                return new \WP_Error('sutore_outlet_missing', __('Outlet window not found.', 'sutore-marketplace'));
+            }
+        }
+
         if (CampaignDatetime::isPast($window->startsAt) || CampaignDatetime::toTimestamp($window->startsAt) <= time()) {
             $opened = $this->openWindow($window);
             if (is_wp_error($opened)) {
@@ -163,8 +172,6 @@ final class OutletService
 
             return true;
         }
-
-        $this->windows->update($windowId, ['status' => OutletWindowStatus::SCHEDULED]);
 
         return true;
     }
@@ -337,7 +344,17 @@ final class OutletService
      */
     private function openWindow(OutletWindow $window): true|\WP_Error
     {
-        $this->windows->update($window->id, ['status' => OutletWindowStatus::ACTIVE]);
+        $opened = $this->windows->updateIfStatus($window->id, OutletWindowStatus::SCHEDULED, [
+            'status' => OutletWindowStatus::ACTIVE,
+        ]);
+        if (!$opened) {
+            // Another worker already opened — still try pending materialization.
+            $fresh = $this->windows->find($window->id);
+            if (!$fresh || $fresh->status !== OutletWindowStatus::ACTIVE) {
+                return true;
+            }
+        }
+
         $items = $this->items->findByWindow($window->id);
         $itemIds = array_map(static fn (OutletItem $item): int => $item->id, $items);
         $itemMap = [];
@@ -383,7 +400,9 @@ final class OutletService
             $this->optins->update($optin->id, ['status' => OutletOptinStatus::EXPIRED]);
         }
 
-        $this->windows->update($window->id, ['status' => OutletWindowStatus::ENDED]);
+        $this->windows->updateIfStatus($window->id, OutletWindowStatus::ACTIVE, [
+            'status' => OutletWindowStatus::ENDED,
+        ]);
         Settings::bumpPricingRevision();
     }
 
@@ -417,10 +436,24 @@ final class OutletService
         }
 
         $variationId = (int) $created->variationId;
-        $this->optins->update($optin->id, [
+        $claimed = $this->optins->updateIfStatus($optin->id, OutletOptinStatus::PENDING, [
             'status' => OutletOptinStatus::LIVE,
             'variation_id' => $variationId,
         ]);
+        if (!$claimed) {
+            // Another worker won; remove orphan listing projection.
+            $this->listingService->expire($created);
+
+            $fresh = $this->optins->find($optin->id);
+            if ($fresh && $fresh->status === OutletOptinStatus::LIVE && $fresh->variationId) {
+                return ['created' => false, 'variation_id' => (int) $fresh->variationId];
+            }
+
+            return new \WP_Error(
+                'sutore_outlet_optin_conflict',
+                __('Outlet opt-in was already materialized.', 'sutore-marketplace')
+            );
+        }
 
         $this->events->log('outlet_listing_created', [
             'window_id' => $window->id,

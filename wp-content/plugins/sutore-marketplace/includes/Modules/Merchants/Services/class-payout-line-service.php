@@ -66,6 +66,12 @@ final class PayoutLineService
             'scheduled_payout_date' => $scheduled,
         ]);
 
+        if ($lineId <= 0) {
+            $race = $this->repo->findByVariationId($variationId);
+
+            return $race ? (int) $race->id : 0;
+        }
+
         (new NotificationService())->dispatch((int) $listing->merchantId, NotificationType::PAYOUT_PENDING, [
             'product' => $title,
             'net_amount' => $net,
@@ -165,12 +171,35 @@ final class PayoutLineService
             return new \WP_Error('sutore_payout_reversed', __('Payment cannot be marked for a cancelled sale.', 'sutore-marketplace'));
         }
 
-        $this->repo->update((int) $line->id, [
-            'payout_status' => PayoutStatus::PAID,
-            'paid_at' => current_time('mysql'),
-            'paid_by' => $adminUserId ?: get_current_user_id(),
-            'payment_ref' => sanitize_text_field($paymentRef),
-        ]);
+        global $wpdb;
+        $table = $this->repo->table();
+        $now = current_time('mysql');
+        $updated = $wpdb->update(
+            $table,
+            [
+                'payout_status' => PayoutStatus::PAID,
+                'paid_at' => $now,
+                'paid_by' => $adminUserId ?: get_current_user_id(),
+                'payment_ref' => sanitize_text_field($paymentRef),
+                'updated_at' => $now,
+            ],
+            [
+                'id' => (int) $line->id,
+                'payout_status' => (string) $line->payout_status,
+            ]
+        );
+
+        if (!is_int($updated) || $updated < 1) {
+            $fresh = $this->repo->findByVariationId($listingId);
+            if ($fresh && (string) $fresh->payout_status === PayoutStatus::PAID) {
+                return true;
+            }
+
+            return new \WP_Error(
+                'sutore_payout_conflict',
+                __('Payment status could not be updated.', 'sutore-marketplace')
+            );
+        }
 
         $listing = (new \SutoreMarketplace\Modules\Listings\Repositories\ListingRepository())->find($listingId);
         if ($listing) {

@@ -145,13 +145,7 @@ function seed_mysql_offset(int $seconds): string
 
 function ensure_merchant_role(): void
 {
-    if (!get_role('merchant')) {
-        add_role('merchant', 'Merchant', [
-            'read' => true,
-            'edit_products' => true,
-            'upload_files' => true,
-        ]);
-    }
+    \SutoreMarketplace\Modules\Listings\Domain\ListingCapabilities::reconcileMerchantRole();
 }
 
 /**

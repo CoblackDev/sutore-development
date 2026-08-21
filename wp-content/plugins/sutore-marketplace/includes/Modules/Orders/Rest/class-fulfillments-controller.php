@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace SutoreMarketplace\Modules\Orders\Rest;
 
-use SutoreMarketplace\Admin\AdminMenu;
 use SutoreMarketplace\Modules\Listings\Domain\ListingPolicy;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutStatus;
 use SutoreMarketplace\Modules\Merchants\Domain\PayoutSchedule;
@@ -106,7 +105,12 @@ final class FulfillmentsController
 
     public function canAccessStaff(): bool
     {
-        return is_user_logged_in() && current_user_can(AdminMenu::CAP);
+        return is_user_logged_in() && \SutoreMarketplace\Admin\StaffCapabilities::canManageOps();
+    }
+
+    public function canAccessPayouts(): bool
+    {
+        return is_user_logged_in() && \SutoreMarketplace\Admin\StaffCapabilities::canManagePayouts();
     }
 
     public function canAccessMerchantOrStaff(): bool
@@ -119,7 +123,7 @@ final class FulfillmentsController
         if (!is_user_logged_in()) {
             return false;
         }
-        if (current_user_can(AdminMenu::CAP)) {
+        if (\SutoreMarketplace\Admin\StaffCapabilities::canManageOps()) {
             return true;
         }
 
@@ -218,7 +222,7 @@ final class FulfillmentsController
             unset($args['status']);
         }
 
-        $isStaff = current_user_can(AdminMenu::CAP);
+        $isStaff = \SutoreMarketplace\Admin\StaffCapabilities::canManageOps();
         if (!$isStaff) {
             $args['merchant_id'] = get_current_user_id();
             unset($args['queue']);
@@ -228,6 +232,13 @@ final class FulfillmentsController
 
         $presenter = new StaffFulfillmentPresenter();
         if ($isStaff && sanitize_key((string) $req->get_param('export')) === 'csv') {
+            if (!\SutoreMarketplace\Admin\StaffCapabilities::canManagePayouts()) {
+                return RestResponse::fail(
+                    __('You do not have permission to export payouts.', 'sutore-marketplace'),
+                    403,
+                    'sutore_payout_forbidden'
+                );
+            }
             $export = (new PayoutExportService())->csv($args);
 
             return RestResponse::success($export);
@@ -244,7 +255,7 @@ final class FulfillmentsController
     {
         $id = (int) $req['id'];
 
-        if (current_user_can(AdminMenu::CAP)) {
+        if (\SutoreMarketplace\Admin\StaffCapabilities::canManageOps()) {
             $result = (new StaffFulfillmentPresenter())->presentDetail($id);
             if (is_wp_error($result)) {
                 return RestResponse::fromWpError($result);
@@ -298,6 +309,15 @@ final class FulfillmentsController
         $params = $req->get_json_params() ?: $req->get_params();
         $id = (int) $req['id'];
         $action = sanitize_key((string) ($params['workflow_action'] ?? ''));
+        if (in_array($action, ['mark_payout_paid', 'adjust_commission'], true)
+            && !\SutoreMarketplace\Admin\StaffCapabilities::canManagePayouts()
+        ) {
+            return RestResponse::fail(
+                __('You do not have permission for payout actions.', 'sutore-marketplace'),
+                403,
+                'sutore_payout_forbidden'
+            );
+        }
         $service = new FulfillmentService();
 
         $result = $service->runStaffWorkflowAction($id, $action, is_array($params) ? $params : []);
@@ -313,6 +333,15 @@ final class FulfillmentsController
     {
         $params = $req->get_json_params() ?: $req->get_params();
         $action = sanitize_key((string) ($params['workflow_action'] ?? ''));
+        if (in_array($action, ['mark_payout_paid', 'adjust_commission'], true)
+            && !\SutoreMarketplace\Admin\StaffCapabilities::canManagePayouts()
+        ) {
+            return RestResponse::fail(
+                __('You do not have permission for payout actions.', 'sutore-marketplace'),
+                403,
+                'sutore_payout_forbidden'
+            );
+        }
         $ids = $params['ids'] ?? [];
         if (!is_array($ids)) {
             $ids = [];

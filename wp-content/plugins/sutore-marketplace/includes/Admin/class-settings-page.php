@@ -38,7 +38,7 @@ final class SettingsPage
 
     {
 
-        if (!current_user_can(AdminMenu::CAP)) {
+        if (!StaffCapabilities::canManageSettings()) {
 
             return;
 
@@ -921,6 +921,10 @@ final class SettingsPage
             $mode = sanitize_key((string) ($_POST['tc_verification_mode'] ?? ''));
             $patch['tc_verification_mode'] = in_array($mode, ['', 'nvi', 'algorithm', 'manual'], true) ? $mode : '';
             $patch['tc_verification_nvi_endpoint'] = esc_url_raw((string) ($_POST['tc_verification_nvi_endpoint'] ?? ''));
+            $nviHost = strtolower((string) (wp_parse_url($patch['tc_verification_nvi_endpoint'], PHP_URL_HOST) ?? ''));
+            if ($patch['tc_verification_nvi_endpoint'] !== '' && $nviHost !== 'tckimlik.nvi.gov.tr') {
+                $patch['tc_verification_nvi_endpoint'] = 'https://tckimlik.nvi.gov.tr/Service/KPSPublic.asmx';
+            }
 
             $patch['youth_discount_enabled'] = !empty($_POST['youth_discount_enabled']);
             $patch['youth_discount_max_age'] = max(1, min(120, (int) ($_POST['youth_discount_max_age'] ?? 26)));

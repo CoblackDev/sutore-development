@@ -203,7 +203,7 @@ final class CustomerOfferCheckoutHooks
         wp_enqueue_script(
             'sutore-marketplace-pdp-offers',
             SUTORE_MARKETPLACE_URL . 'assets/js/marketplace-pdp-offers.js',
-            ['jquery'],
+            ['jquery', 'sutore-marketplace-core'],
             (string) (is_file(SUTORE_MARKETPLACE_PATH . 'assets/js/marketplace-pdp-offers.js')
                 ? (int) filemtime(SUTORE_MARKETPLACE_PATH . 'assets/js/marketplace-pdp-offers.js')
                 : SUTORE_MARKETPLACE_VERSION),
